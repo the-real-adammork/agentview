@@ -1,0 +1,1275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WORKFLOWKIT // OBSERVATORY — Engineering Handoff</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Shippori+Mincho:wght@500;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="styles.css">
+
+<style>
+  html, body { overflow: auto; }
+  body { padding-bottom: 60px; }
+
+  .doc {
+    position: relative;
+    z-index: 1;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 28px;
+  }
+
+  /* hero */
+  .hero {
+    display: grid;
+    grid-template-columns: 80px 1fr 240px;
+    gap: 24px;
+    align-items: end;
+    padding: 56px 0 28px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .hero .mark {
+    width: 76px; height: 76px;
+    background: var(--primary);
+    clip-path: polygon(0 0, 100% 0, 100% 70%, 70% 100%, 0 100%);
+    position: relative;
+  }
+  .hero .mark::after {
+    content: "WK"; position: absolute; inset: 0;
+    display: grid; place-items: center;
+    font-family: var(--display); font-weight: 800;
+    color: var(--bg-0); font-size: 32px;
+  }
+  .hero h1 {
+    margin: 0;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 64px;
+    line-height: 0.92;
+    color: var(--ink-strong);
+    letter-spacing: 0.02em;
+  }
+  .hero .sub {
+    margin-top: 8px;
+    font-size: 12px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .hero .meta {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-dim);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    line-height: 1.8;
+    text-align: right;
+  }
+  .hero .meta b { color: var(--ink-strong); font-weight: 700; }
+
+  /* TOC */
+  .toc {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    margin: 32px 0 56px;
+    border: 1px solid var(--rule);
+    background: var(--bg-1);
+  }
+  .toc a {
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    padding: 14px 18px;
+    border-right: 1px solid var(--rule-soft);
+    border-bottom: 1px solid var(--rule-soft);
+    color: var(--ink);
+    text-decoration: none;
+    font-family: var(--display);
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-size: 12px;
+    gap: 12px;
+    align-items: center;
+  }
+  .toc a:hover { background: rgba(255,107,26,0.08); color: var(--ink-strong); }
+  .toc a .n { color: var(--primary); font-family: var(--mono); font-size: 11px; letter-spacing: 0; }
+  .toc a:nth-child(3n) { border-right: 0; }
+
+  /* sections */
+  section.sec {
+    margin: 0 0 64px;
+    padding-top: 24px;
+    border-top: 1px solid var(--rule);
+    scroll-margin-top: 24px;
+  }
+  section.sec > header {
+    display: grid;
+    grid-template-columns: 88px 1fr auto;
+    align-items: end;
+    gap: 24px;
+    margin-bottom: 32px;
+  }
+  section.sec > header .n {
+    font-family: var(--display);
+    font-weight: 800;
+    font-size: 72px;
+    line-height: 0.9;
+    color: var(--primary);
+  }
+  section.sec > header h2 {
+    margin: 0;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 38px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--ink-strong);
+    line-height: 1;
+  }
+  section.sec > header .d {
+    margin-top: 8px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-dim);
+    max-width: 720px;
+    line-height: 1.6;
+  }
+  section.sec > header .tag {
+    font-family: var(--display);
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+  }
+
+  h3.block {
+    margin: 28px 0 12px;
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 20px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-strong);
+    border-bottom: 1px solid var(--rule-soft);
+    padding-bottom: 6px;
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  h3.block .reticle { transform: translateY(2px); }
+  h3.block .meta {
+    margin-left: auto;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-dim);
+    letter-spacing: 0.18em;
+  }
+
+  p { line-height: 1.65; color: var(--ink); font-size: 13px; max-width: 920px; }
+  p.lead { font-size: 14px; color: var(--ink-strong); }
+  p strong { color: var(--ink-strong); font-weight: 700; }
+
+  ul.bul { padding-left: 0; list-style: none; }
+  ul.bul li {
+    position: relative;
+    padding: 4px 0 4px 22px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--ink);
+    max-width: 900px;
+  }
+  ul.bul li::before {
+    content: "▸";
+    position: absolute;
+    left: 4px; top: 4px;
+    color: var(--primary);
+    font-size: 11px;
+  }
+
+  /* code */
+  pre.code, code.inline {
+    font-family: var(--mono);
+    background: var(--bg-2);
+    border: 1px solid var(--rule-soft);
+    color: var(--ink-strong);
+  }
+  pre.code {
+    padding: 14px 18px;
+    margin: 12px 0;
+    border-left: 2px solid var(--primary);
+    font-size: 12px;
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: pre;
+    max-width: 100%;
+  }
+  pre.code .c { color: var(--ink-dim); }
+  pre.code .k { color: var(--primary); }
+  pre.code .s { color: var(--cyan); }
+  pre.code .n { color: var(--amber); }
+  pre.code .v { color: var(--ink-strong); }
+  code.inline {
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 0;
+    color: var(--primary);
+    letter-spacing: 0.02em;
+  }
+
+  /* spec tables */
+  table.spec-tbl {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 12px 0 20px;
+    font-size: 12px;
+  }
+  table.spec-tbl th {
+    text-align: left;
+    background: var(--bg-2);
+    color: var(--ink-dim);
+    font-family: var(--display);
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-size: 10px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--rule);
+    border-right: 1px solid var(--rule-soft);
+  }
+  table.spec-tbl th:last-child { border-right: 0; }
+  table.spec-tbl td {
+    padding: 9px 12px;
+    border-bottom: 1px dashed var(--rule-soft);
+    border-right: 1px solid var(--rule-soft);
+    vertical-align: top;
+    color: var(--ink);
+  }
+  table.spec-tbl td:last-child { border-right: 0; }
+  table.spec-tbl td.tok { font-family: var(--mono); color: var(--primary); font-size: 11px; }
+  table.spec-tbl td.val { font-family: var(--mono); color: var(--ink-strong); font-size: 11px; }
+  table.spec-tbl td.muted { color: var(--ink-dim); }
+  table.spec-tbl td.tone-warn { color: var(--warn); }
+  table.spec-tbl tr:hover td { background: rgba(255,107,26,0.04); }
+
+  /* component spec block */
+  .comp {
+    border: 1px solid var(--rule);
+    background: var(--bg-1);
+    margin: 14px 0 24px;
+  }
+  .comp > header {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--rule);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: baseline;
+    gap: 14px;
+    background: linear-gradient(to bottom, rgba(255,107,26,0.06), transparent);
+  }
+  .comp > header .name {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-strong);
+  }
+  .comp > header .desc { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); }
+  .comp > header .id { font-family: var(--mono); font-size: 10px; color: var(--primary); letter-spacing: 0.04em; }
+  .comp .body { padding: 18px; }
+  .comp .body > * + * { margin-top: 14px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 22px; }
+
+  /* callout */
+  .callout {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 16px;
+    padding: 14px 18px;
+    border: 1px solid var(--rule);
+    background: var(--bg-2);
+    margin: 16px 0;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .callout .label {
+    font-family: var(--display);
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-size: 11px;
+    color: var(--primary);
+    padding-right: 18px;
+    border-right: 1px solid var(--rule);
+  }
+  .callout.warn { border-color: var(--warn); }
+  .callout.warn .label { color: var(--warn); border-right-color: var(--warn); }
+  .callout.good { border-color: rgba(108,240,153,0.4); }
+  .callout.good .label { color: var(--good); border-right-color: rgba(108,240,153,0.4); }
+
+  /* checklist */
+  ul.check { list-style: none; padding: 0; margin: 12px 0; }
+  ul.check li {
+    display: grid;
+    grid-template-columns: 22px 1fr;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px dashed var(--rule-soft);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  ul.check li::before {
+    content: "☐";
+    color: var(--primary);
+    font-size: 14px;
+    line-height: 1;
+  }
+  ul.check li.done::before { content: "▣"; color: var(--good); }
+  ul.check li b { color: var(--ink-strong); font-family: var(--display); letter-spacing: 0.06em; text-transform: uppercase; font-size: 11px; }
+
+  /* ascii diagram */
+  pre.ascii {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink);
+    background: var(--bg-2);
+    border: 1px solid var(--rule-soft);
+    border-left: 2px solid var(--cyan);
+    padding: 14px 16px;
+    line-height: 1.45;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  pre.ascii .h { color: var(--primary); font-weight: 700; }
+  pre.ascii .g { color: var(--good); }
+  pre.ascii .w { color: var(--warn); }
+  pre.ascii .d { color: var(--ink-dim); }
+
+  /* mapping / kv */
+  .kv {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    gap: 6px 14px;
+    margin: 10px 0;
+    font-size: 12px;
+  }
+  .kv .k { color: var(--ink-dim); font-family: var(--display); letter-spacing: 0.14em; text-transform: uppercase; font-size: 11px; }
+  .kv .v { color: var(--ink-strong); font-family: var(--mono); }
+
+  /* state pill row */
+  .state-row {
+    display: flex; gap: 10px; flex-wrap: wrap;
+    padding: 8px 0;
+  }
+
+  /* footer */
+  .doc-footer {
+    margin-top: 40px;
+    padding: 28px 0;
+    border-top: 1px solid var(--rule);
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 24px;
+    align-items: center;
+    font-family: var(--display);
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    font-size: 11px;
+    color: var(--ink-dim);
+  }
+  .doc-footer .center { color: var(--ink-strong); font-weight: 700; }
+
+  /* anchor links */
+  .anchor {
+    color: var(--primary);
+    text-decoration: none;
+    border-bottom: 1px dashed var(--primary);
+  }
+
+  /* signal legend */
+  .sig {
+    display: inline-grid;
+    grid-template-columns: 12px auto;
+    gap: 8px;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 12px;
+  }
+  .sig .dot { width: 8px; height: 8px; }
+</style>
+</head>
+<body>
+  <div class="plate"></div>
+  <div class="grid-bg"></div>
+
+  <div class="doc">
+
+    <!-- top strip -->
+    <div class="top-hazard" style="margin: 16px 0 0; border: 1px solid var(--rule);">
+      <div class="hazard" style="height: 18px; flex: 1;"></div>
+      <div class="center" style="display: flex; align-items: center; gap: 14px;">
+        <span style="font-size: 11px; color: var(--ink-dim); letter-spacing: 0.3em;">DOC:</span>
+        <span>ENGINEERING HANDOFF · 引渡書</span>
+        <span class="jp" style="font-size: 11px; color: var(--ink-dim);">仕様書 / 実装ガイド</span>
+      </div>
+      <div class="hazard" style="height: 18px; flex: 1;"></div>
+    </div>
+
+    <header class="hero">
+      <div class="mark"></div>
+      <div>
+        <h1>ENGINEERING<br>HANDOFF</h1>
+        <div class="sub">// Observatory Dashboard · v0.1 · Build &amp; Wiring Spec</div>
+      </div>
+      <div class="meta">
+        <div><b>VERSION</b> 2026.05.26</div>
+        <div><b>OWNER</b> design — adam</div>
+        <div><b>FOR</b> frontend · ingest team</div>
+        <div><b>SOURCE</b> Observatory.html<br>&nbsp;&nbsp;Component Library.html</div>
+        <div><b>STATUS</b> <span style="color: var(--good)">● READY</span></div>
+      </div>
+    </header>
+
+    <p class="lead" style="margin-top: 28px;">
+      This document maps every visual surface of the Observatory prototype to its CSS / React implementation,
+      describes the data each component expects, and gives an acceptance checklist for the v0.1 build.
+      Read in order — sections 01–03 establish the foundation, 04–05 cover components,
+      06 wires components to real Codex data, 07 is the build plan, 08 is the QA gate.
+    </p>
+
+    <!-- TOC -->
+    <nav class="toc" aria-label="Table of contents">
+      <a href="#sec-01"><span class="n">01</span>Overview &amp; Architecture</a>
+      <a href="#sec-02"><span class="n">02</span>Design Tokens</a>
+      <a href="#sec-03"><span class="n">03</span>Typography</a>
+      <a href="#sec-04"><span class="n">04</span>Atomic Components</a>
+      <a href="#sec-05"><span class="n">05</span>Composite Patterns</a>
+      <a href="#sec-06"><span class="n">06</span>Data Wiring</a>
+      <a href="#sec-07"><span class="n">07</span>Build Plan &amp; Ingest</a>
+      <a href="#sec-08"><span class="n">08</span>Acceptance / QA</a>
+      <a href="#sec-09"><span class="n">09</span>A11y, Perf, Privacy</a>
+    </nav>
+
+    <!-- =====================================================
+         01 — OVERVIEW
+         ===================================================== -->
+    <section class="sec" id="sec-01">
+      <header>
+        <div class="n">01</div>
+        <div>
+          <h2>Overview &amp; Architecture</h2>
+          <div class="d">What we built, how it's split, and the runtime model the production version should follow.</div>
+        </div>
+        <div class="tag">Read first</div>
+      </header>
+
+      <h3 class="block"><span class="reticle"><span class="reticle"></span></span> What this product is</h3>
+      <p>
+        Observatory is a <strong>read-only local dashboard</strong> for inspecting Codex agent sessions stored under
+        <code class="inline">~/.codex</code>. The prototype demonstrates five views over the data model defined in the
+        ingestion spec: Sessions, Timeline, Agent Graph, Tokens, Diagnostics.
+      </p>
+      <p>
+        The visual language is intentionally <strong>industrial-instrumentation</strong>: dense data, monospace
+        readouts, hazard-tape framing, and a single high-saturation accent. The goal is to make a long-running CLI
+        agent feel observable the way a control room is observable — not the way a SaaS dashboard is.
+      </p>
+
+      <h3 class="block"><span>▸</span> File layout</h3>
+<pre class="ascii">
+<span class="h">Observatory/</span>
+├── <span class="h">Observatory.html</span>            <span class="d">— host page, React + Babel bootstrap</span>
+├── <span class="h">Component Library.html</span>      <span class="d">— design catalog (no React)</span>
+├── <span class="h">Engineering Handoff.html</span>    <span class="d">— this document</span>
+├── <span class="h">styles.css</span>                  <span class="d">— single stylesheet, all tokens + components</span>
+├── <span class="h">mock.js</span>                     <span class="d">— synthetic data (replace with ingest layer)</span>
+├── <span class="h">ui.jsx</span>                      <span class="d">— shared atomic components (Bracket, Panel, etc)</span>
+├── <span class="h">app.jsx</span>                     <span class="d">— five views + app shell + Tweaks wiring</span>
+└── <span class="h">tweaks-panel.jsx</span>            <span class="d">— floating tweak controls (palette / scanlines)</span>
+</pre>
+
+      <div class="callout">
+        <div class="label">Production note</div>
+        <div>
+          The prototype is intentionally <strong>three files of JSX</strong> for direct-editability. For
+          production, port to TypeScript modules (e.g. Vite + React 18), but keep the CSS-variable architecture in
+          <code class="inline">styles.css</code> — it's the cheapest way to ship the four palette channels.
+        </div>
+      </div>
+
+      <h3 class="block"><span>▸</span> Runtime model</h3>
+<pre class="ascii">
+<span class="h">┌──────────────┐    ┌───────────────────┐    ┌──────────────┐</span>
+<span class="h">│  ~/.codex/   │ →  │  ingest worker    │ →  │  IPC bridge  │</span>
+<span class="h">│  · state_5   │    │  · index + parse  │    │  (Tauri /    │</span>
+<span class="h">│  · logs_2    │    │  · cache by mtime │    │   webview)   │</span>
+<span class="h">│  · sessions/ │    │  · stream tail    │    └──────┬───────┘</span>
+<span class="h">│  · tui.log   │    └───────────────────┘           │</span>
+<span class="h">└──────────────┘                                     ▼</span>
+<span class="h">                                              ┌──────────────┐</span>
+<span class="h">                                              │  React app   │</span>
+<span class="h">                                              │  · 5 views   │</span>
+<span class="h">                                              │  · live tail │</span>
+<span class="h">                                              └──────────────┘</span>
+</pre>
+      <ul class="bul">
+        <li><strong>Primary index</strong> · <code class="inline">state_5.threads</code>. Drives the session list with no JSONL parsing.</li>
+        <li><strong>Detail loads</strong> · rollout JSONL is parsed lazily when a session is opened, and cached by file mtime + size.</li>
+        <li><strong>Live tail</strong> · for active sessions, poll the rollout file incrementally by byte offset.</li>
+        <li><strong>Diagnostics</strong> · query <code class="inline">logs_2.logs</code> by <code class="inline">thread_id</code> on demand; never on the index render path.</li>
+      </ul>
+    </section>
+
+    <!-- =====================================================
+         02 — TOKENS
+         ===================================================== -->
+    <section class="sec" id="sec-02">
+      <header>
+        <div class="n">02</div>
+        <div>
+          <h2>Design Tokens</h2>
+          <div class="d">Every visual is a function of these CSS custom properties. Palette swap = one attribute change on <code class="inline">&lt;html&gt;</code>.</div>
+        </div>
+        <div class="tag">styles.css :root</div>
+      </header>
+
+      <h3 class="block"><span>▸</span> Color tokens <span class="meta">12 ink + 6 signal + 4 surface</span></h3>
+      <table class="spec-tbl">
+        <thead>
+          <tr><th style="width: 28%">Token</th><th style="width: 18%">Default</th><th style="width: 14%">Sample</th><th>Role / usage</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="tok">--primary</td><td class="val">#ff6b1a</td><td><div style="width: 60px; height: 14px; background: #ff6b1a;"></div></td><td>Brand accent. Active states, hazard tape, glow strokes.</td></tr>
+          <tr><td class="tok">--primary-bright</td><td class="val">#ff8a3d</td><td><div style="width: 60px; height: 14px; background: #ff8a3d;"></div></td><td>Hover, lifted readout numerals.</td></tr>
+          <tr><td class="tok">--warn</td><td class="val">#ff2d4d</td><td><div style="width: 60px; height: 14px; background: #ff2d4d;"></div></td><td>Failure, open agent edge, &gt;80% capacity bar, alert banner.</td></tr>
+          <tr><td class="tok">--amber</td><td class="val">#ffb800</td><td><div style="width: 60px; height: 14px; background: #ffb800;"></div></td><td>Tool calls, sub-agent classification chip.</td></tr>
+          <tr><td class="tok">--cyan</td><td class="val">#46d8ff</td><td><div style="width: 60px; height: 14px; background: #46d8ff;"></div></td><td>User messages, cached-input bars, "open in" link affordance.</td></tr>
+          <tr><td class="tok">--good</td><td class="val">#6cf099</td><td><div style="width: 60px; height: 14px; background: #6cf099;"></div></td><td>Closed edges, healthy status, task_complete event.</td></tr>
+          <tr><td class="tok">--bg-0</td><td class="val">#050403</td><td><div style="width: 60px; height: 14px; background: #050403; border: 1px solid var(--rule-soft);"></div></td><td>Page floor.</td></tr>
+          <tr><td class="tok">--bg-1</td><td class="val">#0a0807</td><td><div style="width: 60px; height: 14px; background: #0a0807; border: 1px solid var(--rule-soft);"></div></td><td>Panel surface, header, nav.</td></tr>
+          <tr><td class="tok">--bg-2</td><td class="val">#110c08</td><td><div style="width: 60px; height: 14px; background: #110c08; border: 1px solid var(--rule-soft);"></div></td><td>Inset surfaces (search, tool output, kbd row).</td></tr>
+          <tr><td class="tok">--ink-strong</td><td class="val">#ffd9ad</td><td><div style="width: 60px; height: 14px; background: #ffd9ad;"></div></td><td>Headlines, big numbers, primary cell text.</td></tr>
+          <tr><td class="tok">--ink</td><td class="val">#ffb070</td><td><div style="width: 60px; height: 14px; background: #ffb070;"></div></td><td>Body, table cells.</td></tr>
+          <tr><td class="tok">--ink-dim</td><td class="val">rgba 0.55</td><td><div style="width: 60px; height: 14px; background: rgba(255,176,112,0.55);"></div></td><td>Labels, secondary metadata, muted prose.</td></tr>
+          <tr><td class="tok">--ink-faint</td><td class="val">rgba 0.28</td><td><div style="width: 60px; height: 14px; background: rgba(255,176,112,0.28);"></div></td><td>Disabled, tertiary timestamps, axis ticks.</td></tr>
+          <tr><td class="tok">--rule</td><td class="val">rgba 0.35</td><td><div style="width: 60px; height: 14px; background: rgba(255,107,26,0.35);"></div></td><td>Standard divider, panel border.</td></tr>
+          <tr><td class="tok">--rule-soft</td><td class="val">rgba 0.16</td><td><div style="width: 60px; height: 14px; background: rgba(255,107,26,0.16);"></div></td><td>Dashed inner separators between table rows.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout warn">
+        <div class="label">Rule</div>
+        <div>
+          Never use a raw hex in component code. If a new color is needed, add it to <code class="inline">:root</code>
+          and to the three palette overrides (<code class="inline">[data-palette="amber"]</code>, <code class="inline">[data-palette="red"]</code>, <code class="inline">[data-palette="cyan"]</code>).
+          A token that isn't channel-aware will look wrong in three of the four palettes.
+        </div>
+      </div>
+
+      <h3 class="block"><span>▸</span> Spacing &amp; rhythm</h3>
+      <p>The system has no spacing scale token; spacing is expressed directly in pixels at the call site. This is intentional — panel framing rather than rhythmic columns is what creates structure. Standard values:</p>
+      <table class="spec-tbl">
+        <thead><tr><th>Context</th><th>Value</th><th>Where</th></tr></thead>
+        <tbody>
+          <tr><td>Panel padding</td><td class="val">14px</td><td>Inside <code class="inline">.panel</code> bodies.</td></tr>
+          <tr><td>Panel title row</td><td class="val">28px tall · 0 10px</td><td><code class="inline">.panel-tit</code></td></tr>
+          <tr><td>Table row</td><td class="val">8px 10px</td><td><code class="inline">.tbl tbody td</code></td></tr>
+          <tr><td>Event row gap</td><td class="val">14px between ts ↔ body</td><td><code class="inline">.ev</code> grid</td></tr>
+          <tr><td>Section gap (handoff/library)</td><td class="val">56–64px</td><td>doc layout only</td></tr>
+        </tbody>
+      </table>
+
+      <h3 class="block"><span>▸</span> Border &amp; radius</h3>
+      <p>All borders are <strong>1px solid</strong>. All corners are <strong>0px</strong>. The aesthetic is square — never round a corner.</p>
+
+      <h3 class="block"><span>▸</span> Motion</h3>
+      <table class="spec-tbl">
+        <thead><tr><th>Animation</th><th>Class</th><th>Spec</th><th>Use</th></tr></thead>
+        <tbody>
+          <tr><td>blink</td><td class="tok">.blink</td><td class="val">1s steps(1)</td><td>● LIVE status, REC watermark</td></tr>
+          <tr><td>pulse</td><td class="tok">.pulse</td><td class="val">1.4s ease-in-out</td><td>"awaiting" amber dots, pending sub-agents</td></tr>
+          <tr><td>ticker</td><td class="tok">.ticker</td><td class="val">90s linear infinite</td><td>Footer status bar marquee</td></tr>
+          <tr><td>row hover</td><td class="val">background 80ms</td><td>n/a</td><td>Session table</td></tr>
+        </tbody>
+      </table>
+      <p>Honor <code class="inline">prefers-reduced-motion</code> — disable blink, pulse, ticker. Hover transitions stay.</p>
+    </section>
+
+    <!-- =====================================================
+         03 — TYPOGRAPHY
+         ===================================================== -->
+    <section class="sec" id="sec-03">
+      <header>
+        <div class="n">03</div>
+        <div>
+          <h2>Typography</h2>
+          <div class="d">Three families with strict role boundaries. Display = chrome &amp; numbers. Mono = data &amp; copy. JP = decoration only.</div>
+        </div>
+        <div class="tag">3 families · 9 roles</div>
+      </header>
+
+      <table class="spec-tbl">
+        <thead>
+          <tr><th>Role</th><th>Family</th><th>Weight</th><th>Size / lh / tracking</th><th>Where it appears</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Hero</td><td class="val">Big Shoulders Display</td><td>700</td><td class="val">56 / 0.95 / 0.04em</td><td>Section openers in catalog/handoff</td></tr>
+          <tr><td>Title</td><td class="val">Big Shoulders Display</td><td>700</td><td class="val">32 / 1.0 / 0.04em</td><td>Session title, panel headings</td></tr>
+          <tr><td>Display number</td><td class="val">Big Shoulders + tnum</td><td>700</td><td class="val">32 / 1.0</td><td>Big readout numerals (tokens, %)</td></tr>
+          <tr><td>Chrome label</td><td class="val">Big Shoulders Display</td><td>600</td><td class="val">12 / 0.18em / UPPER</td><td>Nav buttons, <code class="inline">.panel-tit</code>, chips</td></tr>
+          <tr><td>Kicker</td><td class="val">Big Shoulders Display</td><td>600</td><td class="val">11 / 0.18em / UPPER / dim</td><td>Small section labels above values</td></tr>
+          <tr><td>Body mono</td><td class="val">JetBrains Mono</td><td>400</td><td class="val">13 / 1.5</td><td>Log lines, prompt text, tool args</td></tr>
+          <tr><td>Timestamp</td><td class="val">JetBrains Mono · tnum</td><td>500</td><td class="val">12 · tabular</td><td>All event ts, clock, scrubber</td></tr>
+          <tr><td>Caption</td><td class="val">JetBrains Mono</td><td>400</td><td class="val">11 / 1.4 / dim</td><td>Muted helper rows under cells</td></tr>
+          <tr><td>JP decoration</td><td class="val">Shippori Mincho</td><td>500</td><td class="val">11–18 / 0.1em</td><td>Top strip, watermark, doc subtitles only</td></tr>
+        </tbody>
+      </table>
+
+      <div class="callout">
+        <div class="label">Casing rule</div>
+        <div>
+          All chrome (nav, labels, panel titles, chips, status) is UPPERCASE with 0.18em tracking. Body copy and
+          tool output stay sentence case. Numbers always use tabular-nums (apply via <code class="inline">.num</code>).
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================
+         04 — ATOMIC COMPONENTS
+         ===================================================== -->
+    <section class="sec" id="sec-04">
+      <header>
+        <div class="n">04</div>
+        <div>
+          <h2>Atomic Components</h2>
+          <div class="d">The 14 reusable pieces. Each block lists CSS hook, React component (if any), props, states, and exact use sites.</div>
+        </div>
+        <div class="tag">14 atoms</div>
+      </header>
+
+      <!-- Panel -->
+      <div class="comp">
+        <header>
+          <div class="name">Panel</div>
+          <div class="desc">Container with titled header and dotted left indicator.</div>
+          <div class="id">ATOM/01</div>
+        </header>
+        <div class="body">
+          <div class="kv">
+            <div class="k">CSS</div><div class="v">.panel · .panel-tit · .panel-tit .dot · .panel-tit .meta</div>
+            <div class="k">React</div><div class="v">&lt;Panel title meta right&gt;…&lt;/Panel&gt;  (ui.jsx)</div>
+            <div class="k">Props</div><div class="v">title: string · meta?: string · right?: ReactNode</div>
+            <div class="k">States</div><div class="v">default only. No hover.</div>
+            <div class="k">Surfaces</div><div class="v">Timeline right rail, Tokens cells, Graph inspector, Catalog stat blocks</div>
+          </div>
+<pre class="code"><span class="c">// usage</span>
+&lt;<span class="k">Panel</span> <span class="n">title</span>=<span class="s">"Turn 01 · Vitals"</span> <span class="n">meta</span>=<span class="s">"live"</span>&gt;
+  &lt;<span class="k">div</span> <span class="n">style</span>=<span class="s">{{ padding: 14 }}</span>&gt;…&lt;/<span class="k">div</span>&gt;
+&lt;/<span class="k">Panel</span>&gt;</pre>
+          <p>Always titled. Title row is <strong>28px tall</strong>, UPPERCASE 11px / 0.16em tracking, with a 6×6 primary dot at left. Optional <code class="inline">.meta</code> sits inline-dimmed. Optional right-aligned slot for chips or actions.</p>
+        </div>
+      </div>
+
+      <!-- Bracket -->
+      <div class="comp">
+        <header>
+          <div class="name">Bracket / Corner ticks</div>
+          <div class="desc">Four 12×12 corner ticks framing a child block.</div>
+          <div class="id">ATOM/02</div>
+        </header>
+        <div class="body">
+          <div class="kv">
+            <div class="k">CSS</div><div class="v">.bracket · .bracket > .br-tr · .bracket > .br-br</div>
+            <div class="k">React</div><div class="v">&lt;Bracket&gt;…&lt;br-tr/&gt;&lt;br-br/&gt;&lt;/Bracket&gt;</div>
+            <div class="k">Surfaces</div><div class="v">Readout cards, selected nav highlight, focus rings (use sparingly)</div>
+          </div>
+          <p>Decorative — purely visual. Renders via two <code class="inline">::before/::after</code> pseudo-elements plus two empty spans for the bottom-right and top-right corners.</p>
+        </div>
+      </div>
+
+      <!-- Hazard tape -->
+      <div class="comp">
+        <header>
+          <div class="name">Hazard tape</div>
+          <div class="desc">−45° repeating stripe; primary orange or warn red.</div>
+          <div class="id">ATOM/03</div>
+        </header>
+        <div class="body">
+          <div class="kv">
+            <div class="k">CSS</div><div class="v">.hazard · .hazard-thin · .hazard-warn</div>
+            <div class="k">Stripe pitch</div><div class="v">14px (default), 8px (.thin)</div>
+            <div class="k">Surfaces</div><div class="v">Top hazard strip, HazardTag, status separators</div>
+          </div>
+          <p>Always horizontal strip. Don't wrap text on it. Don't use as a button background.</p>
+        </div>
+      </div>
+
+      <!-- Reticle -->
+      <div class="comp">
+        <header>
+          <div class="name">Reticle / Crosshair</div>
+          <div class="desc">A primary-color cross with no chrome. Scalable.</div>
+          <div class="id">ATOM/04</div>
+        </header>
+        <div class="body">
+          <div class="kv">
+            <div class="k">CSS</div><div class="v">.reticle  (default 14×14, override via inline width/height)</div>
+            <div class="k">Surfaces</div><div class="v">Inline before live values, scrubber header, agent graph axis</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Chip -->
+      <div class="comp">
+        <header>
+          <div class="name">Chip</div>
+          <div class="desc">2px-bordered, 10px, square-cornered inline pill.</div>
+          <div class="id">ATOM/05</div>
+        </header>
+        <div class="body">
+          <div class="kv">
+            <div class="k">CSS</div><div class="v">.chip · variants: .warn .good .amber .cyan .dim .solid .solid-warn .bare</div>
+            <div class="k">Surfaces</div><div class="v">Session source, edge status, exit code, "open in graph" CTA</div>
+          </div>
+          <table class="spec-tbl">
+            <thead><tr><th>Variant</th><th>Meaning</th><th>Sample</th></tr></thead>
+            <tbody>
+              <tr><td>default</td><td>Neutral, informational</td><td><span class="chip">USER</span></td></tr>
+              <tr><td>.amber</td><td>Sub-agent classification</td><td><span class="chip amber">SUB · W</span></td></tr>
+              <tr><td>.warn</td><td>Failure, open edge, warning count</td><td><span class="chip warn">▲ 4</span></td></tr>
+              <tr><td>.good</td><td>Healthy, closed edge, exit 0</td><td><span class="chip good">CLOSED</span></td></tr>
+              <tr><td>.cyan</td><td>Link affordance ("↗ open child")</td><td><span class="chip cyan">↗ open child</span></td></tr>
+              <tr><td>.solid</td><td>Strong emphasis (exit code w/ duration)</td><td><span class="chip solid">EXIT 0 · 500MS</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SegBar -->
+      <div class="comp">
+        <header>
+          <div class="name">SegBar</div>
+          <div class="desc">LED-style segmented progress meter.</div>
+          <div class="id">ATOM/06</div>
+        </header>
+        <div class="body">
+          <div class="kv">
+            <div class="k">React</div><div class="v">&lt;SegBar count={28} value={pct} hi={pct&gt;80} /&gt;</div>
+            <div class="k">CSS</div><div class="v">.segbar &gt; i (default), .on (lit), .hi (lit · warn)</div>
+            <div class="k">Surfaces</div><div class="v">Context window, rate limits, per-row token bar (count=12)</div>
+          </div>
+          <p>Round <code class="inline">value</code> to the nearest cell. <strong>Threshold rule:</strong> when value &gt; 80%, set <code class="inline">hi</code> so cells switch to <code class="inline">.hi</code> (warn). Glow comes from <code class="inline">box-shadow</code> on lit cells.</p>
+        </div>
+      </div>
+
+      <!-- VBars -->
+      <div class="comp">
+        <header>
+          <div class="name">VBars (sparkline)</div>
+          <div class="desc">Fixed-height vertical bar series.</div>
+          <div class="id">ATOM/07</div>
+        </header>
+        <div class="body">
+          <div class="kv">
+            <div class="k">React</div><div class="v">&lt;VBars data={number[]} color="var(--warn)" h={36} /&gt;</div>
+            <div class="k">Surfaces</div><div class="v">Catalog "token usage · last 12h", Diagnostics "warn count · 5 min"</div>
+          </div>
+          <p>Bars scale to local max. Opacity ramps with height (0.4–1.0) so the recent peak reads as the brightest cell.</p>
+        </div>
+      </div>
+
+      <!-- Readout -->
+      <div class="comp">
+        <header>
+          <div class="name">Readout (big number)</div>
+          <div class="desc">Bracketed primary readout with kicker label.</div>
+          <div class="id">ATOM/08</div>
+        </header>
+        <div class="body">
+          <div class="kv">
+            <div class="k">React</div><div class="v">&lt;Readout label value sub tone /&gt;</div>
+            <div class="k">Sizes</div><div class="v">primary 32, panel-rail 28, mini 18–20</div>
+          </div>
+          <p>Always paired with a kicker label and a sub-line giving units/context (e.g. "of 200K window"). Number font is Big Shoulders Display 700 with <code class="inline">font-variant-numeric: tabular-nums</code>.</p>
+        </div>
+      </div>
+
+      <!-- HazardTag -->
+      <div class="comp">
+        <header>
+          <div class="name">HazardTag</div>
+          <div class="desc">Hazard-stripe + label combination, classifies a screen/section.</div>
+          <div class="id">ATOM/09</div>
+        </header>
+        <div class="body">
+          <div class="kv">
+            <div class="k">React</div><div class="v">&lt;HazardTag tone="amber | primary | warn"&gt;USER · ROOT&lt;/HazardTag&gt;</div>
+            <div class="k">Surfaces</div><div class="v">Timeline meta, Graph inspector banner</div>
+          </div>
+          <p>Pairs a 14px hazard stripe with a tightly tracked UPPERCASE label. Use to classify the active session (USER · ROOT vs SUB · &lt;NICKNAME&gt; vs ALERT).</p>
+        </div>
+      </div>
+
+      <!-- ShortId / TC / Hazard / Stat -->
+      <div class="grid-2">
+        <div class="comp">
+          <header><div class="name">ShortId</div><div class="desc">UUID renderer.</div><div class="id">ATOM/10</div></header>
+          <div class="body">
+            <div class="kv"><div class="k">React</div><div class="v">&lt;ShortId id={uuid} /&gt;</div></div>
+            <p>Renders <code class="inline">first8…last4</code>, full ID in <code class="inline">title</code>. Always use instead of a raw UUID.</p>
+          </div>
+        </div>
+        <div class="comp">
+          <header><div class="name">TC (timecode)</div><div class="desc">HH:MM:SS:FF formatter.</div><div class="id">ATOM/11</div></header>
+          <div class="body">
+            <div class="kv"><div class="k">React</div><div class="v">&lt;TC d={Date} /&gt;</div></div>
+            <p>The FF is derived from ms / 33 — 30fps timecode look. For pure event ts use <code class="inline">fmtTimeMs(d).slice(0, 12)</code> instead.</p>
+          </div>
+        </div>
+        <div class="comp">
+          <header><div class="name">Stat</div><div class="desc">Side-panel KPI cell.</div><div class="id">ATOM/12</div></header>
+          <div class="body">
+            <div class="kv"><div class="k">React</div><div class="v">&lt;Stat label value sub tone /&gt;</div></div>
+            <p>2×2 grid block — kicker label, big value, optional sub note. tone="warn" turns the value red.</p>
+          </div>
+        </div>
+        <div class="comp">
+          <header><div class="name">Level dot</div><div class="desc">8×8 inline level indicator.</div><div class="id">ATOM/13</div></header>
+          <div class="body">
+            <div class="kv"><div class="k">CSS</div><div class="v">.lvl.WARN · .lvl.INFO · .lvl.DEBUG · .lvl.TRACE</div></div>
+            <p>Always paired with the level word; never a level dot alone.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="comp">
+        <header>
+          <div class="name">Top hazard strip + status bar</div>
+          <div class="desc">Chrome rails that bookend every screen.</div>
+          <div class="id">ATOM/14</div>
+        </header>
+        <div class="body">
+          <div class="kv">
+            <div class="k">CSS</div><div class="v">.top-hazard / .status</div>
+            <div class="k">Heights</div><div class="v">top 38px, status 24px</div>
+          </div>
+          <p>The top strip carries the system wordmark and a blinking LIVE indicator. The status bar carries: current view name, ticker, $CODEX_HOME path, link state dot, clock. Both must be present on every authenticated screen.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================
+         05 — COMPOSITES
+         ===================================================== -->
+    <section class="sec" id="sec-05">
+      <header>
+        <div class="n">05</div>
+        <div>
+          <h2>Composite Patterns</h2>
+          <div class="d">Higher-order arrangements assembled from atoms. These are the recurring "scenes" of the dashboard.</div>
+        </div>
+        <div class="tag">5 patterns</div>
+      </header>
+
+      <!-- session row -->
+      <div class="comp">
+        <header>
+          <div class="name">Session Table Row</div>
+          <div class="desc">One row in the catalog. Two-line cells, segmented token bar, source + warn chips.</div>
+          <div class="id">COMP/01</div>
+        </header>
+        <div class="body">
+          <div class="kv">
+            <div class="k">Atoms used</div><div class="v">Chip · SegBar · ShortId(implicit) · arrow ::before</div>
+            <div class="k">Columns</div><div class="v">idx · Updated · Title/Brief · Repo+branch · Model · Tokens · Source · Child · Warn · ›</div>
+            <div class="k">Width hints</div><div class="v">18 · 88 · auto · 168 · 130 · 110 · 84 · 90 · 84 · 18</div>
+            <div class="k">Active state</div><div class="v">tr[data-active="true"] — bg lift + 1px primary outline (-1px offset)</div>
+            <div class="k">Click target</div><div class="v">Whole row → setSelected(s.id); setView("timeline")</div>
+          </div>
+<pre class="code"><span class="c">// shape</span>
+<span class="k">type</span> SessionRow = {
+  id: <span class="s">string</span>,               <span class="c">// state_5.threads.id</span>
+  title: <span class="s">string</span>,            <span class="c">// threads.title (preview if empty)</span>
+  first_user_message: <span class="s">string</span>,
+  cwd: <span class="s">string</span>,
+  git_branch: <span class="s">string</span>,
+  git_sha: <span class="s">string</span>,
+  model: <span class="s">string</span>,
+  reasoning_effort: <span class="s">string</span>,
+  tokens_used: <span class="s">number</span>,
+  thread_source: <span class="s">"user" | "subagent"</span>,
+  agent_nickname?: <span class="s">string</span>,
+  agent_role?: <span class="s">string</span>,
+  children: <span class="s">number</span>,         <span class="c">// COUNT thread_spawn_edges WHERE parent</span>
+  children_open: <span class="s">number</span>,    <span class="c">//   ... AND status='open'</span>
+  warnings: <span class="s">number</span>,         <span class="c">// COUNT logs_2 WHERE level='WARN' AND thread_id</span>
+  failed_tools: <span class="s">number</span>,     <span class="c">// derived from function_call_output.exit != 0</span>
+  updated_at: <span class="s">number</span>,       <span class="c">// threads.updated_at_ms</span>
+}</pre>
+          <p>Two-line cells: primary in <code class="inline">.strong</code>, secondary in <code class="inline">.muted</code> 11px. The arrow glyph <code class="inline">▸</code> before the brief is the <code class="inline">.arr::before</code> rule — don't put it in the data.</p>
+        </div>
+      </div>
+
+      <!-- event row -->
+      <div class="comp">
+        <header>
+          <div class="name">Timeline Event Row</div>
+          <div class="desc">One typed JSONL event rendered with left dot color = kind, optional inline tool output.</div>
+          <div class="id">COMP/02</div>
+        </header>
+        <div class="body">
+          <div class="kv">
+            <div class="k">Layout</div><div class="v">grid 80px · 1fr · 14px gap, left dot 7×7 with glow</div>
+            <div class="k">Kinds</div><div class="v">user · assistant · tool · spawn · warn · token · task_started · task_complete</div>
+            <div class="k">Atoms used</div><div class="v">Chip · KV grid (token snapshot) · pre.code-like styling</div>
+          </div>
+
+          <table class="spec-tbl">
+            <thead><tr><th>JSONL source</th><th>Rendered as</th><th>Dot color</th><th>Notes</th></tr></thead>
+            <tbody>
+              <tr><td>event_msg · task_started</td><td>TURN N · TASK_STARTED banner</td><td class="tok">--primary</td><td>Show model, effort, sandbox, approval</td></tr>
+              <tr><td>event_msg · user_message</td><td>USER · message</td><td class="tok">--cyan</td><td>Body in mono 12</td></tr>
+              <tr><td>response_item · message (role=assistant)</td><td>ASSISTANT · &lt;phase&gt;</td><td class="tok">--primary</td><td>phase = "answer" | "reasoning" | …</td></tr>
+              <tr><td>response_item · function_call</td><td>▸ &lt;TOOL&gt; · call_id · args</td><td class="tok">--amber</td><td>Join function_call_output by call_id</td></tr>
+              <tr><td>… name=spawn_agent</td><td>⊕ SPAWN_AGENT · nickname/role/task</td><td class="tok">--good</td><td>↗ open child chip jumps to child thread</td></tr>
+              <tr><td>… name=wait_agent</td><td>◌ WAIT_AGENT</td><td class="tok">--good</td><td>Long-running: pair with a "still open" warning if &gt;120s</td></tr>
+              <tr><td>function_call_output (failed)</td><td>nested .out.fail + ▲ WARNING above</td><td class="tok">--warn</td><td>exit_code != 0 → fail</td></tr>
+              <tr><td>event_msg · token_count</td><td>6-cell KV strip</td><td class="tok">--ink-strong</td><td>Σ · IN · OUT · CACHED · CTX % · RATE %</td></tr>
+              <tr><td>event_msg · agent_message / task_complete.last_agent_message</td><td>AGENT REPORT</td><td class="tok">--good</td><td>From sub-agent context</td></tr>
+            </tbody>
+          </table>
+
+          <div class="callout warn">
+            <div class="label">Privacy</div>
+            <div>
+              Tool output is collapsed-by-default behind a "STDOUT · N bytes" header. Never auto-expand outputs &gt; 4KB.
+              Detect and mask common secret patterns (AWS keys, JWTs, env=VALUE) in args + output preview.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- agent node -->
+      <div class="comp">
+        <header>
+          <div class="name">Agent Node Card</div>
+          <div class="desc">Graph node — role, nickname, tokens, status.</div>
+          <div class="id">COMP/03</div>
+        </header>
+        <div class="body">
+          <div class="kv">
+            <div class="k">CSS</div><div class="v">.node · .node[data-open="true"] · .node.status-open · .corner-tl/br</div>
+            <div class="k">Width</div><div class="v">220px (absolute-positioned inside .graph-canvas)</div>
+            <div class="k">Status</div><div class="v">open → border + role color flip to --warn</div>
+            <div class="k">Interaction</div><div class="v">click → select · double-click → open Timeline</div>
+          </div>
+          <p>Edges between nodes are SVG cubic Béziers with a primary arrow marker (closed) or dashed warn arrow (open). Layout in the prototype is hand-tuned; for production swap in <code class="inline">elkjs</code> or <code class="inline">dagre</code> for hierarchical auto-layout, depth &gt; 2.</p>
+        </div>
+      </div>
+
+      <!-- log row -->
+      <div class="comp">
+        <header>
+          <div class="name">Log Row</div>
+          <div class="desc">One row from logs_2.logs.</div>
+          <div class="id">COMP/04</div>
+        </header>
+        <div class="body">
+          <div class="kv">
+            <div class="k">Layout</div><div class="v">grid 92px · 56px · 220px · 1fr, gap 10px, padding 4px 14px</div>
+            <div class="k">Columns</div><div class="v">ts · level (with dot) · target · msg</div>
+            <div class="k">Tone</div><div class="v">msg color follows .log-row.{WARN | INFO | DEBUG | TRACE}</div>
+          </div>
+          <p>Always render <code class="inline">target</code> in dim so the msg leads. Truncate target with ellipsis; full target in <code class="inline">title</code> attr for hover reveal.</p>
+        </div>
+      </div>
+
+      <!-- scrubber -->
+      <div class="comp">
+        <header>
+          <div class="name">Timeline Scrubber</div>
+          <div class="desc">Visual overview of one turn's events on a 64px track.</div>
+          <div class="id">COMP/05</div>
+        </header>
+        <div class="body">
+          <div class="kv">
+            <div class="k">CSS</div><div class="v">.tl-scrubber · .tl-scrubber .track</div>
+            <div class="k">Glyphs</div><div class="v">2px line for token_count, 4px line for events; height 14–28px; color by kind</div>
+          </div>
+          <p>Axis ticks at 0/25/50/75/100%. Each event becomes a single absolutely-positioned tick on the track. Header above shows turn id and duration. Not interactive in v0.1 — click-to-jump is a v0.2 ask.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================
+         06 — DATA WIRING
+         ===================================================== -->
+    <section class="sec" id="sec-06">
+      <header>
+        <div class="n">06</div>
+        <div>
+          <h2>Data Wiring</h2>
+          <div class="d">How each view reads from the four data sources. Field-level mapping you can lift straight into queries.</div>
+        </div>
+        <div class="tag">5 views · 4 sources</div>
+      </header>
+
+      <h3 class="block"><span>▸</span> Sources at a glance</h3>
+      <table class="spec-tbl">
+        <thead><tr><th>Source</th><th>Path</th><th>Read pattern</th><th>Used by</th></tr></thead>
+        <tbody>
+          <tr><td class="tok">state_5.sqlite</td><td class="val">~/.codex/state_5.sqlite</td><td>SQL · indexed on updated_at_ms · cwd · archived</td><td>Sessions list, header counts, side stats</td></tr>
+          <tr><td class="tok">thread_spawn_edges</td><td class="val">(same DB)</td><td>SQL · indexed on parent + status</td><td>Agent Graph, child counts in Sessions row</td></tr>
+          <tr><td class="tok">rollout JSONL</td><td class="val">~/.codex/sessions/YYYY/MM/DD/rollout-…jsonl</td><td>Stream-parse on open · cache by (path, mtime, size)</td><td>Timeline, Tokens, agent reports</td></tr>
+          <tr><td class="tok">logs_2.sqlite</td><td class="val">~/.codex/logs_2.sqlite</td><td>SQL · indexed on (thread_id, ts) · query only on Diagnostics or warn-count badge</td><td>Diagnostics, "warnings" column</td></tr>
+        </tbody>
+      </table>
+
+      <h3 class="block"><span>▸</span> Field map — Session row</h3>
+      <table class="spec-tbl">
+        <thead><tr><th>UI field</th><th>SQL · column</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>Title / Brief</td><td class="val">threads.title · threads.first_user_message</td><td>fall back to <code class="inline">preview</code> if title empty</td></tr>
+          <tr><td>Updated</td><td class="val">threads.updated_at_ms</td><td>Relative + abs; abs in 24h local</td></tr>
+          <tr><td>Repo · branch</td><td class="val">threads.cwd · threads.git_branch · threads.git_sha</td><td>Strip $HOME to ~/</td></tr>
+          <tr><td>Model</td><td class="val">threads.model · threads.reasoning_effort</td><td>NULLs render as "—"</td></tr>
+          <tr><td>Tokens</td><td class="val">threads.tokens_used</td><td>SegBar count=12, scaled / 200K</td></tr>
+          <tr><td>Source</td><td class="val">threads.thread_source ('user' | 'subagent')</td><td>amber chip + nickname if subagent</td></tr>
+          <tr><td>Child / open</td><td class="val">JOIN thread_spawn_edges ON parent=id</td><td>2 aggregates: total, open</td></tr>
+          <tr><td>Warn</td><td class="val">logs_2.logs WHERE level='WARN' AND thread_id</td><td>Run async, badge after first paint</td></tr>
+          <tr><td>Failed</td><td class="val">derived from function_call_output</td><td>Best-effort — only when JSONL parsed</td></tr>
+        </tbody>
+      </table>
+
+      <h3 class="block"><span>▸</span> Field map — Timeline event</h3>
+      <p>Rollout JSONL is line-delimited typed events. The renderer should:</p>
+      <ul class="bul">
+        <li>Stream-parse the file by line; never <code class="inline">JSON.parse</code> the entire buffer.</li>
+        <li>Build an <code class="inline">outByCallId</code> map from <code class="inline">function_call_output</code> events for inline joining.</li>
+        <li>Group events by <code class="inline">turn_id</code> when rendering turn boundaries.</li>
+        <li>Parse <code class="inline">function_call.arguments</code> as JSON when possible; surface raw string when it's not.</li>
+        <li>Treat <code class="inline">event_msg.payload.type === 'token_count'</code> as the only source for token snapshots.</li>
+      </ul>
+
+      <h3 class="block"><span>▸</span> Field map — Token snapshot</h3>
+<pre class="code"><span class="c">// from event_msg.token_count payload — exact field names</span>
+{
+  <span class="n">total_tokens</span>: <span class="s">number</span>,
+  <span class="n">input_tokens</span>: <span class="s">number</span>,
+  <span class="n">cached_input_tokens</span>: <span class="s">number</span>,
+  <span class="n">output_tokens</span>: <span class="s">number</span>,
+  <span class="n">reasoning_output_tokens</span>: <span class="s">number</span>,
+  <span class="n">last_input_tokens</span>: <span class="s">number</span>,
+  <span class="n">last_output_tokens</span>: <span class="s">number</span>,
+  <span class="n">model_context_window</span>: <span class="s">number</span>,
+  <span class="n">primary_rate_limit_used_percent</span>: <span class="s">number</span>,
+  <span class="n">secondary_rate_limit_used_percent</span>: <span class="s">number</span>,
+  <span class="n">rate_limit_reset_at</span>: <span class="s">string</span>,    <span class="c">// ISO 8601</span>
+  <span class="n">plan_type</span>: <span class="s">string</span>
+}</pre>
+
+      <div class="callout warn">
+        <div class="label">Bug fixture</div>
+        <div>
+          The prototype's "cached input ratio" chart synthesizes data. The production query is
+          <code class="inline">cached_input_tokens / input_tokens</code> per snapshot. The chart only makes
+          sense when both fields are populated; render an empty state when ratio is undefined.
+        </div>
+      </div>
+
+      <h3 class="block"><span>▸</span> Field map — Agent edge</h3>
+<pre class="code"><span class="k">SELECT</span>
+  e.parent_thread_id, e.child_thread_id, e.status,
+  c.title, c.tokens_used, c.agent_nickname, c.agent_role,
+  c.updated_at_ms
+<span class="k">FROM</span> thread_spawn_edges e
+<span class="k">JOIN</span> threads c <span class="k">ON</span> c.id = e.child_thread_id
+<span class="k">WHERE</span> e.parent_thread_id = ?
+<span class="k">ORDER BY</span> c.created_at_ms;</pre>
+      <p>For the active root view: also recurse one level for grandchildren (depth ≤ 2 covers the typical use case; flag any session with depth ≥ 3 in the inspector).</p>
+    </section>
+
+    <!-- =====================================================
+         07 — BUILD PLAN
+         ===================================================== -->
+    <section class="sec" id="sec-07">
+      <header>
+        <div class="n">07</div>
+        <div>
+          <h2>Build Plan &amp; Ingest</h2>
+          <div class="d">Recommended phasing and the ingest worker contract.</div>
+        </div>
+        <div class="tag">3 phases</div>
+      </header>
+
+      <h3 class="block"><span>▸</span> Phasing</h3>
+      <table class="spec-tbl">
+        <thead><tr><th>Phase</th><th>Scope</th><th>Exit gate</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>P1 · Static index</strong></td>
+            <td>Sessions list backed by <code class="inline">state_5.threads</code>. No JSONL parsing. Open in $EDITOR action.</td>
+            <td>Catalog renders 500+ rows in &lt; 200ms. Filters work. No timeline yet.</td>
+          </tr>
+          <tr>
+            <td><strong>P2 · Detail views</strong></td>
+            <td>Timeline + Agent Graph + Tokens. Lazy JSONL parse on row click. Cache parsed transcripts.</td>
+            <td>Open largest rollout in repo in &lt; 1s on warm cache, &lt; 4s cold.</td>
+          </tr>
+          <tr>
+            <td><strong>P3 · Diagnostics + tail</strong></td>
+            <td>logs_2 queries, live tail of current rollout by byte offset, warn-count badges, raw tui.log fallback.</td>
+            <td>Live tail visible &lt; 500ms after a turn writes. Warn-count badge updates without scroll thrash.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3 class="block"><span>▸</span> Ingest worker</h3>
+      <p>Run as a separate process / worker thread. Responsibilities:</p>
+      <ul class="bul">
+        <li>Open <code class="inline">state_5.sqlite</code> read-only with WAL mode; keep one persistent connection.</li>
+        <li>Watch <code class="inline">~/.codex/sessions/</code> for new/changed files; debounce 250ms.</li>
+        <li>For each "opened" thread, stream-parse its rollout into a derived JSON cache keyed by <code class="inline">(path, mtime, size)</code>.</li>
+        <li>Expose a small RPC: <code class="inline">listSessions(filter)</code>, <code class="inline">getThread(id)</code>, <code class="inline">tailThread(id, fromByte)</code>, <code class="inline">queryLogs(filter)</code>.</li>
+        <li>Never block the UI thread on JSONL reads &gt; 4MB — page-fetch in 256KB chunks.</li>
+      </ul>
+
+      <h3 class="block"><span>▸</span> Cache shape</h3>
+<pre class="code"><span class="c">// ~/.codex/.observatory/cache/&lt;thread_id&gt;.json</span>
+{
+  <span class="n">version</span>: <span class="s">1</span>,
+  <span class="n">source</span>: { path, mtime, size },
+  <span class="n">turns</span>: [{ id, started_at, completed_at, ttft_ms, duration_ms, … }],
+  <span class="n">events</span>: [{ ts, kind, …flat fields }],
+  <span class="n">tokens</span>: [{ ts, …token_count payload }],
+  <span class="n">edges</span>: [{ parent, child, status, type:"spawn|wait" }],
+  <span class="n">summary</span>: { total_tokens, failed_tools, warnings }
+}</pre>
+      <p>Invalidate when <code class="inline">(mtime, size)</code> differ. Append-only files (active rollouts) only re-read the tail past the cached size.</p>
+
+      <div class="callout good">
+        <div class="label">Local-first</div>
+        <div>
+          All data stays on disk. No network calls. Default the dashboard to <strong>read-only</strong>; never write
+          back to state_5 or logs_2. Export/sharing is out of scope for v0.1.
+        </div>
+      </div>
+    </section>
+
+    <!-- =====================================================
+         08 — ACCEPTANCE
+         ===================================================== -->
+    <section class="sec" id="sec-08">
+      <header>
+        <div class="n">08</div>
+        <div>
+          <h2>Acceptance / QA</h2>
+          <div class="d">Per-view checklist. Sign off only when every box is ticked.</div>
+        </div>
+        <div class="tag">5 views</div>
+      </header>
+
+      <h3 class="block">Sessions overview</h3>
+      <ul class="check">
+        <li><b>P1</b> 22+ sessions render with correct columns, sorted by updated_at_ms DESC.</li>
+        <li><b>P1</b> Search matches title, first_user_message, and full id (substring).</li>
+        <li><b>P1</b> All four filter axes (source · repo · flag · search) compose correctly.</li>
+        <li><b>P1</b> Token SegBar shows .hi (warn) for tokens_used &gt; 100K.</li>
+        <li><b>P1</b> Clicking a row navigates to Timeline with that session selected.</li>
+        <li><b>P2</b> Warn count badge populates async without a re-layout flash.</li>
+      </ul>
+
+      <h3 class="block">Timeline</h3>
+      <ul class="check">
+        <li><b>P2</b> All 8 event kinds render with the correct dot color.</li>
+        <li><b>P2</b> function_call rows show inline output joined by call_id, with exit code + duration.</li>
+        <li><b>P2</b> spawn_agent rows show ↗ open child chip that jumps to the child session.</li>
+        <li><b>P2</b> Tool output collapses past 4KB; click to expand.</li>
+        <li><b>P2</b> Scrubber shows ≥ 20 events with correct kind-by-color.</li>
+        <li><b>P2</b> Tab filter (All / Messages / Tools / Agent / Tokens / Warnings) only re-renders the visible list.</li>
+      </ul>
+
+      <h3 class="block">Agent Graph</h3>
+      <ul class="check">
+        <li><b>P2</b> Tree renders root + depth-1 + depth-2 with no overlapping nodes.</li>
+        <li><b>P2</b> Closed edges = solid orange. Open edges = dashed red with pulse-ready aria-label.</li>
+        <li><b>P2</b> Clicking a node updates the inspector; double-click opens Timeline.</li>
+        <li><b>P3</b> Auto-layout (elkjs/dagre) for depth ≥ 3.</li>
+      </ul>
+
+      <h3 class="block">Tokens</h3>
+      <ul class="check">
+        <li><b>P2</b> Aggregate bars: bars &gt; 80% local max flip to warn red.</li>
+        <li><b>P2</b> Token curve has axis grid, gradient fill, and per-snapshot data label.</li>
+        <li><b>P2</b> Rate-limit meters show 3 channels with reset countdown.</li>
+        <li><b>P2</b> Top sessions list is clickable and routes to the picked session.</li>
+        <li><b>P2</b> Cached ratio chart renders empty-state when no cache data available.</li>
+      </ul>
+
+      <h3 class="block">Diagnostics</h3>
+      <ul class="check">
+        <li><b>P3</b> Level filter (all / WARN / INFO / DEBUG / TRACE) and target picker work.</li>
+        <li><b>P3</b> Scope toggle (this session ↔ all threads) re-queries.</li>
+        <li><b>P3</b> Tail mode appends new rows without scroll jump when at bottom.</li>
+        <li><b>P3</b> Loudest-threads sidebar links to a session.</li>
+        <li><b>P3</b> Raw tail (codex-tui.log) is hidden behind an "advanced" button.</li>
+      </ul>
+    </section>
+
+    <!-- =====================================================
+         09 — A11Y / PERF / PRIVACY
+         ===================================================== -->
+    <section class="sec" id="sec-09">
+      <header>
+        <div class="n">09</div>
+        <div>
+          <h2>Accessibility, Performance &amp; Privacy</h2>
+          <div class="d">Non-visual gates that block ship.</div>
+        </div>
+        <div class="tag">3 gates</div>
+      </header>
+
+      <h3 class="block"><span>▸</span> Accessibility</h3>
+      <ul class="bul">
+        <li><strong>Color contrast</strong> · ink-strong on bg-0 = 11.4:1 (AAA). ink-dim on bg-0 = 5.3:1 (AA large). Never use ink-faint for primary text.</li>
+        <li><strong>Focus rings</strong> · all <code class="inline">button</code> and <code class="inline">tr[role="button"]</code> get a 1px primary outline with 2px offset. Don't rely on hover background.</li>
+        <li><strong>Reduced motion</strong> · gate <code class="inline">.blink</code>, <code class="inline">.pulse</code>, <code class="inline">.ticker</code> behind <code class="inline">@media (prefers-reduced-motion: no-preference)</code>. Scanlines also off by default in that mode.</li>
+        <li><strong>Screen readers</strong> · all hazard tape is <code class="inline">aria-hidden</code>. Reticle, brackets, status dots are decorative.</li>
+        <li><strong>Tables</strong> · use real <code class="inline">&lt;table&gt;</code> with <code class="inline">scope="col"</code> on headers. Active rows get <code class="inline">aria-current="true"</code>.</li>
+      </ul>
+
+      <h3 class="block"><span>▸</span> Performance</h3>
+      <ul class="bul">
+        <li><strong>Render budget</strong> · Sessions view must paint &lt; 200ms for 500 rows. Use windowed lists if catalog grows past 500.</li>
+        <li><strong>JSONL parse</strong> · stream by line, never bulk-parse. Hand off to worker for files &gt; 1MB.</li>
+        <li><strong>SQLite</strong> · keep one read-only connection per DB; never open per-query.</li>
+        <li><strong>Reflow</strong> · async warn-count and failed-tools must not push column widths around — preallocate min-width on those cells.</li>
+        <li><strong>Live tail</strong> · cap to 200 visible log rows; older rows drop off.</li>
+      </ul>
+
+      <h3 class="block"><span>▸</span> Privacy</h3>
+      <ul class="bul">
+        <li><strong>Default-collapse tool output</strong> · &gt; 4KB stays collapsed until user expands.</li>
+        <li><strong>Secret masking</strong> · scan tool args + output preview for AWS keys, JWTs, common env-var formats. Replace with <code class="inline">[REDACTED]</code> in preview only — never alter underlying data.</li>
+        <li><strong>Don't ship base_instructions</strong> · hide <code class="inline">payload.base_instructions.text</code> by default; offer "show raw" with a confirm.</li>
+        <li><strong>Local only</strong> · no telemetry, no export buttons in v0.1. Reads only.</li>
+      </ul>
+    </section>
+
+    <!-- footer -->
+    <div class="doc-footer">
+      <div>// WORKFLOWKIT · OBSERVATORY</div>
+      <div class="center">END OF HANDOFF · 引渡終わり</div>
+      <div style="text-align: right;">v0.1 · 2026.05.26</div>
+    </div>
+  </div>
+
+  <div class="scanlines"></div>
+  <div class="crt-vignette"></div>
+</body>
+</html>
