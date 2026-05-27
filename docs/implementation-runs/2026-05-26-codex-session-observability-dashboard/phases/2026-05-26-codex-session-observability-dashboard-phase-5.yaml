@@ -61,7 +61,7 @@ tasks:
   "4":
     title: "Add Final Accessibility, Performance, Privacy, And Network Gates"
     status: done
-    commit: null
+    commit: "f4b9b13"
     verification:
       - command: "npm run a11y"
         result: pass
