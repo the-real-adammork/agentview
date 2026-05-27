@@ -1,0 +1,14 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/unit/app-shell.test.tsx
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/phase-1-ui-shell
+
+ ✓ tests/unit/app-shell.test.tsx (3 tests) 86ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  22:05:59
+   Duration  471ms (transform 43ms, setup 0ms, collect 101ms, tests 86ms, environment 120ms, prepare 36ms)
+

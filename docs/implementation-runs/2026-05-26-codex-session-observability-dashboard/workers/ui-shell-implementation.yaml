@@ -1,0 +1,52 @@
+status: implemented
+worker_id: worker-ui-shell-1
+task: "Task 3 - Port The Fixture-Backed Five-View Shell"
+changed_files:
+  - src/frontend/App.tsx
+  - src/frontend/api/client.ts
+  - src/frontend/components/Chrome.tsx
+  - src/frontend/components/Panel.tsx
+  - src/frontend/components/SegBar.tsx
+  - src/frontend/components/ShortId.tsx
+  - src/frontend/views/SessionsView.tsx
+  - src/frontend/views/TimelineView.tsx
+  - src/frontend/views/AgentGraphView.tsx
+  - src/frontend/views/TokensView.tsx
+  - src/frontend/views/DiagnosticsView.tsx
+  - src/frontend/styles/tokens.css
+  - src/frontend/styles/app.css
+  - scripts/check-style-tokens.mjs
+  - tests/unit/app-shell.test.tsx
+  - docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-3-implementation-test.txt
+commands:
+  - command: "npm run test -- --run tests/unit/app-shell.test.tsx"
+    exit_code: 0
+    summary: "3 tests passed in tests/unit/app-shell.test.tsx."
+  - command: "npm run typecheck"
+    exit_code: 0
+    summary: "tsc completed for frontend/shared and node configs."
+  - command: "npm run tokens:check"
+    exit_code: 0
+    summary: "style token check passed."
+service_wiring_rows:
+  - "Fixture sessions navigation"
+  - "Visual shell"
+  - "Runtime asset safety"
+real_dependencies:
+  - "Node/npm local runtime"
+  - "React render under Vitest jsdom"
+mocks_or_fixtures:
+  - surface: "App shell data"
+    source: "src/fixtures/observatoryFixtures.ts"
+    mode: "fixture"
+    disclosure: "No real Codex source reads; fixture snapshot is local and deterministic."
+  - surface: "Transport status"
+    source: "src/frontend/api/client.ts"
+    mode: "fixture client"
+    disclosure: "ObservatoryApi is backed by Task 2 fixtures only."
+residual_risks:
+  - "Browser layout and network behavior remain covered by later Playwright task, not this unit test."
+  - "Fixture API has no latency or error-state simulation in Task 3."
+review_status: "ready_for_phase_owner_review"
+plan_updates_recommended: []
+blockers: []

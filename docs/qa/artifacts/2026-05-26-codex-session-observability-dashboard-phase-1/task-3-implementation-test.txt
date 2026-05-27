@@ -1,0 +1,21 @@
+Task 3 implementation verification
+
+Focused command:
+npm run test -- --run tests/unit/app-shell.test.tsx
+
+Focused result:
+exit code 0
+tests/unit/app-shell.test.tsx: 3 tests passed
+
+Additional commands:
+npm run typecheck
+exit code 0
+
+npm run tokens:check
+exit code 0
+style token check passed
+
+Scope notes:
+- UI shell renders from Task 2 fixtures only.
+- No real Codex file, SQLite, JSONL, or log reads were added.
+- Styles use CSS variables with raw hex limited to src/frontend/styles/tokens.css.
