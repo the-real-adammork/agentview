@@ -1,0 +1,17 @@
+Local CODEX_HOME validation: 2026-05-27T15:26:30Z
+CODEX_HOME=/Users/adam/.codex
+(node:45677) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+{
+  "codexHome": "/Users/adam/.codex",
+  "state": {
+    "supported": true,
+    "readOnly": true,
+    "tableCount": 11
+  },
+  "logs": {
+    "supported": true,
+    "readOnly": true,
+    "tableCount": 3
+  }
+}

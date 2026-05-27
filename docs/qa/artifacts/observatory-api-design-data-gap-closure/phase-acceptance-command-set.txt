@@ -1,0 +1,135 @@
+
+> agentview@0.1.0 typecheck
+> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json
+
+
+> agentview@0.1.0 test
+> vitest --run
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure
+
+(node:43091) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:43088) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:43090) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:43095) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:43097) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:43092) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:43089) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:43093) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/integration/stateStore.test.ts (3 tests) 36ms
+ ✓ tests/unit/tokenSeries.test.ts (3 tests) 54ms
+ ✓ tests/integration/liveTail.test.ts (4 tests) 20ms
+ ✓ tests/unit/parseRollout.test.ts (6 tests) 69ms
+ ✓ tests/integration/logStore.test.ts (8 tests) 100ms
+ ✓ tests/integration/rolloutCache.test.ts (5 tests) 172ms
+(node:43186) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:43187) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/agentGraph.test.ts (2 tests) 2ms
+ ✓ tests/unit/contracts.test.ts (8 tests) 16ms
+ ✓ tests/privacy/privacyPreviews.test.ts (3 tests) 9ms
+(node:43193) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:43369) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/codexPaths.test.ts (3 tests) 11ms
+ ✓ tests/integration/sourceErrors.test.ts (3 tests) 874ms
+   ✓ source safety and partial error envelopes > returns typed partial errors for missing or unsupported local sources  497ms
+   ✓ source safety and partial error envelopes > does not expose export, editor launch, command execution, or telemetry endpoints  371ms
+ ✓ tests/perf/fullDashboard.test.ts (2 tests) 651ms
+   ✓ full dashboard performance guards > keeps diagnostics paging bounded for large log fixtures  649ms
+ ✓ tests/perf/rolloutParse.test.ts (1 test) 524ms
+   ✓ rollout parse performance guard > keeps derived warm cache faster than cold parsing for a large local fixture  524ms
+ ✓ tests/unit/redaction.test.ts (4 tests) 2ms
+ ✓ tests/unit/sessionFilter.test.ts (2 tests) 1ms
+ ✓ tests/integration/rawTuiLog.test.ts (1 test) 920ms
+   ✓ raw TUI log diagnostics API > tails the allowlisted codex-tui.log with redacted previews and a resumable next offset  920ms
+ ✓ tests/unit/graphTokenComponents.test.tsx (2 tests) 68ms
+ ✓ tests/unit/app-shell.test.tsx (3 tests) 134ms
+ ✓ tests/integration/timelineApi.test.ts (4 tests) 2047ms
+   ✓ timeline API > serves selected-session timeline payloads from the rollout parser and derived cache  528ms
+   ✓ timeline API > serves observed envelope events with joined tool, token, turn, and agent facts  385ms
+   ✓ timeline API > returns a typed missing-rollout error when the selected thread has no readable rollout file  772ms
+   ✓ timeline API > rejects traversal rollout paths before reading files outside CODEX_HOME  362ms
+ ✓ tests/integration/graphTokensApi.test.ts (5 tests) 2199ms
+   ✓ graph/tokens API routes > serves a depth-limited graph from real temp SQLite edges and thread metadata  411ms
+   ✓ graph/tokens API routes > returns a typed 404 when the graph root thread is absent  377ms
+   ✓ graph/tokens API routes > reports missing state_5.sqlite as source unavailable for graph requests  774ms
+   ✓ graph/tokens API routes > serves selected-session token series from Phase 3 rollout cache facts  378ms
+ ✓ tests/integration/diagnosticsApi.test.ts (6 tests) 2627ms
+   ✓ diagnostics API routes > serves filtered log rows from logs_2.sqlite with cursor pagination  502ms
+   ✓ diagnostics API routes > serves observed-schema log rows with redacted previews and nanosecond cursor pagination  374ms
+   ✓ diagnostics API routes > returns typed unsupported-schema errors for malformed logs_2.sqlite files  767ms
+   ✓ diagnostics API routes > returns warning counts, loudest targets, failed commands, and warning badge summaries  368ms
+   ✓ diagnostics API routes > combines observed-schema warning summaries with rollout-cache failed-command facts  365ms
+ ✓ tests/integration/sessionsApi.test.ts (8 tests) 3071ms
+   ✓ sessions API routes > reports real state-db health and schema availability through an ApiResult envelope  495ms
+   ✓ sessions API routes > lists sessions from state_5.sqlite sorted by updated_at_ms without reading rollout JSONL on first paint  481ms
+   ✓ sessions API routes > composes list filters for search, cwd, source, role, model, archive state, token floor, and badge status  718ms
+   ✓ sessions API routes > returns one session by thread id and 404 for unknown thread ids  367ms
+
+ Test Files  22 passed (22)
+      Tests  86 passed (86)
+   Start at  10:25:13
+   Duration  3.57s (transform 507ms, setup 0ms, collect 3.52s, tests 13.61s, environment 5.03s, prepare 1.42s)
+
+
+> agentview@0.1.0 e2e
+> playwright test timeline-detail.spec.ts graph-tokens.spec.ts diagnostics-ui.spec.ts
+
+(node:44357) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m(node:44389) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m(node:44390) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m(node:44390) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+[2m[WebServer] [22m(node:44422) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 8 tests using 1 worker
+
+(node:44439) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:44439) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:44439) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+  ✓  1 tests/e2e/diagnostics-ui.spec.ts:152:3 › Diagnostics UI @diagnostics › filters structured diagnostics by level, target, and scope against local API logs (272ms)
+  ✓  2 tests/e2e/diagnostics-ui.spec.ts:202:3 › Diagnostics UI @diagnostics › renders failed-command summaries and uses loudest-target links to filter logs (225ms)
+  ✓  3 tests/e2e/diagnostics-ui.spec.ts:241:3 › Diagnostics UI @diagnostics › shows rollout-cache failed-command fallback when logs_2.sqlite is missing (176ms)
+  ✓  4 tests/e2e/diagnostics-ui.spec.ts:264:3 › Diagnostics UI @diagnostics › hydrates Sessions warning badges after first paint without blocking rows (172ms)
+  ✓  5 tests/e2e/diagnostics-ui.spec.ts:310:3 › Diagnostics UI @diagnostics › keeps raw TUI tail hidden until advanced reveal, redacts previews, and appends from next offset (290ms)
+  ✓  6 tests/e2e/graph-tokens.spec.ts:12:3 › real Graph and Tokens views @graph-tokens › renders graph and token service wiring with Timeline navigation (443ms)
+  ✓  7 tests/e2e/timeline-detail.spec.ts:13:3 › real Timeline detail @timeline › renders parsed rollout rows, redacted previews, collapsed output, scrubber ticks, filters, and tail updates (296ms)
+  ✓  8 tests/e2e/timeline-detail.spec.ts:57:3 › real Timeline detail @timeline › surfaces enriched observed rollout facts in event groups and spawn actions (211ms)
+
+  8 passed (3.3s)
+
+> agentview@0.1.0 privacy:check
+> npm run test -- --run tests/privacy/privacyPreviews.test.ts && node scripts/check-privacy.mjs
+
+
+> agentview@0.1.0 test
+> vitest --run tests/privacy/privacyPreviews.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure
+
+ ✓ tests/privacy/privacyPreviews.test.ts (3 tests) 3ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  10:25:21
+   Duration  292ms (transform 25ms, setup 0ms, collect 26ms, tests 3ms, environment 111ms, prepare 27ms)
+
+privacy check passed
