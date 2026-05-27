@@ -11,13 +11,6 @@ active_lanes:
     branch: "impl/observatory-api-design-data-gap-closure-rollout-parser"
     worktree: ".worktrees/impl-observatory-api-design-data-gap-closure-rollout-parser"
     result: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/rollout-parser-2026-05-27T143305Z.yaml"
-  - lane: "logs-schema-adapter"
-    task: "Task 3"
-    status: "implementation"
-    worker: "worker-logs-schema-adapter-1"
-    branch: "impl/observatory-api-design-data-gap-closure-logs-schema-adapter"
-    worktree: ".worktrees/impl-observatory-api-design-data-gap-closure-logs-schema-adapter"
-    result: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/logs-schema-adapter-2026-05-27T143305Z.yaml"
 orchestrator:
   supervisor_inbox: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/supervisor-inbox/observatory-api-design-data-gap-closure.yaml"
   spawn_method: tmux-pane
@@ -42,8 +35,13 @@ tasks:
     lane: "rollout-parser"
   "3":
     title: "Support The Observed logs_2.sqlite Schema In Diagnostics"
-    status: in_progress
+    status: done
     lane: "logs-schema-adapter"
+    commit: "568b50c93db15cf9d67d5d8df51b7ecb3ad00736"
+    verification:
+      - command: "npm run test -- --run tests/integration/logStore.test.ts tests/integration/diagnosticsApi.test.ts tests/integration/sourceErrors.test.ts"
+        result: pass
+        artifact: "docs/qa/artifacts/observatory-api-design-data-gap-closure/logs-schema-adapter-integration.txt"
   "4":
     title: "Enrich Agent Graph And Token API Responses From Normalized Facts"
     status: not_started
@@ -64,19 +62,50 @@ service_wiring:
     status: pending
     evidence: null
   observed_diagnostics_logs:
-    status: pending
-    evidence: null
+    status: covered
+    evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/logs-schema-adapter-integration.txt"
   failed_command_summaries:
     status: pending
     evidence: null
   cache_and_live_tail_facts:
     status: pending
     evidence: null
-mock_fixture_ledger: []
+mock_fixture_ledger:
+  - id: "mf-task3-observed-logs-sqlite"
+    name: "Observed logs_2.sqlite fixture"
+    kind: fixture
+    introduced_by: "Task 3"
+    scope: test-only
+    affected_paths:
+      - "tests/fixtures/diagnostics.ts"
+      - "tests/integration/logStore.test.ts"
+      - "tests/integration/diagnosticsApi.test.ts"
+    service_wiring_rows:
+      - "observed_diagnostics_logs"
+    disposition: test-only
+    acceptable_because: "Real temp SQLite databases exercise the production log store and diagnostics API paths; no runtime fixture behavior is introduced."
+    conversion_task: null
+    evidence:
+      - "docs/qa/artifacts/observatory-api-design-data-gap-closure/logs-schema-adapter-integration.txt"
+  - id: "mf-task3-warm-rollout-cache"
+    name: "Warm rollout cache fixture for failed-command fallback"
+    kind: fixture
+    introduced_by: "Task 3"
+    scope: test-only
+    affected_paths:
+      - "tests/fixtures/diagnostics.ts"
+      - "tests/integration/diagnosticsApi.test.ts"
+    service_wiring_rows:
+      - "failed_command_summaries"
+    disposition: test-only
+    acceptable_because: "The fixture is test data for diagnostics fallback behavior; parser-derived rollout cache facts remain owned by Task 2 before phase acceptance."
+    conversion_task: null
+    evidence:
+      - "docs/qa/artifacts/observatory-api-design-data-gap-closure/logs-schema-adapter-integration.txt"
 acceptance:
   status: pending
   packet: "docs/qa/phase-acceptance/2026-05-27-observatory-api-design-data-gap-closure.md"
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T14:43:55Z"
+updated_at: "2026-05-27T14:52:30Z"

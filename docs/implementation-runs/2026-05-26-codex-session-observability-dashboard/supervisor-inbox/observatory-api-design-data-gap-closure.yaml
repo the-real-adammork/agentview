@@ -1,7 +1,7 @@
 phase: "observatory-api-design-data-gap-closure"
 orchestrator_status: running
-updated_at: "2026-05-27T14:49:34Z"
-heartbeat_expires_at: "2026-05-27T14:59:34Z"
+updated_at: "2026-05-27T14:52:30Z"
+heartbeat_expires_at: "2026-05-27T15:02:30Z"
 tmux:
   pane_id: "%107"
 request:
