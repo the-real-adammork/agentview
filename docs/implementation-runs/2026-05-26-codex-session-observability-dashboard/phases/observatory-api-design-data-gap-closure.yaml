@@ -3,7 +3,21 @@ status: running
 plan: "docs/plans/2026-05-27-observatory-api-design-data-gap-closure.md"
 branch: "impl/observatory-api-design-data-gap-closure"
 worktree: ".worktrees/impl-observatory-api-design-data-gap-closure"
-active_lanes: []
+active_lanes:
+  - lane: "rollout-parser"
+    task: "Task 2"
+    status: "test_proposed"
+    worker: "worker-rollout-parser-1"
+    branch: "impl/observatory-api-design-data-gap-closure-rollout-parser"
+    worktree: ".worktrees/impl-observatory-api-design-data-gap-closure-rollout-parser"
+    result: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/rollout-parser-2026-05-27T143305Z.yaml"
+  - lane: "logs-schema-adapter"
+    task: "Task 3"
+    status: "test_proposed"
+    worker: "worker-logs-schema-adapter-1"
+    branch: "impl/observatory-api-design-data-gap-closure-logs-schema-adapter"
+    worktree: ".worktrees/impl-observatory-api-design-data-gap-closure-logs-schema-adapter"
+    result: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/logs-schema-adapter-2026-05-27T143305Z.yaml"
 orchestrator:
   supervisor_inbox: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/supervisor-inbox/observatory-api-design-data-gap-closure.yaml"
   spawn_method: tmux-pane
@@ -24,10 +38,12 @@ tasks:
         artifact: "docs/qa/artifacts/observatory-api-design-data-gap-closure/task-1-contracts.txt"
   "2":
     title: "Parse Observed Rollout Envelopes Into Joined Timeline, Turn, Token, Agent, And Summary Facts"
-    status: not_started
+    status: in_progress
+    lane: "rollout-parser"
   "3":
     title: "Support The Observed logs_2.sqlite Schema In Diagnostics"
-    status: not_started
+    status: in_progress
+    lane: "logs-schema-adapter"
   "4":
     title: "Enrich Agent Graph And Token API Responses From Normalized Facts"
     status: not_started
@@ -63,4 +79,4 @@ acceptance:
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T14:32:16Z"
+updated_at: "2026-05-27T14:33:05Z"
