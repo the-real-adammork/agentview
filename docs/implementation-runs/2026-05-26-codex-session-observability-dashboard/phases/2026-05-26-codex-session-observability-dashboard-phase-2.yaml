@@ -3,7 +3,13 @@ status: running
 plan: "docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md"
 branch: "impl/phase-2-sessions-index"
 worktree: ".worktrees/impl-phase-2-sessions-index"
-active_lanes: []
+active_lanes:
+  - lane: "backend-state-source-tests"
+    status: test_proposed
+    worker: null
+    branch: "impl/phase-2-backend-state-source-tests"
+    worktree: ".worktrees/impl-phase-2-backend-state-source-tests"
+    result: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/backend-state-source-tests-20260527T034605Z.yaml"
 role_separation:
   supervisor: "supervisor"
   phase_owner: "019e6788-7213-7f21-acac-1394f306a55a"
@@ -15,7 +21,8 @@ role_separation:
 tasks:
   "1":
     title: "Add Codex Path Guard And Read-Only State Store"
-    status: not_started
+    status: test_proposed
+    lane: "backend-state-source-tests"
   "2":
     title: "Wire Health, Sessions, And Thread API Routes"
     status: not_started
@@ -48,4 +55,4 @@ acceptance:
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T03:45:10Z"
+updated_at: "2026-05-27T03:46:05Z"
