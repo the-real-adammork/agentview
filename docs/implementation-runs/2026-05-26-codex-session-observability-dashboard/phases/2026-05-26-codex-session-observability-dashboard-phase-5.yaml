@@ -32,7 +32,7 @@ tasks:
   "3":
     title: "Harden Shared Error Envelope, Privacy Defaults, Source Safety, And Runtime Asset Policy"
     status: done
-    commit: null
+    commit: "8bb44bb"
     verification:
       - command: "npm run privacy:check"
         result: pass
