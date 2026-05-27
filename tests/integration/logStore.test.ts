@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { RuntimeLog, RuntimeLogLevel } from "../../src/shared/contracts";
 import {
   createDiagnosticsCodexHomeFixture,
+  createObservedDiagnosticsCodexHomeFixture,
   createUnsupportedLogsCodexHomeFixture,
   type DiagnosticsCodexHomeFixture,
 } from "../fixtures/diagnostics";
@@ -224,6 +225,234 @@ describe("read-only diagnostics log store", () => {
       const secondPage = await store.queryLogs({ threadId: "thread-page", limit: 2, cursor: firstPage.nextCursor ?? "" });
       expect(secondPage.logs.map((log) => log.bodyPreview)).toEqual(["oldest"]);
       expect(secondPage.nextCursor).toBeNull();
+    } finally {
+      await store.close();
+    }
+  });
+
+  it("normalizes observed logs_2.sqlite rows and applies level, target, and thread filters", async () => {
+    const fixture = track(
+      await createObservedDiagnosticsCodexHomeFixture({
+        logs: [
+          {
+            timestampMs: 8_000,
+            timestampNanos: 0,
+            level: "WARN",
+            target: "codex_core::exec",
+            body: "wrong thread",
+            threadId: "thread-observed-other",
+            modulePath: "codex_core::exec",
+            file: "exec.rs",
+            line: 41,
+            processUuid: "process-observed",
+            estimatedBytes: 12,
+          },
+          {
+            timestampMs: 8_100,
+            timestampNanos: 100_000_000,
+            level: "WARN",
+            target: "codex_core::exec",
+            body: "Authorization: Bearer sk-proj-observed-secret failed",
+            threadId: "thread-observed",
+            modulePath: "codex_core::exec",
+            file: "exec.rs",
+            line: 42,
+            processUuid: "process-observed",
+            estimatedBytes: 48,
+          },
+          {
+            timestampMs: 8_200,
+            timestampNanos: 200_000_000,
+            level: "ERROR",
+            target: "codex_core::exec",
+            body: "wrong level",
+            threadId: "thread-observed",
+            modulePath: "codex_core::exec",
+            file: "exec.rs",
+            line: 43,
+            processUuid: "process-observed",
+            estimatedBytes: 11,
+          },
+        ],
+      }),
+    );
+    const { openLogStore } = await loadLogStore();
+    const store = await openLogStore({ codexHome: fixture.codexHome });
+
+    try {
+      await expect(store.getHealth()).resolves.toMatchObject({
+        ok: true,
+        source: "logs-db",
+        schema: {
+          readOnly: true,
+          supported: true,
+          tables: expect.arrayContaining(["logs"]),
+        },
+      });
+
+      await expect(
+        store.queryLogs({
+          level: "WARN",
+          target: "codex_core::exec",
+          threadId: "thread-observed",
+          limit: 5,
+        }),
+      ).resolves.toMatchObject({
+        logs: [
+          expect.objectContaining({
+            timestampMs: 8_100,
+            level: "WARN",
+            target: "codex_core::exec",
+            bodyPreview: "Authorization: Bearer [REDACTED] failed",
+            threadId: "thread-observed",
+            modulePath: "codex_core::exec",
+            file: "exec.rs",
+            line: 42,
+            processUuid: "process-observed",
+            estimatedBytes: 48,
+            redactionApplied: true,
+          }),
+        ],
+        nextCursor: null,
+      });
+    } finally {
+      await store.close();
+    }
+  });
+
+  it("pages observed schema logs by ts, ts_nanos, and id for rows in the same second", async () => {
+    const fixture = track(
+      await createObservedDiagnosticsCodexHomeFixture({
+        logs: [
+          {
+            timestampMs: 9_000,
+            timestampNanos: 100,
+            level: "WARN",
+            target: "codex_core::exec",
+            body: "oldest nanos",
+            threadId: "thread-observed-page",
+          },
+          {
+            timestampMs: 9_000,
+            timestampNanos: 200,
+            level: "WARN",
+            target: "codex_core::exec",
+            body: "middle nanos",
+            threadId: "thread-observed-page",
+          },
+          {
+            timestampMs: 9_000,
+            timestampNanos: 300,
+            level: "WARN",
+            target: "codex_core::exec",
+            body: "newest nanos",
+            threadId: "thread-observed-page",
+          },
+        ],
+      }),
+    );
+    const { openLogStore } = await loadLogStore();
+    const store = await openLogStore({ codexHome: fixture.codexHome });
+
+    try {
+      const firstPage = await store.queryLogs({ threadId: "thread-observed-page", limit: 2 });
+      expect(firstPage.logs.map((log) => log.bodyPreview)).toEqual(["newest nanos", "middle nanos"]);
+      expect(firstPage.logs.map((log) => log.timestampMs)).toEqual([9_000, 9_000]);
+      expect(firstPage.nextCursor).toEqual(expect.any(String));
+
+      const secondPage = await store.queryLogs({
+        threadId: "thread-observed-page",
+        limit: 2,
+        cursor: firstPage.nextCursor ?? "",
+      });
+      expect(secondPage.logs.map((log) => log.bodyPreview)).toEqual(["oldest nanos"]);
+      expect(secondPage.nextCursor).toBeNull();
+    } finally {
+      await store.close();
+    }
+  });
+
+  it("summarizes observed schema warnings and targets without requiring derived command columns", async () => {
+    const fixture = track(
+      await createObservedDiagnosticsCodexHomeFixture({
+        logs: [
+          {
+            timestampMs: 10_000,
+            level: "WARN",
+            target: "codex_core::exec",
+            body: "shell warning",
+            threadId: "thread-observed-summary",
+          },
+          {
+            timestampMs: 10_100,
+            level: "ERROR",
+            target: "codex_core::exec",
+            body: "shell failed",
+            threadId: "thread-observed-summary",
+          },
+          {
+            timestampMs: 10_200,
+            level: "WARN",
+            target: "agentview::diagnostics",
+            body: "summary warning",
+            threadId: "thread-observed-other",
+          },
+        ],
+      }),
+    );
+    const { openLogStore } = await loadLogStore();
+    const store = await openLogStore({ codexHome: fixture.codexHome });
+
+    try {
+      await expect(
+        store.getDiagnosticsSummary({
+          threadIds: ["thread-observed-summary", "thread-observed-other"],
+          targetLimit: 2,
+        }),
+      ).resolves.toMatchObject({
+        warningCounts: {
+          total: 3,
+          byThreadId: {
+            "thread-observed-summary": 2,
+            "thread-observed-other": 1,
+          },
+          byLevel: {
+            WARN: 2,
+            ERROR: 1,
+          },
+        },
+        loudestTargets: [
+          {
+            target: "codex_core::exec",
+            totalCount: 2,
+            warningCount: 1,
+            errorCount: 1,
+          },
+          {
+            target: "agentview::diagnostics",
+            totalCount: 1,
+            warningCount: 1,
+            errorCount: 0,
+          },
+        ],
+        failedCommands: [],
+        sessionsWarningBadges: [
+          {
+            threadId: "thread-observed-summary",
+            warningCountStatus: "ready",
+            warningCount: 2,
+            failedToolCountStatus: "ready",
+            failedToolCount: 0,
+          },
+          {
+            threadId: "thread-observed-other",
+            warningCountStatus: "ready",
+            warningCount: 1,
+            failedToolCountStatus: "ready",
+            failedToolCount: 0,
+          },
+        ],
+      });
     } finally {
       await store.close();
     }

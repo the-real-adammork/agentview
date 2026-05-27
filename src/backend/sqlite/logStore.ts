@@ -43,6 +43,7 @@ export interface LogStore {
 interface LogRow {
   id: number | bigint;
   timestamp_ms: number;
+  timestamp_nanos: number | null;
   level: RuntimeLogLevel;
   target: string;
   body: string;
@@ -52,6 +53,9 @@ interface LogRow {
   thread_id: string | null;
   scope: string | null;
   process_uuid: string | null;
+  estimated_bytes: number | null;
+  cursor_ts: number;
+  cursor_ts_nanos: number | null;
 }
 
 interface SummaryRow {
@@ -82,6 +86,52 @@ const requiredLogColumns = [
   "output_preview",
 ];
 
+const requiredObservedLogColumns = [
+  "id",
+  "ts",
+  "ts_nanos",
+  "level",
+  "target",
+  "feedback_log_body",
+  "module_path",
+  "file",
+  "line",
+  "thread_id",
+  "process_uuid",
+  "estimated_bytes",
+];
+
+type LogSchema =
+  | {
+      kind: "legacy";
+      tables: string[];
+      logSelect: string;
+      summarySelect: string;
+      orderBy: string;
+      cursorCondition: string;
+      encodeCursor(row: LogRow): string;
+      bindCursor(parameters: Record<string, string | number>, cursor: LogCursor): boolean;
+      scopeFilterColumn: string | null;
+    }
+  | {
+      kind: "observed";
+      tables: string[];
+      logSelect: string;
+      summarySelect: string;
+      orderBy: string;
+      cursorCondition: string;
+      encodeCursor(row: LogRow): string;
+      bindCursor(parameters: Record<string, string | number>, cursor: LogCursor): boolean;
+      scopeFilterColumn: null;
+    };
+
+interface LogCursor {
+  timestampMs?: number;
+  ts?: number;
+  tsNanos?: number;
+  id: number;
+}
+
 const warningLevels = new Set<RuntimeLogLevel>(["WARN", "ERROR"]);
 const allowedLevels = new Set<RuntimeLogLevel>(["TRACE", "DEBUG", "INFO", "WARN", "ERROR"]);
 
@@ -99,7 +149,10 @@ const collectColumns = (db: DatabaseSync, table: string) =>
       .map((row) => String((row as { name: unknown }).name)),
   );
 
-const validateSchema = (db: DatabaseSync) => {
+const missingColumns = (columns: Set<string>, requiredColumns: string[]) =>
+  requiredColumns.filter((column) => !columns.has(column)).map((column) => `logs.${column}`);
+
+const validateSchema = (db: DatabaseSync): LogSchema => {
   const tables = collectTables(db);
   const missing: string[] = [];
 
@@ -107,11 +160,99 @@ const validateSchema = (db: DatabaseSync) => {
     missing.push("logs");
   } else {
     const columns = collectColumns(db, "logs");
-    for (const column of requiredLogColumns) {
-      if (!columns.has(column)) {
-        missing.push(`logs.${column}`);
-      }
+    const missingLegacy = missingColumns(columns, requiredLogColumns);
+    if (missingLegacy.length === 0) {
+      return {
+        kind: "legacy",
+        tables,
+        logSelect: `
+          id,
+          timestamp_ms,
+          NULL AS timestamp_nanos,
+          level,
+          target,
+          body,
+          module_path,
+          file,
+          line,
+          thread_id,
+          scope,
+          process_uuid,
+          NULL AS estimated_bytes,
+          timestamp_ms AS cursor_ts,
+          NULL AS cursor_ts_nanos
+        `,
+        summarySelect: "level, target, thread_id, tool_name, command, exit_code, output_preview",
+        orderBy: "timestamp_ms DESC, id DESC",
+        cursorCondition: "(timestamp_ms < :cursorTimestampMs OR (timestamp_ms = :cursorTimestampMs AND id < :cursorId))",
+        encodeCursor: (row) => encodeCursor({ timestampMs: row.cursor_ts, id: Number(row.id) }),
+        bindCursor: (parameters, cursor) => {
+          if (typeof cursor.timestampMs !== "number") return false;
+          parameters.cursorTimestampMs = cursor.timestampMs;
+          parameters.cursorId = cursor.id;
+          return true;
+        },
+        scopeFilterColumn: "scope",
+      };
     }
+
+    const missingObserved = missingColumns(columns, requiredObservedLogColumns);
+    if (missingObserved.length === 0) {
+      return {
+        kind: "observed",
+        tables,
+        logSelect: `
+          id,
+          (ts * 1000) + CAST(ts_nanos / 1000000 AS INTEGER) AS timestamp_ms,
+          ts_nanos AS timestamp_nanos,
+          level,
+          target,
+          feedback_log_body AS body,
+          module_path,
+          file,
+          line,
+          thread_id,
+          NULL AS scope,
+          process_uuid,
+          estimated_bytes,
+          ts AS cursor_ts,
+          ts_nanos AS cursor_ts_nanos
+        `,
+        summarySelect: `
+          level,
+          target,
+          thread_id,
+          NULL AS tool_name,
+          NULL AS command,
+          NULL AS exit_code,
+          NULL AS output_preview
+        `,
+        orderBy: "ts DESC, ts_nanos DESC, id DESC",
+        cursorCondition: `
+          (
+            ts < :cursorTs
+            OR (ts = :cursorTs AND ts_nanos < :cursorTsNanos)
+            OR (ts = :cursorTs AND ts_nanos = :cursorTsNanos AND id < :cursorId)
+          )
+        `,
+        encodeCursor: (row) =>
+          encodeCursor({
+            ts: row.cursor_ts,
+            tsNanos: row.cursor_ts_nanos ?? 0,
+            id: Number(row.id),
+          }),
+        bindCursor: (parameters, cursor) => {
+          if (typeof cursor.ts !== "number" || typeof cursor.tsNanos !== "number") return false;
+          parameters.cursorTs = cursor.ts;
+          parameters.cursorTsNanos = cursor.tsNanos;
+          parameters.cursorId = cursor.id;
+          return true;
+        },
+        scopeFilterColumn: null,
+      };
+    }
+
+    missing.push(...missingLegacy);
   }
 
   if (missing.length > 0) {
@@ -122,22 +263,29 @@ const validateSchema = (db: DatabaseSync) => {
     );
   }
 
-  return tables;
+  throw new LogStoreError("SCHEMA_UNSUPPORTED", "Unreachable schema validation state.");
 };
 
-const encodeCursor = (timestampMs: number, id: number) =>
-  Buffer.from(JSON.stringify({ timestampMs, id }), "utf8").toString("base64url");
+const encodeCursor = (cursor: LogCursor) => Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
 
 const decodeCursor = (cursor: string) => {
   try {
     const parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8")) as {
       timestampMs?: unknown;
+      ts?: unknown;
+      tsNanos?: unknown;
       id?: unknown;
     };
-    if (typeof parsed.timestampMs !== "number" || typeof parsed.id !== "number") {
+    if (typeof parsed.id !== "number") {
       return null;
     }
-    return parsed as { timestampMs: number; id: number };
+    if (typeof parsed.timestampMs === "number") {
+      return { timestampMs: parsed.timestampMs, id: parsed.id };
+    }
+    if (typeof parsed.ts === "number" && typeof parsed.tsNanos === "number") {
+      return { ts: parsed.ts, tsNanos: parsed.tsNanos, id: parsed.id };
+    }
+    return null;
   } catch {
     return null;
   }
@@ -156,6 +304,7 @@ const normalizeLog = (row: LogRow): RuntimeLog => {
   return {
     id: `log-${Number(row.id)}`,
     timestampMs: row.timestamp_ms,
+    timestampNanos: row.timestamp_nanos ?? undefined,
     level: row.level,
     target: row.target,
     bodyPreview: preview.text,
@@ -165,7 +314,7 @@ const normalizeLog = (row: LogRow): RuntimeLog => {
     threadId: row.thread_id ?? undefined,
     scope: row.scope ?? undefined,
     processUuid: row.process_uuid ?? undefined,
-    estimatedBytes: Buffer.byteLength(row.body, "utf8"),
+    estimatedBytes: row.estimated_bytes ?? Buffer.byteLength(row.body, "utf8"),
     redactionApplied: preview.redactionApplied,
   };
 };
@@ -184,7 +333,7 @@ const addOptionalFilter = (
   parameters[parameterName] = value;
 };
 
-const rowsForSummary = (db: DatabaseSync, threadIds: string[]) => {
+const rowsForSummary = (db: DatabaseSync, schema: LogSchema, threadIds: string[]) => {
   const parameters: Record<string, string> = {};
   const conditions: string[] = [];
 
@@ -201,7 +350,7 @@ const rowsForSummary = (db: DatabaseSync, threadIds: string[]) => {
   return db
     .prepare(
       `
-        SELECT level, target, thread_id, tool_name, command, exit_code, output_preview
+        SELECT ${schema.summarySelect}
         FROM logs
         ${where}
       `,
@@ -310,10 +459,10 @@ export const openLogStore = async ({ codexHome }: { codexHome: string }): Promis
   }
 
   const db = new DatabaseSync(logsDbPath, { readOnly: true });
-  let tables: string[];
+  let schema: LogSchema;
 
   try {
-    tables = validateSchema(db);
+    schema = validateSchema(db);
   } catch (error) {
     db.close();
     throw error;
@@ -327,7 +476,7 @@ export const openLogStore = async ({ codexHome }: { codexHome: string }): Promis
         schema: {
           readOnly: true,
           supported: true,
-          tables,
+          tables: schema.tables,
         },
       };
     },
@@ -346,26 +495,26 @@ export const openLogStore = async ({ codexHome }: { codexHome: string }): Promis
 
       addOptionalFilter(conditions, parameters, "target", "target", query.target);
       addOptionalFilter(conditions, parameters, "thread_id", "threadId", query.threadId);
-      addOptionalFilter(conditions, parameters, "scope", "scope", query.scope);
+      if (schema.scopeFilterColumn) {
+        addOptionalFilter(conditions, parameters, schema.scopeFilterColumn, "scope", query.scope);
+      }
 
       if (query.cursor) {
         const cursor = decodeCursor(query.cursor);
-        if (!cursor) {
+        if (!cursor || !schema.bindCursor(parameters, cursor)) {
           throw new LogStoreError("INVALID_CURSOR", "Log cursor is invalid.");
         }
-        conditions.push("(timestamp_ms < :cursorTimestampMs OR (timestamp_ms = :cursorTimestampMs AND id < :cursorId))");
-        parameters.cursorTimestampMs = cursor.timestampMs;
-        parameters.cursorId = cursor.id;
+        conditions.push(schema.cursorCondition);
       }
 
       const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
       const rows = db
         .prepare(
           `
-            SELECT id, timestamp_ms, level, target, body, module_path, file, line, thread_id, scope, process_uuid
+            SELECT ${schema.logSelect}
             FROM logs
             ${where}
-            ORDER BY timestamp_ms DESC, id DESC
+            ORDER BY ${schema.orderBy}
             LIMIT :limit
           `,
         )
@@ -375,11 +524,11 @@ export const openLogStore = async ({ codexHome }: { codexHome: string }): Promis
 
       return {
         logs: pageRows.map(normalizeLog),
-        nextCursor: rows.length > limit && last ? encodeCursor(last.timestamp_ms, Number(last.id)) : null,
+        nextCursor: rows.length > limit && last ? schema.encodeCursor(last) : null,
       };
     },
     async getDiagnosticsSummary(options = {}) {
-      return summarizeLogRows(rowsForSummary(db, options.threadIds ?? []), options);
+      return summarizeLogRows(rowsForSummary(db, schema, options.threadIds ?? []), options);
     },
     async close() {
       db.close();

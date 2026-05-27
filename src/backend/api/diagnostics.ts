@@ -1,7 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { readFile } from "node:fs/promises";
 
-import type { CachedToolCall, DiagnosticsSummary, RuntimeLogLevel, RuntimeLogQuery } from "../../shared/contracts";
-import { getRolloutFactsWithCache } from "../cache/rolloutCache";
+import type { CachedRolloutFacts, CachedToolCall, DiagnosticsSummary, RuntimeLogLevel, RuntimeLogQuery } from "../../shared/contracts";
+import { getRolloutFactsWithCache, rolloutCachePath } from "../cache/rolloutCache";
 import { RawTuiLogError, tailRawTuiLog } from "../diagnostics/rawTuiLog";
 import { resolveCodexHome } from "../codexPaths";
 import { parseRolloutFile } from "../rollout/jsonlStream";
@@ -123,7 +124,7 @@ const failedCommandFromToolCall = (threadId: string, toolCall: CachedToolCall) =
   return {
     threadId,
     toolName: toolCall.toolName,
-    command: toolCall.argumentsPreview ?? "",
+    command: toolCall.commandPreview ?? toolCall.argumentsPreview ?? "",
     exitCode: toolCall.exitCode,
     count: 1,
     lastOutputPreview: toolCall.outputPreview ?? "",
@@ -131,7 +132,13 @@ const failedCommandFromToolCall = (threadId: string, toolCall: CachedToolCall) =
   };
 };
 
-const fallbackSummaryFromRolloutCache = async ({
+const readRolloutCacheFacts = async (codexHome: string, threadId: string) => {
+  const cacheRoot = process.env.AGENTVIEW_CACHE_ROOT ?? codexHome;
+  const body = await readFile(rolloutCachePath(cacheRoot, threadId), "utf8");
+  return JSON.parse(body) as CachedRolloutFacts;
+};
+
+const failedCommandsFromRolloutCache = async ({
   codexHome,
   threadIds,
 }: {
@@ -148,6 +155,17 @@ const fallbackSummaryFromRolloutCache = async ({
         if (!thread?.rolloutPath) continue;
 
         const rolloutPath = await resolveRolloutPath(codexHome, thread.rolloutPath);
+        try {
+          const cachedFacts = await readRolloutCacheFacts(codexHome, threadId);
+          for (const toolCall of cachedFacts.toolCalls) {
+            const failedCommand = failedCommandFromToolCall(threadId, toolCall);
+            if (failedCommand) failedCommands.push(failedCommand);
+          }
+          continue;
+        } catch {
+          // Fall through to the parser-backed cache helper when no cache entry is available.
+        }
+
         const cached = await getRolloutFactsWithCache({
           codexHome,
           threadId,
@@ -173,6 +191,39 @@ const fallbackSummaryFromRolloutCache = async ({
     await store.close();
   }
 
+  return failedCommands;
+};
+
+const applyRolloutFailedCommands = (
+  summary: DiagnosticsSummary,
+  failedCommands: DiagnosticsSummary["failedCommands"],
+): DiagnosticsSummary => {
+  if (failedCommands.length === 0) return summary;
+
+  const failedCountsByThread = new Map<string, number>();
+  for (const failedCommand of failedCommands) {
+    failedCountsByThread.set(failedCommand.threadId, (failedCountsByThread.get(failedCommand.threadId) ?? 0) + failedCommand.count);
+  }
+
+  return {
+    ...summary,
+    failedCommands: [...summary.failedCommands, ...failedCommands],
+    sessionsWarningBadges: summary.sessionsWarningBadges.map((badge) => ({
+      ...badge,
+      failedToolCountStatus: "ready",
+      failedToolCount: badge.failedToolCount + (failedCountsByThread.get(badge.threadId) ?? 0),
+    })),
+  };
+};
+
+const fallbackSummaryFromRolloutCache = async ({
+  codexHome,
+  threadIds,
+}: {
+  codexHome: string;
+  threadIds: string[];
+}) => {
+  const failedCommands = await failedCommandsFromRolloutCache({ codexHome, threadIds });
   const failedCountsByThread = new Map<string, number>();
   for (const failedCommand of failedCommands) {
     failedCountsByThread.set(failedCommand.threadId, (failedCountsByThread.get(failedCommand.threadId) ?? 0) + failedCommand.count);
@@ -296,10 +347,15 @@ export const handleDiagnosticsApiRequest = async (request: IncomingMessage, resp
   try {
     const store = await openLogStore({ codexHome });
     try {
+      const summary = await store.getDiagnosticsSummary({ threadIds: parsed.threadIds, targetLimit: parsed.targetLimit });
+      const failedCommands =
+        parsed.threadIds.length > 0
+          ? await failedCommandsFromRolloutCache({ codexHome, threadIds: parsed.threadIds })
+          : [];
       writeJson(
         response,
         200,
-        ok("logs-db", await store.getDiagnosticsSummary({ threadIds: parsed.threadIds, targetLimit: parsed.targetLimit })),
+        ok("logs-db", applyRolloutFailedCommands(summary, failedCommands)),
         origin,
       );
       return true;

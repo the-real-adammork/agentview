@@ -1,0 +1,127 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/integration/logStore.test.ts tests/integration/diagnosticsApi.test.ts tests/integration/sourceErrors.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-logs-schema-adapter
+
+(node:90721) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:90722) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:90723) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ tests/integration/logStore.test.ts (8 tests | 3 failed) 41ms
+   ✓ read-only diagnostics log store > opens a temp logs_2.sqlite database read-only and reports supported schema health 14ms
+   ✓ read-only diagnostics log store > rejects unsupported logs schemas with a typed SCHEMA_UNSUPPORTED error 2ms
+   ✓ read-only diagnostics log store > applies level, target, thread, and scope filters as exact parameterized predicates 4ms
+   ✓ read-only diagnostics log store > returns deterministic cursor pages ordered by newest log first 4ms
+   × read-only diagnostics log store > normalizes observed logs_2.sqlite rows and applies level, target, and thread filters 5ms
+     → Unsupported logs_2.sqlite schema: missing logs.timestamp_ms, logs.body, logs.scope, logs.tool_name, logs.command, logs.exit_code, logs.output_preview
+   × read-only diagnostics log store > pages observed schema logs by ts, ts_nanos, and id for rows in the same second 4ms
+     → Unsupported logs_2.sqlite schema: missing logs.timestamp_ms, logs.body, logs.scope, logs.tool_name, logs.command, logs.exit_code, logs.output_preview
+   × read-only diagnostics log store > summarizes observed schema warnings and targets without requiring derived command columns 4ms
+     → Unsupported logs_2.sqlite schema: missing logs.timestamp_ms, logs.body, logs.scope, logs.tool_name, logs.command, logs.exit_code, logs.output_preview
+   ✓ read-only diagnostics log store > summarizes warning counts, loudest targets, failed commands, and session badge counts 4ms
+ ✓ tests/integration/sourceErrors.test.ts (3 tests) 530ms
+ ❯ tests/integration/diagnosticsApi.test.ts (6 tests | 2 failed) 1564ms
+   ✓ diagnostics API routes > serves filtered log rows from logs_2.sqlite with cursor pagination 274ms
+   × diagnostics API routes > serves observed-schema log rows with redacted previews and nanosecond cursor pagination 259ms
+     → expected 503 to be 200 // Object.is equality
+   ✓ diagnostics API routes > returns typed unsupported-schema errors for malformed logs_2.sqlite files 252ms
+   ✓ diagnostics API routes > returns warning counts, loudest targets, failed commands, and warning badge summaries 261ms
+   × diagnostics API routes > combines observed-schema warning summaries with rollout-cache failed-command facts 257ms
+     → expected 503 to be 200 // Object.is equality
+   ✓ diagnostics API routes > falls back to cached rollout failed-tool facts when logs_2.sqlite is unavailable 259ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/diagnosticsApi.test.ts > diagnostics API routes > serves observed-schema log rows with redacted previews and nanosecond cursor pagination
+AssertionError: expected 503 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 503
+
+ ❯ tests/integration/diagnosticsApi.test.ts:140:32
+    138|       );
+    139|
+    140|       expect(firstPage.status).toBe(200);
+       |                                ^
+    141|       expect(firstPage.body).toMatchObject({
+    142|         ok: true,
+ ❯ withApi tests/helpers/apiServer.ts:123:12
+ ❯ tests/integration/diagnosticsApi.test.ts:134:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  tests/integration/diagnosticsApi.test.ts > diagnostics API routes > combines observed-schema warning summaries with rollout-cache failed-command facts
+AssertionError: expected 503 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 503
+
+ ❯ tests/integration/diagnosticsApi.test.ts:370:31
+    368|       const response = await requestJson(baseUrl, "/api/diagnostics/su…
+    369|
+    370|       expect(response.status).toBe(200);
+       |                               ^
+    371|       expect(response.body).toMatchObject({
+    372|         ok: true,
+ ❯ withApi tests/helpers/apiServer.ts:123:12
+ ❯ tests/integration/diagnosticsApi.test.ts:367:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  tests/integration/logStore.test.ts > read-only diagnostics log store > normalizes observed logs_2.sqlite rows and applies level, target, and thread filters
+LogStoreError: Unsupported logs_2.sqlite schema: missing logs.timestamp_ms, logs.body, logs.scope, logs.tool_name, logs.command, logs.exit_code, logs.output_preview
+ ❯ validateSchema src/backend/sqlite/logStore.ts:118:11
+    116|
+    117|   if (missing.length > 0) {
+    118|     throw new LogStoreError(
+       |           ^
+    119|       "SCHEMA_UNSUPPORTED",
+    120|       `Unsupported logs_2.sqlite schema: missing ${missing.join(", ")}…
+ ❯ openLogStore src/backend/sqlite/logStore.ts:316:14
+ ❯ tests/integration/logStore.test.ts:280:19
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+ FAIL  tests/integration/logStore.test.ts > read-only diagnostics log store > pages observed schema logs by ts, ts_nanos, and id for rows in the same second
+LogStoreError: Unsupported logs_2.sqlite schema: missing logs.timestamp_ms, logs.body, logs.scope, logs.tool_name, logs.command, logs.exit_code, logs.output_preview
+ ❯ validateSchema src/backend/sqlite/logStore.ts:118:11
+    116|
+    117|   if (missing.length > 0) {
+    118|     throw new LogStoreError(
+       |           ^
+    119|       "SCHEMA_UNSUPPORTED",
+    120|       `Unsupported logs_2.sqlite schema: missing ${missing.join(", ")}…
+ ❯ openLogStore src/backend/sqlite/logStore.ts:316:14
+ ❯ tests/integration/logStore.test.ts:355:19
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/5]⎯
+
+ FAIL  tests/integration/logStore.test.ts > read-only diagnostics log store > summarizes observed schema warnings and targets without requiring derived command columns
+LogStoreError: Unsupported logs_2.sqlite schema: missing logs.timestamp_ms, logs.body, logs.scope, logs.tool_name, logs.command, logs.exit_code, logs.output_preview
+ ❯ validateSchema src/backend/sqlite/logStore.ts:118:11
+    116|
+    117|   if (missing.length > 0) {
+    118|     throw new LogStoreError(
+       |           ^
+    119|       "SCHEMA_UNSUPPORTED",
+    120|       `Unsupported logs_2.sqlite schema: missing ${missing.join(", ")}…
+ ❯ openLogStore src/backend/sqlite/logStore.ts:316:14
+ ❯ tests/integration/logStore.test.ts:404:19
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/5]⎯
+
+
+ Test Files  2 failed | 1 passed (3)
+      Tests  5 failed | 12 passed (17)
+   Start at  09:41:41
+   Duration  1.88s (transform 68ms, setup 0ms, collect 93ms, tests 2.13s, environment 406ms, prepare 97ms)
