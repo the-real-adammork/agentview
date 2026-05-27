@@ -5,7 +5,7 @@ branch: "impl/phase-1-fixture-shell"
 worktree: "."
 active_lanes:
   - lane: "contract-fixture-data"
-    status: test_proposal
+    status: implementation
     worker: "worker-contract-fixture-data-1"
     branch: "impl/phase-1-contract-fixture-data"
     worktree: ".worktrees/phase-1-contract-fixture-data"
@@ -29,7 +29,10 @@ tasks:
     title: "Define Shared Contracts And Fixture Data"
     status: in_progress
     lane: "contract-test-harness"
-    verification: []
+    verification:
+      - command: "npm run test -- --run tests/unit/contracts.test.ts tests/unit/redaction.test.ts"
+        result: fail_expected
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-2-test-proposal.txt"
   "3":
     title: "Port The Fixture-Backed Five-View Shell"
     status: not_started
@@ -64,4 +67,4 @@ acceptance:
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T02:44:42Z"
+updated_at: "2026-05-27T02:52:09Z"
