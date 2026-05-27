@@ -1,6 +1,6 @@
 phase: "observatory-api-design-data-gap-closure"
-orchestrator_status: acceptance_ready
-updated_at: "2026-05-27T15:28:20Z"
+orchestrator_status: complete
+updated_at: "2026-05-27T15:36:37Z"
 heartbeat_expires_at: "2026-05-27T15:38:20Z"
 tmux:
   pane_id: "%107"
@@ -11,4 +11,4 @@ request:
 phase_completion:
   phase_yaml: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/phases/observatory-api-design-data-gap-closure.yaml"
   acceptance_packet: "docs/qa/phase-acceptance/2026-05-27-observatory-api-design-data-gap-closure.md"
-  commit: "2383553d629288d19d5f5b8ad13ed767a250cb3d"
+  commit: "238355399028873522ee46fe1ee26c5df39d4c3f"

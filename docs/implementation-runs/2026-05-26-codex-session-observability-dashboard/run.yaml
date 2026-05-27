@@ -1,5 +1,5 @@
 run_id: "2026-05-26-codex-session-observability-dashboard"
-status: running
+status: complete
 phases_document: "docs/plans/2026-05-26-codex-session-observability-dashboard-implementation-phases.md"
 current_phase: "observatory-api-design-data-gap-closure"
 phase_order:
@@ -9,12 +9,18 @@ phase_order:
   - "2026-05-26-codex-session-observability-dashboard-phase-4"
   - "2026-05-26-codex-session-observability-dashboard-phase-5"
   - "observatory-api-design-data-gap-closure"
+completed_phases:
+  observatory-api-design-data-gap-closure:
+    phase_branch: "impl/observatory-api-design-data-gap-closure"
+    base_commit_after_merge: "2805bc85b090e209f005f916978a8d59cb0a7d9a"
+    accepted_phase_commit: "238355399028873522ee46fe1ee26c5df39d4c3f"
+    acceptance_packet: "docs/qa/phase-acceptance/2026-05-27-observatory-api-design-data-gap-closure.md"
 branches:
   base: "main"
-  current: "impl/observatory-api-design-data-gap-closure"
+  current: "main"
 orchestrator:
   phase: "observatory-api-design-data-gap-closure"
-  status: running
+  status: complete
   spawn_method: tmux-pane
   tmux_pane: "%107"
   inbox: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/supervisor-inbox/observatory-api-design-data-gap-closure.yaml"
@@ -29,4 +35,4 @@ paths:
   qa_artifacts: "docs/qa/artifacts"
   acceptance_packets: "docs/qa/phase-acceptance"
 escalations: []
-updated_at: "2026-05-27T14:25:30Z"
+updated_at: "2026-05-27T15:36:37Z"
