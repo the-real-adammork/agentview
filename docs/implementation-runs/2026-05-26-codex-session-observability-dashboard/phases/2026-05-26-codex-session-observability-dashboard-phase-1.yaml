@@ -3,12 +3,7 @@ status: running
 plan: "docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md"
 branch: "impl/phase-1-fixture-shell"
 worktree: "."
-active_lanes:
-  - lane: "api-e2e-harness"
-    status: implementation
-    worker: "worker-api-e2e-1"
-    branch: "impl/phase-1-api-e2e"
-    worktree: ".worktrees/phase-1-api-e2e"
+active_lanes: []
 tasks:
   "1":
     title: "Bootstrap Package, Scripts, And TypeScript Layout"
@@ -60,12 +55,19 @@ tasks:
         artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-3-integration-tokens-check.txt"
   "4":
     title: "Add Local API Fixture Server And Playwright Harness"
-    status: in_progress
+    status: done
     lane: "contract-test-harness"
+    commit: "4cd0292"
     verification:
       - command: "npm run e2e"
         result: fail_expected
         artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-4-test-proposal.txt"
+      - command: "npm run typecheck"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-4-integration-typecheck.txt"
+      - command: "npm run e2e"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-4-integration-e2e.txt"
   "5":
     title: "Integrate Phase 1 Acceptance Packet"
     status: not_started
@@ -73,11 +75,11 @@ tasks:
     verification: []
 service_wiring:
   app_health:
-    status: scaffolded
-    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-1-typecheck-final.txt"
+    status: covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-4-integration-e2e.txt"
   fixture_sessions_navigation:
-    status: contract_fixture_covered
-    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-2-integration-focused-test.txt"
+    status: covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-4-integration-e2e.txt"
   visual_shell:
     status: covered
     evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-3-integration-app-shell-test.txt"
@@ -103,6 +105,22 @@ mock_fixture_ledger:
     conversion_task: "docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md"
     evidence:
       - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-2-integration-focused-test.txt"
+  - id: "mf-phase1-002"
+    name: "fixture API handlers and frontend fixture client"
+    kind: fake-service
+    introduced_by: "Tasks 3-4"
+    scope: runtime
+    affected_paths:
+      - "src/frontend/api/client.ts"
+      - "src/backend/api/fixtures.ts"
+    service_wiring_rows:
+      - "app_health"
+      - "fixture_sessions_navigation"
+    disposition: intentional-phase-boundary
+    acceptable_because: "Phase 1 explicitly proves browser-to-fixture local API wiring; real read-only Codex sources are introduced in Phase 2 and later."
+    conversion_task: "docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md"
+    evidence:
+      - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-4-integration-e2e.txt"
 lessons: []
 blockers: []
-updated_at: "2026-05-27T03:06:58Z"
+updated_at: "2026-05-27T03:14:42Z"
