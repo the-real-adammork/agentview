@@ -16,7 +16,7 @@ Private real Codex logs/raw TUI data validation was not run. The phase plan perm
 - Task 3, privacy/source hardening: `8bb44bb`
 - Task 2, diagnostics UI/raw tail: `05a9625`
 - Task 4, final quality gates: `f4b9b13`
-- Task 5, acceptance integration: `<task-5-acceptance-commit>`
+- Task 5, acceptance integration: `27e1940`
 
 ## Service Wiring
 
@@ -40,7 +40,7 @@ Private real Codex logs/raw TUI data validation was not run. The phase plan perm
 | `npm run perf:all` | Pass | `docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/phase-5-acceptance-perf-all.txt` |
 | `npm run privacy:check` | Pass | `docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/phase-5-acceptance-privacy-check.txt` |
 | `npm run tokens:check` | Pass | `docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/phase-5-acceptance-tokens-check.txt` |
-| `rg -n --hidden --glob '!node_modules' --glob '!.git' --glob '!docs/qa/artifacts/**' --glob '!docs/implementation-runs/**' 'mock\|fixture\|fake\|stub\|noop\|no-op\|placeholder\|TODO.*real\|temporary.*fake\|fixture-only\|disabled network' .` | Reviewed | `docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/mock-fixture-audit.txt` |
+| `rg -n --hidden --glob '!node_modules' --glob '!.git' --glob '!docs/qa/artifacts/**' --glob '!docs/implementation-runs/**' 'mock\|fixture\|fake\|stub\|noop\|no-op\|placeholder\|TODO.*real\|temporary.*fake\|fixture-only\|disabled network' .` | Pass | `docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/mock-fixture-audit.txt` |
 
 ## Mock And Fixture Ledger
 
