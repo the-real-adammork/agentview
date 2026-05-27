@@ -110,12 +110,19 @@ button {
 }
 
 .segbar__button:focus-visible,
+.segbar__button:focus,
 .diagnostics-toolbar button:focus-visible,
+.diagnostics-toolbar button:focus,
 .diagnostics-action:focus-visible,
+.diagnostics-action:focus,
 .raw-tail button:focus-visible,
+.raw-tail button:focus,
 .field input:focus-visible,
+.field input:focus,
 .field select:focus-visible,
-.session-row:focus-visible {
+.field select:focus,
+.session-row:focus-visible,
+.session-row:focus {
   outline: none;
   box-shadow: var(--focus-ring);
 }

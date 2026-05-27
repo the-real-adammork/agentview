@@ -143,26 +143,30 @@ const fallbackSummaryFromRolloutCache = async ({
 
   try {
     for (const threadId of threadIds) {
-      const thread = await store.getThread(threadId);
-      if (!thread?.rolloutPath) continue;
+      try {
+        const thread = await store.getThread(threadId);
+        if (!thread?.rolloutPath) continue;
 
-      const rolloutPath = await resolveRolloutPath(codexHome, thread.rolloutPath);
-      const cached = await getRolloutFactsWithCache({
-        codexHome,
-        threadId,
-        rolloutPath,
-        parse: (sourceMtimeMs, sourceSizeBytes) =>
-          parseRolloutFile(rolloutPath, {
-            threadId,
-            rolloutPath,
-            sourceMtimeMs,
-            sourceSizeBytes,
-          }),
-      });
+        const rolloutPath = await resolveRolloutPath(codexHome, thread.rolloutPath);
+        const cached = await getRolloutFactsWithCache({
+          codexHome,
+          threadId,
+          rolloutPath,
+          parse: (sourceMtimeMs, sourceSizeBytes) =>
+            parseRolloutFile(rolloutPath, {
+              threadId,
+              rolloutPath,
+              sourceMtimeMs,
+              sourceSizeBytes,
+            }),
+        });
 
-      for (const toolCall of cached.facts.toolCalls) {
-        const failedCommand = failedCommandFromToolCall(threadId, toolCall);
-        if (failedCommand) failedCommands.push(failedCommand);
+        for (const toolCall of cached.facts.toolCalls) {
+          const failedCommand = failedCommandFromToolCall(threadId, toolCall);
+          if (failedCommand) failedCommands.push(failedCommand);
+        }
+      } catch {
+        continue;
       }
     }
   } finally {

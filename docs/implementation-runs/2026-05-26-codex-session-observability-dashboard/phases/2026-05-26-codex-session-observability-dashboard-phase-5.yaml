@@ -60,7 +60,27 @@ tasks:
         artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-3-typecheck.txt"
   "4":
     title: "Add Final Accessibility, Performance, Privacy, And Network Gates"
-    status: not_started
+    status: done
+    commit: null
+    verification:
+      - command: "npm run a11y"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-4-a11y.txt"
+      - command: "npm run perf:all"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-4-perf-all.txt"
+      - command: "npm run privacy:check"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-4-privacy-check.txt"
+      - command: "npm run tokens:check"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-4-tokens-check.txt"
+      - command: "npm run e2e -- --grep @hardening"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-4-hardening-e2e.txt"
+      - command: "npm run typecheck"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-4-typecheck.txt"
   "5":
     title: "Integrate Phase 5 Acceptance Packet"
     status: not_started
@@ -81,8 +101,8 @@ service_wiring:
     status: integration-covered
     evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-3-source-errors.txt"
   final_privacy_a11y_performance:
-    status: privacy-covered
-    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-3-privacy-check.txt"
+    status: qa-covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-4-a11y.txt"
 mock_fixture_ledger:
   - id: "mf-phase5-001"
     name: "temp logs_2.sqlite diagnostics fixture"
@@ -157,4 +177,4 @@ acceptance:
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T06:46:35Z"
+updated_at: "2026-05-27T06:51:14Z"

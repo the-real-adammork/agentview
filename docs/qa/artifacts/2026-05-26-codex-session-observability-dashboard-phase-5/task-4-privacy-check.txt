@@ -1,0 +1,19 @@
+
+> agentview@0.1.0 privacy:check
+> npm run test -- --run tests/privacy/privacyPreviews.test.ts && node scripts/check-privacy.mjs
+
+
+> agentview@0.1.0 test
+> vitest --run tests/privacy/privacyPreviews.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-phase-5-diagnostics-hardening
+
+ ✓ tests/privacy/privacyPreviews.test.ts (2 tests) 2ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  01:51:01
+   Duration  260ms (transform 21ms, setup 0ms, collect 21ms, tests 2ms, environment 108ms, prepare 31ms)
+
+privacy check passed

@@ -1,0 +1,63 @@
+
+> agentview@0.1.0 perf:all
+> npm run perf:sessions && npm run perf:rollout && npm run test -- --run tests/perf/fullDashboard.test.ts
+
+
+> agentview@0.1.0 perf:sessions
+> node scripts/perf/sessions-first-paint.mjs
+
+(node:62267) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[npm] 
+> agentview@0.1.0 api
+> tsx src/backend/server.ts
+
+[npm] 
+> agentview@0.1.0 dev
+> vite --host 127.0.0.1 --port 57780 --strictPort
+
+[npm] (node:62436) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[npm] 
+  VITE v7.3.3  ready in 70 ms
+
+[npm]   ➜  Local:   http://127.0.0.1:57780/
+[npm] AgentView API listening on http://127.0.0.1:57779
+{
+  "result": "pass",
+  "elapsedMs": 230,
+  "thresholdMs": 3500,
+  "renderedRows": 500,
+  "firstRowIncludesNewestSession": true,
+  "codexHome": "/var/folders/_t/dr_6mmcd1t19vnlhdmr3p7kh0000gn/T/agentview-perf-codex-home-2VAP8y"
+}
+
+> agentview@0.1.0 perf:rollout
+> tsx scripts/perf/rollout-parse.mjs
+
+{
+  "result": "pass",
+  "lineCount": 2500,
+  "coldMs": 21,
+  "warmMs": 1,
+  "coldStatus": "cold",
+  "warmStatus": "warm",
+  "events": 2500
+}
+
+> agentview@0.1.0 test
+> vitest --run tests/perf/fullDashboard.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-phase-5-diagnostics-hardening
+
+(node:62531) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/perf/fullDashboard.test.ts (2 tests) 466ms
+   ✓ full dashboard performance guards > keeps diagnostics paging bounded for large log fixtures  464ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  01:51:00
+   Duration  732ms (transform 26ms, setup 0ms, collect 26ms, tests 466ms, environment 107ms, prepare 31ms)
+

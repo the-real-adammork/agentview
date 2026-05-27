@@ -13,6 +13,8 @@
     "tokens:check": "node scripts/check-style-tokens.mjs",
     "privacy:check": "npm run test -- --run tests/privacy/privacyPreviews.test.ts && node scripts/check-privacy.mjs",
     "e2e": "playwright test",
+    "a11y": "playwright test --config playwright.a11y.config.ts",
+    "perf:all": "npm run perf:sessions && npm run perf:rollout && npm run test -- --run tests/perf/fullDashboard.test.ts",
     "perf:sessions": "node scripts/perf/sessions-first-paint.mjs",
     "perf:rollout": "tsx scripts/perf/rollout-parse.mjs"
   },
