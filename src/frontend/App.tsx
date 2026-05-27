@@ -46,7 +46,7 @@ export function App() {
     setSessionsLoading(true);
     setSessionsError(null);
     realApiClient
-      .listSessions(sessionFilter, { limit: 100, offset: 0 })
+      .listSessions(sessionFilter, { limit: 500, offset: 0 })
       .then((result) => {
         if (cancelled) {
           return;

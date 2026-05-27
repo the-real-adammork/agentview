@@ -1,0 +1,29 @@
+
+> agentview@0.1.0 perf:sessions
+> node scripts/perf/sessions-first-paint.mjs
+
+(node:62983) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[npm] 
+> agentview@0.1.0 dev
+> vite --host 127.0.0.1 --port 54517 --strictPort
+
+[npm] 
+> agentview@0.1.0 api
+> tsx src/backend/server.ts
+
+[npm] (node:63090) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[npm] 
+  VITE v7.3.3  ready in 67 ms
+
+[npm]   ➜  Local:   http://127.0.0.1:54517/
+[npm] AgentView API listening on http://127.0.0.1:54516
+{
+  "result": "pass",
+  "elapsedMs": 204,
+  "thresholdMs": 3500,
+  "renderedRows": 500,
+  "firstRowIncludesNewestSession": true,
+  "codexHome": "/var/folders/_t/dr_6mmcd1t19vnlhdmr3p7kh0000gn/T/agentview-perf-codex-home-nw88Nu"
+}

@@ -72,8 +72,7 @@ export const fixtureApiClient: ObservatoryApi = {
   },
 };
 
-const importEnv = import.meta as ImportMeta & { env?: { VITE_AGENTVIEW_API_BASE_URL?: string } };
-const apiBaseUrl = (importEnv.env?.VITE_AGENTVIEW_API_BASE_URL ?? "http://127.0.0.1:4317").replace(/\/$/, "");
+const apiBaseUrl = (import.meta.env.VITE_AGENTVIEW_API_BASE_URL ?? "http://127.0.0.1:4317").replace(/\/$/, "");
 
 const appendParam = (params: URLSearchParams, name: string, value: string | number | undefined) => {
   if (value === undefined) {

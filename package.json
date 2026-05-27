@@ -11,7 +11,8 @@
     "test": "vitest",
     "lint": "eslint . --max-warnings=0",
     "tokens:check": "node scripts/check-style-tokens.mjs",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "perf:sessions": "node scripts/perf/sessions-first-paint.mjs"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.0",
