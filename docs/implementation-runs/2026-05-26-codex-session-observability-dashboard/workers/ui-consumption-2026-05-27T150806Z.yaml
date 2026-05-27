@@ -1,0 +1,66 @@
+status: complete
+task: "Task 5"
+lane: "ui-consumption"
+base_commit: "e53425cefc199e6967ec6966f2cf8e763b214e68"
+head_commit: "cf14053f85eea16aab5f6ccc4f9eb9184c75d604"
+branch: "impl/observatory-api-design-data-gap-closure-ui-consumption"
+worktree: "/Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption"
+changed_files:
+  - "src/frontend/App.tsx"
+  - "src/frontend/components/RateLimitMeter.tsx"
+  - "src/frontend/components/TimelineEventRow.tsx"
+  - "src/frontend/styles/app.css"
+  - "src/frontend/views/AgentGraphView.tsx"
+  - "src/frontend/views/DiagnosticsView.tsx"
+  - "src/frontend/views/SessionsView.tsx"
+  - "src/frontend/views/TimelineView.tsx"
+  - "src/frontend/views/TokensView.tsx"
+  - "tests/e2e/diagnostics-ui.spec.ts"
+  - "tests/e2e/graph-tokens.spec.ts"
+  - "tests/e2e/timeline-detail.spec.ts"
+  - "tests/e2e/observedSourceFixture.ts"
+  - "docs/qa/artifacts/observatory-api-design-data-gap-closure/ui-consumption-task-5-e2e-fail-expected.txt"
+  - "docs/qa/artifacts/observatory-api-design-data-gap-closure/ui-consumption-implementation.txt"
+  - "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/ui-consumption-2026-05-27T150806Z.yaml"
+commands:
+  - command: "npm run e2e -- timeline-detail.spec.ts graph-tokens.spec.ts diagnostics-ui.spec.ts"
+    result: fail_expected
+    artifact: "docs/qa/artifacts/observatory-api-design-data-gap-closure/ui-consumption-task-5-e2e-fail-expected.txt"
+  - command: "npm run e2e -- timeline-detail.spec.ts graph-tokens.spec.ts diagnostics-ui.spec.ts"
+    result: pass
+    artifact: "docs/qa/artifacts/observatory-api-design-data-gap-closure/ui-consumption-implementation.txt"
+service_wiring_rows:
+  - "Observed rollout timeline"
+  - "Spawn child navigation data"
+  - "Full token metadata"
+  - "Observed diagnostics logs"
+  - "Failed command summaries"
+real_dependencies:
+  - "Playwright browser runtime"
+  - "local Vite app server"
+  - "local API server"
+  - "node:sqlite observed logs_2.sqlite fixture"
+  - "temporary CODEX_HOME rollout JSONL and cache files"
+mocks_or_fixtures:
+  - name: "Playwright temp CODEX_HOME observed source fixture"
+    kind: "fixture"
+    scope: "E2E test-only; rewrites sessions/*.jsonl, logs_2.sqlite, and rollout cache under AGENTVIEW_E2E_CODEX_HOME"
+    affected_paths:
+      - "tests/e2e/observedSourceFixture.ts"
+      - "tests/e2e/timeline-detail.spec.ts"
+      - "tests/e2e/graph-tokens.spec.ts"
+      - "tests/e2e/diagnostics-ui.spec.ts"
+    service_wiring_rows:
+      - "Observed rollout timeline"
+      - "Spawn child navigation data"
+      - "Full token metadata"
+      - "Observed diagnostics logs"
+      - "Failed command summaries"
+    disposition: "test-only"
+    acceptable_reason: "Generated source fixtures exercise browser -> real local API -> filesystem/SQLite code paths without mutating user Codex data."
+    conversion_task: null
+    evidence_path: "docs/qa/artifacts/observatory-api-design-data-gap-closure/ui-consumption-implementation.txt"
+residual_risks:
+  - "Verification was limited to the approved focused Playwright command for Task 5; broader phase regression remains with the phase owner."
+review_status: "ready_for_orchestrator_review"
+blockers: []
