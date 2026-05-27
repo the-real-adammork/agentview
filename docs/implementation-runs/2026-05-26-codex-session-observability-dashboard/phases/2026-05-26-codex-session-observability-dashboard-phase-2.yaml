@@ -3,13 +3,7 @@ status: running
 plan: "docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md"
 branch: "impl/phase-2-sessions-index"
 worktree: ".worktrees/impl-phase-2-sessions-index"
-active_lanes:
-  - lane: "sessions-api-tests"
-    status: test_proposed
-    worker: "019e6798-f4c6-72c0-bde7-4b1901f0c061"
-    branch: "impl/phase-2-sessions-api-tests"
-    worktree: ".worktrees/impl-phase-2-sessions-api-tests"
-    result: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/sessions-api-tests-20260527T040143Z.yaml"
+active_lanes: []
 role_separation:
   supervisor: "supervisor"
   phase_owner: "019e6788-7213-7f21-acac-1394f306a55a"
@@ -36,8 +30,27 @@ tasks:
         artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-1-integration-typecheck.txt"
   "2":
     title: "Wire Health, Sessions, And Thread API Routes"
-    status: test_proposed
+    status: done
     lane: "sessions-api-tests"
+    commit: "cb59ad5"
+    test_review:
+      status: approved
+      reviewer: "019e67b1-e571-7252-8252-9d5f942f81eb"
+      command: "npm run test -- --run tests/integration/sessionsApi.test.ts"
+      result: fail_expected
+      artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-test-proposal.txt"
+    implementation_review:
+      status: approved
+      reviewer: "phase-orchestrator"
+      result: pass
+      artifact: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/sessions-api-implementation-20260527T043105Z.yaml"
+    verification:
+      - command: "npm run test -- --run tests/integration/sessionsApi.test.ts"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt"
+      - command: "npm run typecheck"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt"
   "3":
     title: "Replace Sessions UI With Real API Data"
     status: not_started
@@ -49,17 +62,17 @@ tasks:
     status: not_started
 service_wiring:
   health_and_source_availability:
-    status: source_layer_covered
-    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-1-integration-focused-test.txt"
+    status: api_covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt"
   sessions_first_paint:
-    status: source_layer_covered
-    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-1-integration-focused-test.txt"
+    status: api_covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt"
   session_lookup:
-    status: pending
-    evidence: null
+    status: api_covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt"
   filter_composition:
-    status: pending
-    evidence: null
+    status: api_covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt"
 mock_fixture_ledger:
   - id: "mf-phase2-001"
     name: "temp Codex home SQLite fixture"
@@ -76,10 +89,42 @@ mock_fixture_ledger:
     conversion_task: null
     evidence:
       - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-1-integration-focused-test.txt"
+  - id: "mf-phase2-002"
+    name: "sessions API temp state_5.sqlite fixtures"
+    kind: fixture
+    introduced_by: "Task 2"
+    scope: test-only
+    affected_paths:
+      - "tests/integration/sessionsApi.test.ts"
+      - "tests/fixtures/codexHome.ts"
+    service_wiring_rows:
+      - "Health and source availability"
+      - "Sessions first paint"
+      - "Session lookup"
+      - "Filter composition"
+    disposition: test-only
+    acceptable_because: "Integration tests exercise the real HTTP API and read-only state store against generated temporary SQLite databases; production/dev routes still resolve configured CODEX_HOME."
+    conversion_task: null
+    evidence:
+      - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt"
+  - id: "mf-phase2-003"
+    name: "sessions API JSONL read trap preloader"
+    kind: fixture
+    introduced_by: "Task 2"
+    scope: test-only
+    affected_paths:
+      - "tests/integration/sessionsApi.test.ts"
+    service_wiring_rows:
+      - "Sessions first paint"
+    disposition: test-only
+    acceptable_because: "The preloader is test-only instrumentation that fails if the sessions list path reads rollout JSONL during first paint."
+    conversion_task: null
+    evidence:
+      - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt"
 acceptance:
   status: pending
   packet: "docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-2.md"
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T04:08:08Z"
+updated_at: "2026-05-27T04:56:57Z"
