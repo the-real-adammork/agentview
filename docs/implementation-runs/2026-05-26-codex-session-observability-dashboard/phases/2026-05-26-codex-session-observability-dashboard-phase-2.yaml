@@ -74,7 +74,16 @@ tasks:
         artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-3-implementation-focused-test.txt"
   "4":
     title: "Add First-Paint Performance Guard"
-    status: not_started
+    status: done
+    lane: "phase-owner"
+    commit: "fdad1dc"
+    verification:
+      - command: "npm run perf:sessions"
+        result: fail_expected
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-4-test-proposal.txt"
+      - command: "npm run perf:sessions"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-4-implementation-focused-test.txt"
   "5":
     title: "Integrate Phase 2 Acceptance Packet"
     status: not_started
@@ -83,8 +92,8 @@ service_wiring:
     status: api_covered
     evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt"
   sessions_first_paint:
-    status: ui_covered
-    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-3-implementation-focused-test.txt"
+    status: perf_covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-4-implementation-focused-test.txt"
   session_lookup:
     status: ui_covered
     evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-3-implementation-focused-test.txt"
@@ -142,6 +151,20 @@ mock_fixture_ledger:
     conversion_task: null
     evidence:
       - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-3-implementation-focused-test.txt"
+  - id: "mf-phase2-005"
+    name: "sessions first-paint perf temp state_5.sqlite fixture"
+    kind: fixture
+    introduced_by: "Task 4"
+    scope: test-only
+    affected_paths:
+      - "scripts/perf/sessions-first-paint.mjs"
+    service_wiring_rows:
+      - "Sessions first paint"
+    disposition: test-only
+    acceptable_because: "The perf script generates 500 deterministic SQLite-backed sessions and drives the same browser-to-API-to-state-store path used by the app."
+    conversion_task: null
+    evidence:
+      - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-4-implementation-focused-test.txt"
   - id: "mf-phase2-003"
     name: "sessions API JSONL read trap preloader"
     kind: fixture
@@ -162,4 +185,4 @@ acceptance:
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T05:09:39Z"
+updated_at: "2026-05-27T05:13:50Z"
