@@ -17,6 +17,11 @@ import type {
   TimelineEvent,
   TokenSeries,
 } from "../../src/shared/contracts";
+import type {
+  LiveChannel,
+  LiveTimelinePayload,
+  LiveReadyPayload,
+} from "../../src/shared/contracts";
 import { observedEventMsg, observedResponseItem } from "../fixtures/codexHome";
 import { createObservedDiagnosticsCodexHomeFixture } from "../fixtures/diagnostics";
 
@@ -350,5 +355,26 @@ describe("observatory Task 2 contract fixtures", () => {
     expect(api.getAgentGraph).toBeTypeOf("function");
     expect(api.getTokenSeries).toBeTypeOf("function");
     expect(api.queryLogs).toBeTypeOf("function");
+  });
+});
+
+describe("live stream contracts", () => {
+  it("types a timeline delta payload with append/reset semantics", () => {
+    const payload: LiveTimelinePayload = {
+      threadId: "thread-1",
+      events: [],
+      nextByteOffset: 42,
+      reset: false,
+      warnings: [],
+    };
+    expect(payload.nextByteOffset).toBe(42);
+    expect(payload.reset).toBe(false);
+  });
+
+  it("types a ready control payload and channel union", () => {
+    const channels: LiveChannel[] = ["sessions", "timeline", "tokens", "diagnostics", "ready", "error"];
+    const ready: LiveReadyPayload = { threadId: null, nextByteOffset: null, logCursorId: null };
+    expect(channels).toContain("ready");
+    expect(ready.threadId).toBeNull();
   });
 });

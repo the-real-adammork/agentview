@@ -375,6 +375,44 @@ export interface DiagnosticsSummary {
   }>;
 }
 
+export type LiveChannel = "sessions" | "timeline" | "tokens" | "diagnostics" | "ready" | "error";
+
+export interface LiveSessionsPayload {
+  sessions: SessionSummary[];
+}
+
+export interface LiveTimelinePayload {
+  threadId: string;
+  events: TimelineEvent[];
+  nextByteOffset: number;
+  /** true when the rollout was truncated/rotated — client replaces events instead of appending. */
+  reset: boolean;
+  warnings: string[];
+}
+
+export interface LiveTokensPayload {
+  threadId: string;
+  series: TokenSeries;
+}
+
+export interface LiveDiagnosticsPayload {
+  summary: DiagnosticsSummary;
+  /** Log rows newer than the connection's last cursor (may be empty). */
+  logs: RuntimeLog[];
+}
+
+export interface LiveReadyPayload {
+  threadId: string | null;
+  nextByteOffset: number | null;
+  logCursorId: number | null;
+}
+
+export interface LiveErrorPayload {
+  code: string;
+  message: string;
+  channel?: LiveChannel;
+}
+
 export interface ObservatoryApi {
   getHealth(): Promise<ApiResult<HealthStatus>>;
   listSessions(filter?: SessionFilter, page?: PageOptions): Promise<ApiResult<SessionSummary[]>>;
