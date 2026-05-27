@@ -1,0 +1,202 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/unit/agentGraph.test.ts tests/integration/graphTokensApi.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-phase-4-graph-api
+
+(node:34329) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ tests/integration/graphTokensApi.test.ts (3 tests | 3 failed) 1094ms
+   × graph API routes > serves a depth-limited graph from real temp SQLite edges and thread metadata 585ms
+     → expected { ok: true, …(3) } to match object { ok: true, source: 'state-db', …(2) }
+(2 matching properties omitted from actual)
+   × graph API routes > returns a typed 404 when the graph root thread is absent 258ms
+     → expected 200 to be 404 // Object.is equality
+   × graph API routes > reports missing state_5.sqlite as source unavailable for graph requests 251ms
+     → expected 200 to be 503 // Object.is equality
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/agentGraph.test.ts [ tests/unit/agentGraph.test.ts ]
+Error: Failed to resolve import "../../src/backend/api/agentGraph" from "tests/unit/agentGraph.test.ts". Does the file exist?
+  Plugin: vite:import-analysis
+  File: /Users/adam/Projects/agentview/.worktrees/impl-phase-4-graph-api/tests/unit/agentGraph.test.ts:3:33
+  1  |  import { describe, expect, it } from "vitest";
+  2  |  import { deriveAgentGraph } from "../../src/backend/api/agentGraph";
+     |                                    ^
+  3  |  const rows = [
+  4  |    {
+ ❯ TransformPluginContext._formatLog node_modules/vite/dist/node/chunks/config.js:29019:43
+ ❯ TransformPluginContext.error node_modules/vite/dist/node/chunks/config.js:29016:14
+ ❯ normalizeUrl node_modules/vite/dist/node/chunks/config.js:27139:18
+ ❯ node_modules/vite/dist/node/chunks/config.js:27197:32
+ ❯ TransformPluginContext.transform node_modules/vite/dist/node/chunks/config.js:27165:4
+ ❯ EnvironmentPluginContainer.transform node_modules/vite/dist/node/chunks/config.js:28817:14
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22686:26
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/graphTokensApi.test.ts > graph API routes > serves a depth-limited graph from real temp SQLite edges and thread metadata
+AssertionError: expected { ok: true, …(3) } to match object { ok: true, source: 'state-db', …(2) }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "data": {
+      "edges": [
+        {
+-         "childId": "child-open",
+-         "parentId": "root-thread",
++         "childId": "019e67b1-300d-7711-901f-00005bee6c5b",
++         "parentId": "019e67b0-3000-7700-9000-00005bee6c00",
++         "status": "closed",
++       },
++       {
++         "childId": "019e67b2-301a-7722-903e-00005bee6cb6",
++         "parentId": "019e67b0-3000-7700-9000-00005bee6c00",
+          "status": "open",
+        },
+        {
+-         "childId": "child-closed",
+-         "parentId": "root-thread",
++         "childId": "019e67b3-3027-7733-905d-00005bee6d11",
++         "parentId": "019e67b1-300d-7711-901f-00005bee6c5b",
+          "status": "closed",
+        },
+      ],
+-     "maxDepth": 1,
++     "maxDepth": 2,
+      "nodes": [
+-       ObjectContaining {
++       {
+          "depth": 0,
+-         "id": "root-thread",
++         "id": "019e67b0-3000-7700-9000-00005bee6c00",
++         "status": "running",
++         "title": "Build observatory dashboard for ~/.codex with agent graph",
++         "tokenTotal": 184312,
+        },
+-       ObjectContaining {
++       {
+          "depth": 1,
+-         "id": "child-open",
+-         "nickname": "graph-api",
+-         "status": "running",
++         "finalReportPreview": "Top noisy targets identified; suppression list ready.",
++         "id": "019e67b1-300d-7711-901f-00005bee6c5b",
++         "nickname": "ARCHIMEDES",
++         "role": "researcher",
++         "status": "complete",
++         "title": "Audit logs_2 noisy targets",
++         "tokenTotal": 24680,
+        },
+-       ObjectContaining {
++       {
+          "depth": 1,
+-         "id": "child-closed",
++         "id": "019e67b2-301a-7722-903e-00005bee6cb6",
++         "nickname": "SOCRATES",
++         "role": "worker",
++         "status": "running",
++         "title": "Draft the session timeline view",
++         "tokenTotal": 41820,
++       },
++       {
++         "depth": 2,
++         "id": "019e67b3-3027-7733-905d-00005bee6d11",
++         "nickname": "HYPATIA",
++         "role": "worker",
+          "status": "complete",
++         "title": "Rank warning targets for diagnostics",
++         "tokenTotal": 9900,
+        },
+      ],
+      "openCount": 1,
+      "root": {
+        "depth": 0,
+-       "id": "root-thread",
+-       "status": "complete",
++       "id": "019e67b0-3000-7700-9000-00005bee6c00",
++       "status": "running",
+      },
+      "statusSummary": {
+-       "closed": 1,
+-       "failed": 0,
++       "closed": 2,
+        "open": 1,
+      },
+-     "truncatedDepth": true,
++     "truncatedDepth": false,
+    },
+    "ok": true,
+-   "source": "state-db",
++   "source": "fixture",
+    "warnings": [],
+  }
+
+ ❯ tests/integration/graphTokensApi.test.ts:178:29
+    176| 
+    177|       expect(depthOne.status).toBe(200);
+    178|       expect(depthOne.body).toMatchObject({
+       |                             ^
+    179|         ok: true,
+    180|         source: "state-db",
+ ❯ withApi tests/integration/graphTokensApi.test.ts:114:12
+ ❯ tests/integration/graphTokensApi.test.ts:173:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
+
+ FAIL  tests/integration/graphTokensApi.test.ts > graph API routes > returns a typed 404 when the graph root thread is absent
+AssertionError: expected 200 to be 404 // Object.is equality
+
+- Expected
++ Received
+
+- 404
++ 200
+
+ ❯ tests/integration/graphTokensApi.test.ts:230:31
+    228|       const response = await requestJson(baseUrl, "/api/agent-graph?ro…
+    229| 
+    230|       expect(response.status).toBe(404);
+       |                               ^
+    231|       expect(response.body).toMatchObject({
+    232|         ok: false,
+ ❯ withApi tests/integration/graphTokensApi.test.ts:114:12
+ ❯ tests/integration/graphTokensApi.test.ts:227:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
+
+ FAIL  tests/integration/graphTokensApi.test.ts > graph API routes > reports missing state_5.sqlite as source unavailable for graph requests
+AssertionError: expected 200 to be 503 // Object.is equality
+
+- Expected
++ Received
+
+- 503
++ 200
+
+ ❯ tests/integration/graphTokensApi.test.ts:252:31
+    250|       const response = await requestJson(baseUrl, "/api/agent-graph?ro…
+    251| 
+    252|       expect(response.status).toBe(503);
+       |                               ^
+    253|       expect(response.body).toMatchObject({
+    254|         ok: false,
+ ❯ withApi tests/integration/graphTokensApi.test.ts:114:12
+ ❯ tests/integration/graphTokensApi.test.ts:249:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  3 failed (3)
+   Start at  00:47:54
+   Duration  1.37s (transform 18ms, setup 0ms, collect 20ms, tests 1.09s, environment 235ms, prepare 53ms)
+

@@ -165,6 +165,8 @@ export interface TimelinePayload {
   cacheStatus: "cold" | "warm" | "stale" | "corrupt" | "tail";
 }
 
+export type AgentEdgeStatus = "open" | "closed" | "failed";
+
 export interface AgentNode {
   id: string;
   title: string;
@@ -174,12 +176,13 @@ export interface AgentNode {
   nickname?: string;
   role?: string;
   finalReportPreview?: string;
+  metadataMissing?: boolean;
 }
 
 export interface AgentEdge {
   parentId: string;
   childId: string;
-  status: "open" | "closed" | "failed";
+  status: AgentEdgeStatus;
 }
 
 export interface AgentGraph {
@@ -244,7 +247,7 @@ export interface ObservatoryApi {
   listSessions(filter?: SessionFilter, page?: PageOptions): Promise<ApiResult<SessionSummary[]>>;
   getThread?(threadId: string): Promise<ApiResult<SessionSummary>>;
   getTimeline(threadId: string, options?: { fromByte?: number }): Promise<ApiResult<TimelinePayload>>;
-  getAgentGraph(rootThreadId: string): Promise<ApiResult<AgentGraph>>;
+  getAgentGraph(rootThreadId: string, options?: { maxDepth?: number }): Promise<ApiResult<AgentGraph>>;
   getTokenSeries(threadId: string): Promise<ApiResult<TokenSeries>>;
   queryLogs(): Promise<ApiResult<RuntimeLog[]>>;
 }
