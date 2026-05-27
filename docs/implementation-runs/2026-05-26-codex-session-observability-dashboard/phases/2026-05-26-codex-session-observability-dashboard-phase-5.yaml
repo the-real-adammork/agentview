@@ -30,7 +30,7 @@ tasks:
     title: "Build Diagnostics UI, Failed Command Panel, Warning Badges, And Raw Advanced Tail"
     status: done
     lane: "diagnostics-ui"
-    commit: null
+    commit: "05a9625"
     verification:
       - command: "npm run test -- --run tests/integration/rawTuiLog.test.ts tests/integration/diagnosticsApi.test.ts tests/unit/contracts.test.ts"
         result: pass
