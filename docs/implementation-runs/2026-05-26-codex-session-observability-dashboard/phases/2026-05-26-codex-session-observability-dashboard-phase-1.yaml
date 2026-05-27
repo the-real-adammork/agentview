@@ -3,12 +3,18 @@ status: running
 plan: "docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md"
 branch: "impl/phase-1-fixture-shell"
 worktree: "."
-active_lanes: []
+active_lanes:
+  - lane: "contract-fixture-data"
+    status: test_proposal
+    worker: "worker-contract-fixture-data-1"
+    branch: "impl/phase-1-contract-fixture-data"
+    worktree: ".worktrees/phase-1-contract-fixture-data"
 tasks:
   "1":
     title: "Bootstrap Package, Scripts, And TypeScript Layout"
     status: done
     lane: "phase-owner"
+    commit: "57342ca"
     verification:
       - command: "npm install"
         result: pass
@@ -21,7 +27,7 @@ tasks:
         artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-1-contracts-test-final.txt"
   "2":
     title: "Define Shared Contracts And Fixture Data"
-    status: not_started
+    status: in_progress
     lane: "contract-test-harness"
     verification: []
   "3":
@@ -58,4 +64,4 @@ acceptance:
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T02:43:56Z"
+updated_at: "2026-05-27T02:44:42Z"
