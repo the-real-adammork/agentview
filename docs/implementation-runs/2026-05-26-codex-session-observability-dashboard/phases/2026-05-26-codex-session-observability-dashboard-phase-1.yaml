@@ -1,0 +1,52 @@
+phase: "2026-05-26-codex-session-observability-dashboard-phase-1"
+status: running
+plan: "docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md"
+branch: "impl/phase-1-fixture-shell"
+worktree: "."
+active_lanes: []
+tasks:
+  "1":
+    title: "Bootstrap Package, Scripts, And TypeScript Layout"
+    status: in_progress
+    lane: "phase-owner"
+    verification: []
+  "2":
+    title: "Define Shared Contracts And Fixture Data"
+    status: not_started
+    lane: "contract-test-harness"
+    verification: []
+  "3":
+    title: "Port The Fixture-Backed Five-View Shell"
+    status: not_started
+    lane: "ui-shell"
+    verification: []
+  "4":
+    title: "Add Local API Fixture Server And Playwright Harness"
+    status: not_started
+    lane: "contract-test-harness"
+    verification: []
+  "5":
+    title: "Integrate Phase 1 Acceptance Packet"
+    status: not_started
+    lane: "phase-owner"
+    verification: []
+service_wiring:
+  app_health:
+    status: pending
+    evidence: null
+  fixture_sessions_navigation:
+    status: pending
+    evidence: null
+  visual_shell:
+    status: pending
+    evidence: null
+  runtime_asset_safety:
+    status: pending
+    evidence: null
+acceptance:
+  status: pending
+  packet: "docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-1.md"
+  commands: []
+lessons: []
+blockers: []
+updated_at: "2026-05-27T02:25:55Z"

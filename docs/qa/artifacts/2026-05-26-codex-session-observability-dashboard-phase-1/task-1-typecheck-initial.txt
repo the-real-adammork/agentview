@@ -1,0 +1,5 @@
+
+> agentview-observatory@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit
+
+tests/unit/contracts.test.ts(2,62): error TS2307: Cannot find module '../../src/shared/contracts' or its corresponding type declarations.

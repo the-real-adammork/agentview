@@ -1,0 +1,19 @@
+run_id: "2026-05-26-codex-session-observability-dashboard"
+status: running
+phases_document: "docs/plans/2026-05-26-codex-session-observability-dashboard-implementation-phases.md"
+current_phase: "2026-05-26-codex-session-observability-dashboard-phase-1"
+phase_order:
+  - "2026-05-26-codex-session-observability-dashboard-phase-1"
+  - "2026-05-26-codex-session-observability-dashboard-phase-2"
+  - "2026-05-26-codex-session-observability-dashboard-phase-3"
+  - "2026-05-26-codex-session-observability-dashboard-phase-4"
+  - "2026-05-26-codex-session-observability-dashboard-phase-5"
+branches:
+  base: "main"
+  current: "impl/phase-1-fixture-shell"
+paths:
+  run_dir: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard"
+  qa_artifacts: "docs/qa/artifacts"
+  acceptance_packets: "docs/qa/phase-acceptance"
+escalations: []
+updated_at: "2026-05-27T02:25:55Z"
