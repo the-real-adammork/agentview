@@ -18,7 +18,7 @@ tasks:
     title: "Add Read-Only Logs Store And Diagnostics Summary API"
     status: done
     lane: "diagnostics-api"
-    commit: "faf0634"
+    commit: "a3bf119"
     verification:
       - command: "npm run test -- --run tests/integration/logStore.test.ts tests/integration/diagnosticsApi.test.ts tests/unit/contracts.test.ts"
         result: pass
