@@ -44,7 +44,7 @@ tasks:
     title: "Build Graph And Tokens Views"
     status: done
     lane: "graph-token-ui"
-    commit: "pending-commit"
+    commit: "524b251"
     verification:
       - command: "npm run test -- --run tests/unit/graphTokenComponents.test.tsx"
         result: fail_expected
