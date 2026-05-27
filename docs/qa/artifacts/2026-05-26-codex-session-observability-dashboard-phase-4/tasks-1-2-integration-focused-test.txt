@@ -1,0 +1,23 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/unit/agentGraph.test.ts tests/unit/tokenSeries.test.ts tests/integration/graphTokensApi.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-phase-4-graph-tokens
+
+(node:50472) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:50474) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/agentGraph.test.ts (2 tests) 2ms
+(node:50473) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/tokenSeries.test.ts (3 tests) 42ms
+ ✓ tests/integration/graphTokensApi.test.ts (5 tests) 1612ms
+   ✓ graph/tokens API routes > serves a depth-limited graph from real temp SQLite edges and thread metadata  584ms
+
+ Test Files  3 passed (3)
+      Tests  10 passed (10)
+   Start at  00:55:35
+   Duration  1.94s (transform 86ms, setup 0ms, collect 89ms, tests 1.66s, environment 413ms, prepare 108ms)
+

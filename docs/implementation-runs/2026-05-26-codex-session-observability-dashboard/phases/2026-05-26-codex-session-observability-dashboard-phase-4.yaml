@@ -16,10 +16,30 @@ orchestrator:
 tasks:
   "1":
     title: "Add Agent Graph API And Derivation"
-    status: not_started
+    status: done
+    lane: "graph-api"
+    commit: "70dcac7"
+    integration_commit: "541bb19"
+    verification:
+      - command: "npm run test -- --run tests/unit/agentGraph.test.ts tests/unit/tokenSeries.test.ts tests/integration/graphTokensApi.test.ts"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-4/tasks-1-2-integration-focused-test.txt"
+      - command: "npm run typecheck"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-4/tasks-1-2-integration-typecheck.txt"
   "2":
     title: "Add Token Series API And Derivation"
-    status: not_started
+    status: done
+    lane: "token-api"
+    commit: "15910b6"
+    integration_commit: "541bb19"
+    verification:
+      - command: "npm run test -- --run tests/unit/agentGraph.test.ts tests/unit/tokenSeries.test.ts tests/integration/graphTokensApi.test.ts"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-4/tasks-1-2-integration-focused-test.txt"
+      - command: "npm run typecheck"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-4/tasks-1-2-integration-typecheck.txt"
   "3":
     title: "Build Graph And Tokens Views"
     status: not_started
@@ -28,19 +48,48 @@ tasks:
     status: not_started
 service_wiring:
   agent_graph_render:
-    status: pending
-    evidence: null
+    status: covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-4/tasks-1-2-integration-focused-test.txt"
   token_series_render:
-    status: pending
-    evidence: null
+    status: covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-4/tasks-1-2-integration-focused-test.txt"
   cross_view_navigation:
     status: pending
     evidence: null
-mock_fixture_ledger: []
+mock_fixture_ledger:
+  - id: "mf-phase4-graph-sqlite"
+    name: "graph temp SQLite fixture"
+    kind: fixture
+    introduced_by: "Task 1"
+    scope: test-only
+    affected_paths:
+      - "tests/fixtures/codexHome.ts"
+      - "tests/integration/graphTokensApi.test.ts"
+    service_wiring_rows:
+      - "agent_graph_render"
+    disposition: test-only
+    acceptable_because: "Fixture creates a real temporary state_5.sqlite database; production graph route still reads CODEX_HOME state_5.sqlite."
+    conversion_task: null
+    evidence:
+      - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-4/tasks-1-2-integration-focused-test.txt"
+  - id: "mf-phase4-token-jsonl"
+    name: "token temp rollout JSONL fixture"
+    kind: fixture
+    introduced_by: "Task 2"
+    scope: test-only
+    affected_paths:
+      - "tests/integration/graphTokensApi.test.ts"
+    service_wiring_rows:
+      - "token_series_render"
+    disposition: test-only
+    acceptable_because: "Fixture writes real JSONL under a temporary CODEX_HOME and exercises the production rollout parser/cache path."
+    conversion_task: null
+    evidence:
+      - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-4/tasks-1-2-integration-focused-test.txt"
 acceptance:
   status: pending
   packet: "docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-4.md"
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T05:41:58Z"
+updated_at: "2026-05-27T05:55:48Z"
