@@ -47,6 +47,22 @@ const server = createServer(async (request, response) => {
     if (handleFixtureApiRequest(request, response)) {
       return;
     }
+
+    response.writeHead(404, {
+      ...corsHeadersForOrigin(request.headers.origin),
+      "content-type": "application/json",
+    });
+    response.end(
+      JSON.stringify({
+        ok: false,
+        source: "fixture",
+        warnings: [],
+        error: {
+          code: "NOT_FOUND",
+          message: "API route not found.",
+        },
+      }),
+    );
   } catch (error) {
     console.error(error);
     if (!response.headersSent) {

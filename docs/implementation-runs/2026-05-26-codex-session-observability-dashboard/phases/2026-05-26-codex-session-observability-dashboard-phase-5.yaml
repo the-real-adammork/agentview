@@ -31,7 +31,21 @@ tasks:
     status: not_started
   "3":
     title: "Harden Shared Error Envelope, Privacy Defaults, Source Safety, And Runtime Asset Policy"
-    status: not_started
+    status: done
+    commit: null
+    verification:
+      - command: "npm run privacy:check"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-3-privacy-check.txt"
+      - command: "npm run tokens:check"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-3-tokens-check.txt"
+      - command: "npm run test -- --run tests/integration/sourceErrors.test.ts"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-3-source-errors.txt"
+      - command: "npm run typecheck"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-3-typecheck.txt"
   "4":
     title: "Add Final Accessibility, Performance, Privacy, And Network Gates"
     status: not_started
@@ -52,11 +66,11 @@ service_wiring:
     status: pending
     evidence: null
   partial_error_handling:
-    status: pending
-    evidence: null
+    status: integration-covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-3-source-errors.txt"
   final_privacy_a11y_performance:
-    status: pending
-    evidence: null
+    status: privacy-covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-3-privacy-check.txt"
 mock_fixture_ledger:
   - id: "mf-phase5-001"
     name: "temp logs_2.sqlite diagnostics fixture"
@@ -91,10 +105,25 @@ mock_fixture_ledger:
     conversion_task: null
     evidence:
       - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-1-integration-focused-test.txt"
+  - id: "mf-phase5-003"
+    name: "source error temp Codex home fixtures"
+    kind: fixture
+    introduced_by: "Task 3"
+    scope: test-only
+    affected_paths:
+      - "tests/integration/sourceErrors.test.ts"
+    service_wiring_rows:
+      - "partial_error_handling"
+      - "final_privacy_a11y_performance"
+    disposition: test-only
+    acceptable_because: "Generated temp state and missing-source fixtures exercise real local API error envelopes and path guards; they are not used by production/dev runtime."
+    conversion_task: null
+    evidence:
+      - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-3-source-errors.txt"
 acceptance:
   status: pending
   packet: "docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-5.md"
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T06:21:40Z"
+updated_at: "2026-05-27T06:27:37Z"

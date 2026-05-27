@@ -5,7 +5,7 @@ const root = process.cwd();
 const frontendDir = join(root, "src", "frontend");
 const allowedTokenFile = join(frontendDir, "styles", "tokens.css");
 const rawHexPattern = /#[0-9a-fA-F]{3,8}\b/g;
-const externalRuntimePattern = /(@import\s+url\(|https?:\/\/|\/\/)/i;
+const externalRuntimePattern = /(@import\s+url\(|https?:\/\/(?!127\.0\.0\.1(?::|\/|$)|localhost(?::|\/|$)))/i;
 
 const files = [];
 

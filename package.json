@@ -11,6 +11,7 @@
     "test": "vitest",
     "lint": "eslint . --max-warnings=0",
     "tokens:check": "node scripts/check-style-tokens.mjs",
+    "privacy:check": "npm run test -- --run tests/privacy/privacyPreviews.test.ts && node scripts/check-privacy.mjs",
     "e2e": "playwright test",
     "perf:sessions": "node scripts/perf/sessions-first-paint.mjs",
     "perf:rollout": "tsx scripts/perf/rollout-parse.mjs"

@@ -69,11 +69,24 @@ function writeJson(response: ServerResponse, status: number, body: ApiResult<unk
 
 export function handleFixtureApiRequest(request: IncomingMessage, response: ServerResponse) {
   const origin = request.headers.origin;
+  const url = new URL(request.url ?? "/", "http://127.0.0.1");
+  const fixturePaths = new Set([
+    "/api/health",
+    "/api/sessions",
+    "/api/timeline",
+    "/api/agent-graph",
+    "/api/tokens",
+    "/api/logs",
+  ]);
 
   if (request.method === "OPTIONS") {
     response.writeHead(204, corsHeadersForOrigin(origin));
     response.end();
     return true;
+  }
+
+  if (!fixturePaths.has(url.pathname)) {
+    return false;
   }
 
   if (request.method !== "GET") {
@@ -88,8 +101,6 @@ export function handleFixtureApiRequest(request: IncomingMessage, response: Serv
     );
     return true;
   }
-
-  const url = new URL(request.url ?? "/", "http://127.0.0.1");
 
   if (url.pathname === "/api/health") {
     const health: HealthStatus = {

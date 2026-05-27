@@ -1,0 +1,16 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/integration/sourceErrors.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-phase-5-diagnostics-hardening
+
+(node:15700) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/integration/sourceErrors.test.ts (3 tests) 527ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  01:27:17
+   Duration  807ms (transform 23ms, setup 0ms, collect 25ms, tests 527ms, environment 111ms, prepare 26ms)
+

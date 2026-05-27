@@ -9,6 +9,7 @@ export default defineConfig({
       "tests/unit/**/*.test.tsx",
       "tests/integration/**/*.test.ts",
       "tests/perf/**/*.test.ts",
+      "tests/privacy/**/*.test.ts",
     ],
   },
 });
