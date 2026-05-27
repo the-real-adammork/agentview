@@ -111,18 +111,17 @@ button {
   min-height: 22px;
   flex: 1;
   background:
-    repeating-linear-gradient(-45deg, var(--primary) 0 8px, transparent 8px 16px),
-    var(--bg-2);
+    repeating-linear-gradient(-45deg, var(--primary) 0 14px, rgba(0, 0, 0, 0.85) 14px 28px);
 }
 
 .hazard-warn {
   background:
-    repeating-linear-gradient(-45deg, var(--warn) 0 8px, transparent 8px 16px),
-    var(--bg-2);
+    repeating-linear-gradient(-45deg, var(--warn) 0 14px, rgba(0, 0, 0, 0.85) 14px 28px);
 }
 
 .top-hazard {
   display: flex;
+  height: 38px;
   align-items: center;
   overflow: hidden;
   border-bottom: var(--border-width) solid var(--rule);
@@ -148,12 +147,12 @@ button {
   color: var(--ink-dim);
   font-family: var(--jp);
   font-size: 11px;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.1em;
   text-shadow: none;
 }
 
 .hazard-strip__sys {
-  font-family: var(--mono);
+  font-family: var(--display);
   letter-spacing: 0.3em;
 }
 
@@ -164,6 +163,10 @@ button {
   font-size: 11px;
   letter-spacing: 0.3em;
   text-shadow: none;
+}
+
+.top-hazard .blink {
+  font-family: var(--display);
 }
 
 .header {
@@ -226,7 +229,7 @@ button {
 .nav {
   display: flex;
   height: 100%;
-  min-height: 54px;
+  min-height: 56px;
   align-items: stretch;
 }
 
@@ -267,6 +270,16 @@ button {
 
 .nav button[data-active="true"] .idx {
   color: rgba(0, 0, 0, 0.6);
+}
+
+.nav button[data-active="true"]::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 1px;
+  background: var(--primary);
 }
 
 .header .right {

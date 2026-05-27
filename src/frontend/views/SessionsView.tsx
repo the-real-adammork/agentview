@@ -1,4 +1,5 @@
 import { ShortId } from "../components/ShortId";
+import { TOKEN_BAR_CELLS, tokenBarFill } from "./tokenBar";
 import type { ApiError, ArchivedFilter, DiagnosticsSummary, SessionFilter, SessionSummary, ThreadSource } from "../../shared/contracts";
 
 interface SessionsViewProps {
@@ -56,12 +57,13 @@ function VBars({ data }: { data: number[] }) {
 }
 
 function TokenSegBar({ value }: { value: number }) {
-  const cells = Array.from({ length: 12 }, (_, index) => index < Math.round((Math.min(value, 220_000) / 220_000) * 12));
+  const { filled, hi } = tokenBarFill(value);
+  const cells = Array.from({ length: TOKEN_BAR_CELLS }, (_, index) => index < filled);
 
   return (
     <div className="segbar" aria-hidden="true">
       {cells.map((on, index) => (
-        <i className={on ? (value > 100_000 ? "hi" : "on") : undefined} key={index} />
+        <i className={on ? (hi ? "hi" : "on") : undefined} key={index} />
       ))}
     </div>
   );
