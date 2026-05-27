@@ -5,7 +5,7 @@ branch: "impl/phase-1-fixture-shell"
 worktree: "."
 active_lanes:
   - lane: "ui-shell"
-    status: test_proposal
+    status: implementation
     worker: "worker-ui-shell-1"
     branch: "impl/phase-1-ui-shell"
     worktree: ".worktrees/phase-1-ui-shell"
@@ -49,12 +49,18 @@ tasks:
     title: "Port The Fixture-Backed Five-View Shell"
     status: in_progress
     lane: "ui-shell"
-    verification: []
+    verification:
+      - command: "npm run test -- --run tests/unit/app-shell.test.tsx"
+        result: fail_expected
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-3-test-proposal.txt"
   "4":
     title: "Add Local API Fixture Server And Playwright Harness"
     status: in_progress
     lane: "contract-test-harness"
-    verification: []
+    verification:
+      - command: "npm run e2e"
+        result: fail_expected
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-4-test-proposal.txt"
   "5":
     title: "Integrate Phase 1 Acceptance Packet"
     status: not_started
@@ -94,4 +100,4 @@ mock_fixture_ledger:
       - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-2-integration-focused-test.txt"
 lessons: []
 blockers: []
-updated_at: "2026-05-27T02:56:43Z"
+updated_at: "2026-05-27T03:00:57Z"
