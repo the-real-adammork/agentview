@@ -1,9 +1,9 @@
 phase: "2026-05-26-codex-session-observability-dashboard-phase-3"
-orchestrator_status: starting
-updated_at: "2026-05-27T05:18:24Z"
-heartbeat_expires_at: "2026-05-27T05:28:24Z"
+orchestrator_status: running
+updated_at: "2026-05-27T05:20:35Z"
+heartbeat_expires_at: "2026-05-27T05:30:35Z"
 tmux:
-  pane_id: null
+  pane_id: "%102"
 request:
   type: none
   reason: null
