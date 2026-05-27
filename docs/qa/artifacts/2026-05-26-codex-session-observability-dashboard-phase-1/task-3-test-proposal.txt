@@ -1,0 +1,21 @@
+Task 3 test proposal evidence
+
+Command:
+npm run test -- --run tests/unit/app-shell.test.tsx
+
+Result:
+exit code 1
+Vitest collected tests/unit/app-shell.test.tsx and ran 3 tests.
+All 3 tests failed for missing UI shell behavior.
+
+Expected red failures:
+- Missing accessible banner named /observatory status/i for persistent top hazard/status chrome.
+- Missing accessible sessions table named /sessions/i for fixture-backed table headers and active row state.
+- Missing Timeline button for primary five-view navigation.
+
+Setup signal:
+The test file compiled and executed under jsdom. The rendered DOM was the current bootstrap App:
+<main><h1>AgentView Observatory</h1><p>Fixture shell bootstrap</p></main>
+
+Conclusion:
+This is the intended failing test state for Task 3 before production UI shell implementation.

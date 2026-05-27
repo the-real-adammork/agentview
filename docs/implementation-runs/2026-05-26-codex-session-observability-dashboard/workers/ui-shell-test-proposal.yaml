@@ -1,0 +1,37 @@
+status: test_proposed
+worker_id: worker-ui-shell-1
+task: "Task 3 - Port The Fixture-Backed Five-View Shell"
+test_files_changed:
+  - tests/unit/app-shell.test.tsx
+artifacts:
+  - docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-3-test-proposal.txt
+command_result:
+  command: "npm run test -- --run tests/unit/app-shell.test.tsx"
+  exit_code: 1
+  summary: "Vitest collected the TSX render test and ran 3 tests; all 3 failed."
+expected_failure:
+  classification: "missing_ui_shell_behavior"
+  details:
+    - "No accessible banner named /observatory status/i for persistent top hazard/status chrome."
+    - "No accessible sessions table named /sessions/i for headers and active row state."
+    - "No Timeline button for primary navigation to fixture-backed views."
+requirement_mapping:
+  - requirement: "Persistent top hazard/status chrome"
+    covered_by: "renders persistent hazard/status chrome and five primary navigation buttons"
+  - requirement: "Five primary nav buttons"
+    covered_by: "renders persistent hazard/status chrome and five primary navigation buttons"
+  - requirement: "Sessions table headers"
+    covered_by: "shows session fixture table headers and marks the first session as active"
+  - requirement: "Active row state"
+    covered_by: "shows session fixture table headers and marks the first session as active"
+  - requirement: "Navigation to Timeline/Agent Graph/Tokens/Diagnostics from fixture data"
+    covered_by: "navigates from sessions to timeline, agent graph, tokens, and diagnostics fixture views"
+service_wiring_rows:
+  - "Fixture sessions navigation"
+  - "Visual shell"
+  - "Runtime asset safety"
+mock_or_fixture_disclosure:
+  automated_tests: "fixture data imported from src/fixtures/observatoryFixtures.ts"
+  production_dev_path_exercised: "React render path through src/frontend/App.tsx under jsdom"
+  mock_only_risk: "No local HTTP API latency, Playwright browser runtime, or real Codex source access exercised in this unit test."
+blockers: []

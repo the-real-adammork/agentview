@@ -1,0 +1,5 @@
+
+> agentview@0.1.0 tokens:check
+> node scripts/check-style-tokens.mjs
+
+style token check passed
