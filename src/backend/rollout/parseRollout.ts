@@ -377,6 +377,22 @@ export const parseRolloutLines = (lines: string[], options: ParseRolloutOptions)
     events,
     toolCalls: [...toolCallsById.values()],
     tokenSnapshots,
+    turns: [],
+    agentLaunches: [],
+    agentWaits: [],
+    summary: {
+      startedAt: events[0]?.timestamp,
+      completedAt: events.at(-1)?.timestamp,
+      eventCount: events.length,
+      turnCount: new Set(events.map((event) => event.turnId).filter(Boolean)).size,
+      toolCallCount: toolCallsById.size,
+      failedToolCallCount: [...toolCallsById.values()].filter((call) => (call.exitCode ?? 0) !== 0).length,
+      tokenSnapshotCount: tokenSnapshots.length,
+      agentLaunchCount: events.filter((event) => event.kind === "agent_launch").length,
+      agentWaitCount: events.filter((event) => event.kind === "agent_wait").length,
+      warningCount: events.filter((event) => event.severity !== "info").length,
+      parsedThroughByte: options.parsedThroughByte ?? options.sourceSizeBytes,
+    },
     warnings,
   };
 };

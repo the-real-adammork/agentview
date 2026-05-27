@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DatabaseSync } from "node:sqlite";
 
 import {
   agentGraphFixture,
@@ -16,6 +17,8 @@ import type {
   TimelineEvent,
   TokenSeries,
 } from "../../src/shared/contracts";
+import { observedEventMsg, observedResponseItem } from "../fixtures/codexHome";
+import { createObservedDiagnosticsCodexHomeFixture } from "../fixtures/diagnostics";
 
 const expectFixtureResult = <T>(result: ApiResult<T>) => {
   expect(result.ok).toBe(true);
@@ -153,6 +156,11 @@ describe("observatory Task 2 contract fixtures", () => {
       input: expect.any(Number),
       output: expect.any(Number),
       cachedInput: expect.any(Number),
+      lastInput: expect.any(Number),
+      lastOutput: expect.any(Number),
+      modelContextWindow: expect.any(Number),
+      planType: expect.any(String),
+      rateLimitPrimaryPercentRaw: expect.any(Number),
     });
     expect(data.totals).toMatchObject({
       input: expect.any(Number),
@@ -163,6 +171,84 @@ describe("observatory Task 2 contract fixtures", () => {
     });
     expect(data.cachedInputRatio).toEqual(expect.any(Number));
     expect(data.emptyStateReasons).toEqual(expect.any(Array));
+  });
+
+  it("provides observed rollout envelope builders for event_msg and response_item records", () => {
+    expect(
+      observedEventMsg({
+        timestamp: "2026-05-26T18:00:00.000Z",
+        turnId: "turn-1",
+        payload: {
+          type: "task_started",
+          turn_context: { model: "gpt-codex-5", approval_policy: "never" },
+        },
+      }),
+    ).toMatchObject({
+      type: "event_msg",
+      timestamp: "2026-05-26T18:00:00.000Z",
+      turn_id: "turn-1",
+      payload: {
+        type: "task_started",
+        turn_context: expect.any(Object),
+      },
+    });
+
+    expect(
+      observedResponseItem({
+        timestamp: "2026-05-26T18:00:01.000Z",
+        turnId: "turn-1",
+        payload: {
+          type: "function_call_output",
+          call_id: "call-1",
+          output: "{\"exit_code\":1,\"output\":\"failed\"}",
+        },
+      }),
+    ).toMatchObject({
+      type: "response_item",
+      payload: {
+        type: "function_call_output",
+        call_id: "call-1",
+      },
+    });
+  });
+
+  it("creates observed logs_2.sqlite fixture records without derived command columns", async () => {
+    const fixture = await createObservedDiagnosticsCodexHomeFixture({
+      logs: [
+        {
+          timestampMs: 1779818400123,
+          timestampNanos: 123456789,
+          level: "WARN",
+          target: "codex_core::session",
+          body: "observed warning body",
+          threadId: "thread-observed",
+          processUuid: "proc-observed",
+        },
+      ],
+    });
+
+    try {
+      const db = new DatabaseSync(fixture.logsDbPath, { readOnly: true });
+      const columns = db.prepare("PRAGMA table_info(logs)").all().map((row) => String((row as { name: unknown }).name));
+      const row = db.prepare("SELECT ts, ts_nanos, feedback_log_body, estimated_bytes FROM logs").get() as {
+        ts: number;
+        ts_nanos: number;
+        feedback_log_body: string;
+        estimated_bytes: number;
+      };
+      db.close();
+
+      expect(columns).toEqual(expect.arrayContaining(["ts", "ts_nanos", "feedback_log_body", "estimated_bytes"]));
+      expect(columns).not.toContain("command");
+      expect(row).toMatchObject({
+        ts: 1779818400,
+        ts_nanos: 123456789,
+        feedback_log_body: "observed warning body",
+        estimated_bytes: expect.any(Number),
+      });
+    } finally {
+      await fixture.cleanup();
+    }
   });
 
   it("provides diagnostics logs with redacted body previews", () => {
@@ -215,6 +301,20 @@ describe("observatory Task 2 contract fixtures", () => {
             events: timelineEventsFixture,
             toolCalls: [],
             tokenSnapshots: [],
+            turns: [],
+            agentLaunches: [],
+            agentWaits: [],
+            summary: {
+              eventCount: timelineEventsFixture.length,
+              turnCount: 1,
+              toolCallCount: 0,
+              failedToolCallCount: 0,
+              tokenSnapshotCount: 0,
+              agentLaunchCount: 0,
+              agentWaitCount: 0,
+              warningCount: 0,
+              parsedThroughByte: 0,
+            },
             warnings: [],
           },
           nextByteOffset: 0,

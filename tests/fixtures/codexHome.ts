@@ -52,6 +52,26 @@ export interface CreateCodexHomeFixtureOptions {
   edges?: ThreadSpawnEdgeFixture[];
 }
 
+export interface ObservedRolloutEnvelopeOptions {
+  timestamp?: string;
+  turnId?: string;
+  payload: Record<string, unknown>;
+}
+
+export const observedEventMsg = ({ timestamp, turnId, payload }: ObservedRolloutEnvelopeOptions) => ({
+  type: "event_msg",
+  timestamp,
+  turn_id: turnId,
+  payload,
+});
+
+export const observedResponseItem = ({ timestamp, turnId, payload }: ObservedRolloutEnvelopeOptions) => ({
+  type: "response_item",
+  timestamp,
+  turn_id: turnId,
+  payload,
+});
+
 const defaultThread = (thread: CodexThreadFixture) => ({
   rolloutPath: `sessions/${thread.id}.jsonl`,
   source: "state",

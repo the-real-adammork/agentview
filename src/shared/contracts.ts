@@ -121,6 +121,7 @@ export interface TimelineEvent {
   kind: TimelineEventKind;
   severity: EventSeverity;
   previewText: string;
+  phase?: string;
   callId?: string;
   toolName?: string;
   argumentsPreview?: string;
@@ -128,9 +129,64 @@ export interface TimelineEvent {
   outputBytes?: number;
   exitCode?: number;
   durationMs?: number;
+  childThreadId?: string;
+  agentNickname?: string;
+  agentRole?: string;
+  agentTaskPreview?: string;
+  joinedOutputPreview?: string;
+  joinedExitCode?: number;
+  joinedDurationMs?: number;
+  tokenSnapshot?: TokenSnapshot;
   isCollapsedByDefault?: boolean;
   hasRawAvailable?: boolean;
   rawPreview?: string;
+}
+
+export interface TurnSummary {
+  turnId: string;
+  startedAt?: string;
+  completedAt?: string;
+  durationMs?: number;
+  firstTokenMs?: number;
+  model?: string;
+  reasoningEffort?: string;
+  sandboxPolicy?: string;
+  approvalMode?: string;
+  lastAgentMessagePreview?: string;
+  inputTokenCount?: number;
+  outputTokenCount?: number;
+  totalTokenCount?: number;
+}
+
+export interface AgentLaunchFact {
+  callId: string;
+  childThreadId?: string;
+  timestamp: string;
+  nickname?: string;
+  role?: string;
+  taskPreview?: string;
+}
+
+export interface AgentWaitFact {
+  callId: string;
+  childThreadId?: string;
+  timestamp: string;
+  status?: AgentEdgeStatus;
+  reportPreview?: string;
+}
+
+export interface RolloutSummary {
+  startedAt?: string;
+  completedAt?: string;
+  eventCount: number;
+  turnCount: number;
+  toolCallCount: number;
+  failedToolCallCount: number;
+  tokenSnapshotCount: number;
+  agentLaunchCount: number;
+  agentWaitCount: number;
+  warningCount: number;
+  parsedThroughByte: number;
 }
 
 export interface CachedToolCall {
@@ -142,6 +198,11 @@ export interface CachedToolCall {
   outputPreview?: string;
   outputBytes?: number;
   exitCode?: number;
+  durationMs?: number;
+  resultEventId?: string;
+  failureReasonPreview?: string;
+  commandPreview?: string;
+  outputTokenCount?: number;
 }
 
 export interface CachedRolloutFacts {
@@ -154,6 +215,10 @@ export interface CachedRolloutFacts {
   events: TimelineEvent[];
   toolCalls: CachedToolCall[];
   tokenSnapshots: TokenSnapshot[];
+  turns: TurnSummary[];
+  agentLaunches: AgentLaunchFact[];
+  agentWaits: AgentWaitFact[];
+  summary: RolloutSummary;
   warnings: string[];
 }
 
@@ -173,6 +238,9 @@ export interface AgentNode {
   status: SessionStatus;
   depth: number;
   tokenTotal: number;
+  createdAt?: string;
+  updatedAt?: string;
+  sourceEdgeStatus?: AgentEdgeStatus;
   nickname?: string;
   role?: string;
   finalReportPreview?: string;
@@ -205,10 +273,16 @@ export interface TokenSnapshot {
   input: number;
   output: number;
   cachedInput: number;
+  lastInput?: number;
+  lastOutput?: number;
   reasoningOutput?: number;
+  modelContextWindow?: number;
+  planType?: string;
   contextUtilization?: number;
   rateLimitPrimaryPercent?: number;
   rateLimitSecondaryPercent?: number;
+  rateLimitPrimaryPercentRaw?: number;
+  rateLimitSecondaryPercentRaw?: number;
   resetAt?: string;
 }
 
@@ -235,6 +309,7 @@ export type RuntimeLogLevel = "TRACE" | "DEBUG" | "INFO" | "WARN" | "ERROR";
 export interface RuntimeLog {
   id: string;
   timestampMs: number;
+  timestampNanos?: number;
   level: RuntimeLogLevel;
   target: string;
   bodyPreview: string;

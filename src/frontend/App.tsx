@@ -248,6 +248,31 @@ export function App() {
       events: fixture.timelineEvents.filter((event) => event.threadId === activeSession?.id),
       toolCalls: [],
       tokenSnapshots: [],
+      turns: [],
+      agentLaunches: [],
+      agentWaits: [],
+      summary: {
+        eventCount: fixture.timelineEvents.filter((event) => event.threadId === activeSession?.id).length,
+        turnCount: new Set(
+          fixture.timelineEvents
+            .filter((event) => event.threadId === activeSession?.id)
+            .map((event) => event.turnId)
+            .filter(Boolean),
+        ).size,
+        toolCallCount: 0,
+        failedToolCallCount: 0,
+        tokenSnapshotCount: 0,
+        agentLaunchCount: fixture.timelineEvents.filter(
+          (event) => event.threadId === activeSession?.id && event.kind === "agent_launch",
+        ).length,
+        agentWaitCount: fixture.timelineEvents.filter(
+          (event) => event.threadId === activeSession?.id && event.kind === "agent_wait",
+        ).length,
+        warningCount: fixture.timelineEvents.filter(
+          (event) => event.threadId === activeSession?.id && event.severity !== "info",
+        ).length,
+        parsedThroughByte: 0,
+      },
       warnings: [],
     },
     nextByteOffset: 0,

@@ -116,6 +116,20 @@ async function writeWarmFailedCommandCache(threadId: string, toolCalls: CachedTo
     events: [],
     toolCalls,
     tokenSnapshots: [],
+    turns: [],
+    agentLaunches: [],
+    agentWaits: [],
+    summary: {
+      eventCount: 0,
+      turnCount: 0,
+      toolCallCount: toolCalls.length,
+      failedToolCallCount: toolCalls.filter((call) => (call.exitCode ?? 0) !== 0).length,
+      tokenSnapshotCount: 0,
+      agentLaunchCount: 0,
+      agentWaitCount: 0,
+      warningCount: 0,
+      parsedThroughByte: sourceStat.size,
+    },
     warnings: [],
   };
   const cachePath = join(codexHome, ".observatory", "cache", "v1", "rollouts", `${threadId}.json`);

@@ -20,6 +20,20 @@ const factsWithSnapshots = (tokenSnapshots: TokenSnapshot[]): CachedRolloutFacts
   events: [],
   toolCalls: [],
   tokenSnapshots,
+  turns: [],
+  agentLaunches: [],
+  agentWaits: [],
+  summary: {
+    eventCount: 0,
+    turnCount: 0,
+    toolCallCount: 0,
+    failedToolCallCount: 0,
+    tokenSnapshotCount: tokenSnapshots.length,
+    agentLaunchCount: 0,
+    agentWaitCount: 0,
+    warningCount: 0,
+    parsedThroughByte: 1,
+  },
   warnings: [],
 });
 

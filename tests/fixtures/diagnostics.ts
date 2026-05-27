@@ -8,6 +8,7 @@ import { createCodexHomeFixture, type CodexHomeFixture, type CodexThreadFixture 
 
 export interface DiagnosticLogFixture {
   timestampMs: number;
+  timestampNanos?: number;
   level: RuntimeLogLevel;
   target: string;
   body: string;
@@ -21,6 +22,7 @@ export interface DiagnosticLogFixture {
   command?: string | null;
   exitCode?: number | null;
   outputPreview?: string | null;
+  estimatedBytes?: number | null;
 }
 
 export interface DiagnosticsCodexHomeFixture extends CodexHomeFixture {
@@ -37,6 +39,23 @@ export const createDiagnosticsCodexHomeFixture = async ({
   const fixture = await createCodexHomeFixture({ threads });
   const logsDbPath = join(fixture.codexHome, "logs_2.sqlite");
   await writeLogsDb(logsDbPath, logs);
+
+  return {
+    ...fixture,
+    logsDbPath,
+  };
+};
+
+export const createObservedDiagnosticsCodexHomeFixture = async ({
+  threads = [],
+  logs = [],
+}: {
+  threads?: CodexThreadFixture[];
+  logs?: DiagnosticLogFixture[];
+} = {}): Promise<DiagnosticsCodexHomeFixture> => {
+  const fixture = await createCodexHomeFixture({ threads });
+  const logsDbPath = join(fixture.codexHome, "logs_2.sqlite");
+  await writeObservedLogsDb(logsDbPath, logs);
 
   return {
     ...fixture,
@@ -107,6 +126,20 @@ export const writeWarmRolloutCacheFixture = async ({
     events,
     toolCalls,
     tokenSnapshots: [],
+    turns: [],
+    agentLaunches: [],
+    agentWaits: [],
+    summary: {
+      eventCount: events.length,
+      turnCount: 0,
+      toolCallCount: toolCalls.length,
+      failedToolCallCount: toolCalls.filter((call) => (call.exitCode ?? 0) !== 0).length,
+      tokenSnapshotCount: 0,
+      agentLaunchCount: 0,
+      agentWaitCount: 0,
+      warningCount: warnings.length,
+      parsedThroughByte: sourceStat.size,
+    },
     warnings,
   };
 
@@ -114,6 +147,57 @@ export const writeWarmRolloutCacheFixture = async ({
   await mkdir(dirname(cachePath), { recursive: true });
   await writeFile(cachePath, `${JSON.stringify(facts)}\n`, "utf8");
   return { cachePath, facts };
+};
+
+export const writeObservedLogsDb = async (logsDbPath: string, logs: DiagnosticLogFixture[]) => {
+  const db = new DatabaseSync(logsDbPath);
+
+  db.exec(`
+    CREATE TABLE logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      ts INTEGER NOT NULL,
+      ts_nanos INTEGER NOT NULL DEFAULT 0,
+      level TEXT NOT NULL,
+      target TEXT NOT NULL,
+      feedback_log_body TEXT NOT NULL,
+      module_path TEXT,
+      file TEXT,
+      line INTEGER,
+      thread_id TEXT,
+      process_uuid TEXT,
+      estimated_bytes INTEGER NOT NULL
+    );
+
+    CREATE INDEX idx_logs_observed_ts ON logs(ts DESC, ts_nanos DESC, id DESC);
+    CREATE INDEX idx_logs_observed_filters ON logs(level, target, thread_id);
+  `);
+
+  const insert = db.prepare(`
+    INSERT INTO logs (
+      ts, ts_nanos, level, target, feedback_log_body, module_path, file, line,
+      thread_id, process_uuid, estimated_bytes
+    ) VALUES (
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+    )
+  `);
+
+  for (const log of logs) {
+    insert.run(
+      Math.floor(log.timestampMs / 1000),
+      log.timestampNanos ?? (log.timestampMs % 1000) * 1_000_000,
+      log.level,
+      log.target,
+      log.body,
+      log.modulePath ?? null,
+      log.file ?? null,
+      log.line ?? null,
+      log.threadId ?? null,
+      log.processUuid ?? null,
+      log.estimatedBytes ?? Buffer.byteLength(log.body, "utf8"),
+    );
+  }
+
+  db.close();
 };
 
 const writeLogsDb = async (logsDbPath: string, logs: DiagnosticLogFixture[]) => {

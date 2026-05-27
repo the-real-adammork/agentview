@@ -16,7 +16,12 @@ orchestrator:
 tasks:
   "1":
     title: "Establish Enriched Shared Contracts And Observed-Shape Fixtures"
-    status: not_started
+    status: done
+    lane: "contract-baseline"
+    verification:
+      - command: "npm run typecheck && npm run test -- --run tests/unit/contracts.test.ts"
+        result: pass
+        artifact: "docs/qa/artifacts/observatory-api-design-data-gap-closure/task-1-contracts.txt"
   "2":
     title: "Parse Observed Rollout Envelopes Into Joined Timeline, Turn, Token, Agent, And Summary Facts"
     status: not_started
@@ -58,4 +63,4 @@ acceptance:
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T14:25:30Z"
+updated_at: "2026-05-27T14:32:16Z"
