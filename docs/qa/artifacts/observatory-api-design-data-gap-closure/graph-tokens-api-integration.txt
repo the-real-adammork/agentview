@@ -1,0 +1,27 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/unit/tokenSeries.test.ts tests/unit/agentGraph.test.ts tests/integration/graphTokensApi.test.ts tests/integration/diagnosticsApi.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure
+
+(node:24361) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24360) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:24363) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/agentGraph.test.ts (2 tests) 2ms
+(node:24362) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/tokenSeries.test.ts (3 tests) 69ms
+ ✓ tests/integration/graphTokensApi.test.ts (5 tests) 1416ms
+   ✓ graph/tokens API routes > serves a depth-limited graph from real temp SQLite edges and thread metadata  392ms
+ ✓ tests/integration/diagnosticsApi.test.ts (6 tests) 1646ms
+   ✓ diagnostics API routes > serves filtered log rows from logs_2.sqlite with cursor pagination  371ms
+
+ Test Files  4 passed (4)
+      Tests  16 passed (16)
+   Start at  10:07:06
+   Duration  2.09s (transform 138ms, setup 0ms, collect 206ms, tests 3.13s, environment 882ms, prepare 158ms)
+

@@ -3,14 +3,7 @@ status: running
 plan: "docs/plans/2026-05-27-observatory-api-design-data-gap-closure.md"
 branch: "impl/observatory-api-design-data-gap-closure"
 worktree: ".worktrees/impl-observatory-api-design-data-gap-closure"
-active_lanes:
-  - lane: "graph-tokens-api"
-    task: "Task 4"
-    status: "implementation"
-    worker: "worker-graph-tokens-api-1"
-    branch: "impl/observatory-api-design-data-gap-closure-graph-tokens-api"
-    worktree: ".worktrees/impl-observatory-api-design-data-gap-closure-graph-tokens-api"
-    result: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/graph-tokens-api-2026-05-27T145455Z.yaml"
+active_lanes: []
 orchestrator:
   supervisor_inbox: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/supervisor-inbox/observatory-api-design-data-gap-closure.yaml"
   spawn_method: tmux-pane
@@ -49,8 +42,13 @@ tasks:
         artifact: "docs/qa/artifacts/observatory-api-design-data-gap-closure/logs-schema-adapter-integration.txt"
   "4":
     title: "Enrich Agent Graph And Token API Responses From Normalized Facts"
-    status: in_progress
+    status: done
     lane: "graph-tokens-api"
+    commit: "ccfd310f02b38dc5ff03bd7a61f9cf51c49baea6"
+    verification:
+      - command: "npm run test -- --run tests/unit/tokenSeries.test.ts tests/unit/agentGraph.test.ts tests/integration/graphTokensApi.test.ts tests/integration/diagnosticsApi.test.ts"
+        result: pass
+        artifact: "docs/qa/artifacts/observatory-api-design-data-gap-closure/graph-tokens-api-integration.txt"
   "5":
     title: "Prove The Frontend Can Consume The Enriched API Data"
     status: not_started
@@ -62,17 +60,17 @@ service_wiring:
     status: backend_covered
     evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/rollout-parser-integration.txt"
   spawn_child_navigation_data:
-    status: backend_covered
-    evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/rollout-parser-integration.txt"
+    status: covered
+    evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/graph-tokens-api-integration.txt"
   full_token_metadata:
-    status: backend_covered
-    evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/rollout-parser-integration.txt"
+    status: covered
+    evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/graph-tokens-api-integration.txt"
   observed_diagnostics_logs:
     status: covered
     evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/logs-schema-adapter-integration.txt"
   failed_command_summaries:
-    status: backend_covered
-    evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/rollout-parser-integration.txt"
+    status: covered
+    evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/graph-tokens-api-integration.txt"
   cache_and_live_tail_facts:
     status: backend_covered
     evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/rollout-parser-integration.txt"
@@ -130,10 +128,41 @@ mock_fixture_ledger:
     conversion_task: null
     evidence:
       - "docs/qa/artifacts/observatory-api-design-data-gap-closure/rollout-parser-integration.txt"
+  - id: "mf-task4-state-graph-fixture"
+    name: "Temp state_5.sqlite graph fixture"
+    kind: fixture
+    introduced_by: "Task 4"
+    scope: test-only
+    affected_paths:
+      - "tests/integration/graphTokensApi.test.ts"
+      - "tests/unit/agentGraph.test.ts"
+    service_wiring_rows:
+      - "spawn_child_navigation_data"
+    disposition: test-only
+    acceptable_because: "Temp SQLite state rows exercise real StateStore and graph API derivation without mutating user Codex data."
+    conversion_task: null
+    evidence:
+      - "docs/qa/artifacts/observatory-api-design-data-gap-closure/graph-tokens-api-integration.txt"
+  - id: "mf-task4-rollout-token-fixture"
+    name: "Temp rollout token and diagnostics cache fixtures"
+    kind: fixture
+    introduced_by: "Task 4"
+    scope: test-only
+    affected_paths:
+      - "tests/integration/graphTokensApi.test.ts"
+      - "tests/integration/diagnosticsApi.test.ts"
+    service_wiring_rows:
+      - "full_token_metadata"
+      - "failed_command_summaries"
+    disposition: test-only
+    acceptable_because: "Temp rollout/cache fixtures exercise production token and diagnostics API paths with deterministic normalized facts."
+    conversion_task: null
+    evidence:
+      - "docs/qa/artifacts/observatory-api-design-data-gap-closure/graph-tokens-api-integration.txt"
 acceptance:
   status: pending
   packet: "docs/qa/phase-acceptance/2026-05-27-observatory-api-design-data-gap-closure.md"
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T15:02:36Z"
+updated_at: "2026-05-27T15:07:18Z"
