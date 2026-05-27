@@ -1,0 +1,38 @@
+status: implemented
+worker_id: worker-contract-fixture-data-1
+run_id: 2026-05-26-codex-session-observability-dashboard
+task: "Phase 1 Task 2 - Define Shared Contracts And Fixture Data"
+changed_files:
+  - src/shared/contracts.ts
+  - src/shared/redaction.ts
+  - src/fixtures/observatoryFixtures.ts
+  - tests/unit/contracts.test.ts
+  - tests/unit/redaction.test.ts
+  - docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-2-implementation-test.txt
+  - docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/contract-fixture-data-implementation.yaml
+commands:
+  - run: "npm run test -- --run tests/unit/contracts.test.ts tests/unit/redaction.test.ts"
+    exit_code: 0
+    result: passed
+    artifact: docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-2-implementation-test.txt
+  - run: "npm run typecheck"
+    exit_code: 0
+    result: passed
+service_wiring_rows:
+  - "Fixture sessions navigation"
+real_dependencies:
+  - "Node/npm local runtime"
+  - "Vitest and TypeScript from repo dependencies"
+mocks_or_fixtures:
+  - surface: "SessionSummary, TimelineEvent, AgentGraph, TokenSeries, RuntimeLog"
+    source: "src/fixtures/observatoryFixtures.ts"
+    type: "static mocked fixtures derived from prototype mock semantics"
+  - surface: "redaction previews"
+    source: "src/shared/redaction.ts"
+    type: "conservative deterministic helper stub"
+residual_risks:
+  - "Fixtures are representative only; real Codex state DB, rollout JSONL, and logs DB schema drift remains out of scope until later phases."
+  - "Redaction helper covers obvious preview secrets but is not a complete sanitizer for arbitrary raw data."
+review_status: "ready_for_phase_owner_review"
+plan_updates_recommended: []
+blockers: []

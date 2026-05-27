@@ -1,0 +1,32 @@
+status: test_proposed
+result: fail_expected
+worker_id: worker-contract-fixture-data-1
+run_id: 2026-05-26-codex-session-observability-dashboard
+task: "Phase 1 Task 2 - Define Shared Contracts And Fixture Data"
+test_files_changed:
+  - tests/unit/contracts.test.ts
+  - tests/unit/redaction.test.ts
+command:
+  run: "npm run test -- --run tests/unit/contracts.test.ts tests/unit/redaction.test.ts"
+  exit_code: 1
+  artifact: docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-2-test-proposal.txt
+expected_failure:
+  - "tests/unit/contracts.test.ts fails to resolve ../../src/fixtures/observatoryFixtures because Task 2 fixture exports are not implemented yet."
+  - "tests/unit/redaction.test.ts fails to resolve ../../src/shared/redaction because maskPreviewSecrets is not implemented yet."
+requirement_mapping:
+  SessionSummary: "contracts.test.ts asserts fixture session summaries are returned through ApiResult<SessionSummary[]>."
+  TimelineEvent: "contracts.test.ts imports TimelineEvent and expects lifecycle, message, tool, token, agent, warning, and completion event fixtures."
+  AgentGraph: "contracts.test.ts imports AgentGraph and expects root, nodes, edges, depth, open count, and status summary."
+  TokenSeries: "contracts.test.ts imports TokenSeries and expects snapshots, aggregate totals, cached-input ratio, and empty-state reasons."
+  RuntimeLog: "contracts.test.ts imports RuntimeLog and expects diagnostics log rows with redacted body previews."
+  ApiResult: "contracts.test.ts wraps all fixture payloads in ok fixture envelopes with empty warnings."
+  ObservatoryApi: "contracts.test.ts requires listSessions, getTimeline, getAgentGraph, getTokenSeries, and queryLogs methods."
+  redaction: "redaction.test.ts requires maskPreviewSecrets to redact env assignments, bearer/JWT/AWS/opaque tokens, credentialed git URLs, and optional metadata."
+service_wiring_rows:
+  - "Fixture sessions navigation"
+mock_or_fixture_disclosure:
+  automated_tests: "mocked fixtures"
+  production_dev_path_exercised: "no, contract-only fixture path"
+  mock_only_risk: "schema drift in real Codex sources remains untested until later phases"
+  required_real_dependencies: "local Node/npm/Vitest runtime only"
+blockers: []
