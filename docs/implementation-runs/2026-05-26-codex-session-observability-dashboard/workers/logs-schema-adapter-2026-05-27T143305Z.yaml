@@ -5,7 +5,7 @@ run_id: 2026-05-26-codex-session-observability-dashboard
 task: "Task 3"
 lane: logs-schema-adapter
 base_commit: d9477218e908faf7c51afbfabe9bbc401b78b5d9
-head_commit: "pending: final commit hash is reported by the worker after commit creation"
+head_commit: c11fdcd0e9064995cefc149e01e69afc49461852
 changed_files:
   - src/backend/sqlite/logStore.ts
   - src/backend/api/diagnostics.ts
