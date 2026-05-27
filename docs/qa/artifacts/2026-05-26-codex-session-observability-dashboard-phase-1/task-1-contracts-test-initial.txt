@@ -1,0 +1,38 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/unit/contracts.test.ts
+
+ MISSING DEPENDENCY  Cannot find dependency 'jsdom'
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: Cannot find package 'jsdom' imported from /Users/adam/Projects/agentview/node_modules/vitest/dist/chunks/index.CmSc2RE5.js
+ ❯ Object.getPackageJSONURL node:internal/modules/package_json_reader:301:9
+ ❯ packageResolve node:internal/modules/esm/resolve:768:81
+ ❯ moduleResolve node:internal/modules/esm/resolve:859:18
+ ❯ defaultResolve node:internal/modules/esm/resolve:991:11
+ ❯ ModuleLoader.#cachedDefaultResolve node:internal/modules/esm/loader:719:20
+ ❯ ModuleLoader.#resolveAndMaybeBlockOnLoaderThread node:internal/modules/esm/loader:736:38
+ ❯ ModuleLoader.resolveSync node:internal/modules/esm/loader:765:52
+ ❯ ModuleLoader.#resolve node:internal/modules/esm/loader:701:17
+ ❯ ModuleLoader.getOrCreateModuleJob node:internal/modules/esm/loader:621:35
+ ❯ onImport.tracePromise.__proto__ node:internal/modules/esm/loader:650:32
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+Serialized Error: { code: 'ERR_MODULE_NOT_FOUND' }
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files   (1)
+      Tests  no tests
+     Errors  1 error
+   Start at  21:43:08
+   Duration  159ms (transform 6ms, setup 0ms, collect 0ms, tests 0ms, environment 0ms, prepare 0ms)
+

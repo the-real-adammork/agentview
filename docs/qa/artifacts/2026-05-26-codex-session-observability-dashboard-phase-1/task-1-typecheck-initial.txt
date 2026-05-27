@@ -1,5 +1,9 @@
 
-> agentview-observatory@0.1.0 typecheck
-> tsc -p tsconfig.json --noEmit && tsc -p tsconfig.node.json --noEmit
+> agentview@0.1.0 typecheck
+> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json
 
-tests/unit/contracts.test.ts(2,62): error TS2307: Cannot find module '../../src/shared/contracts' or its corresponding type declarations.
+error TS6305: Output file '/Users/adam/Projects/agentview/vitest.config.d.ts' has not been built from source file '/Users/adam/Projects/agentview/vitest.config.ts'.
+  The file is in the program because:
+    Matched by include pattern 'vitest.config.ts' in 'tsconfig.json'
+tsconfig.json(21,18): error TS6306: Referenced project '/Users/adam/Projects/agentview/tsconfig.node.json' must have setting "composite": true.
+tsconfig.json(21,18): error TS6310: Referenced project '/Users/adam/Projects/agentview/tsconfig.node.json' may not disable emit.

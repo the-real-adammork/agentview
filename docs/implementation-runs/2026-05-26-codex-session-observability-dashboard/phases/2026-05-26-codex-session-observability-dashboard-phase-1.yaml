@@ -7,9 +7,18 @@ active_lanes: []
 tasks:
   "1":
     title: "Bootstrap Package, Scripts, And TypeScript Layout"
-    status: in_progress
+    status: done
     lane: "phase-owner"
-    verification: []
+    verification:
+      - command: "npm install"
+        result: pass
+        artifact: "package-lock.json"
+      - command: "npm run typecheck"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-1-typecheck-final.txt"
+      - command: "npm run test -- --run tests/unit/contracts.test.ts"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-1-contracts-test-final.txt"
   "2":
     title: "Define Shared Contracts And Fixture Data"
     status: not_started
@@ -32,8 +41,8 @@ tasks:
     verification: []
 service_wiring:
   app_health:
-    status: pending
-    evidence: null
+    status: scaffolded
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-1-typecheck-final.txt"
   fixture_sessions_navigation:
     status: pending
     evidence: null
@@ -49,4 +58,4 @@ acceptance:
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T02:25:55Z"
+updated_at: "2026-05-27T02:43:56Z"
