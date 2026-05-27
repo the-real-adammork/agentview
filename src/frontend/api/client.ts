@@ -15,6 +15,7 @@ import type {
   SessionFilter,
   SessionSummary,
   TimelineEvent,
+  TimelinePayload,
   TokenSeries,
 } from "../../shared/contracts";
 
@@ -59,7 +60,25 @@ export const fixtureApiClient: ObservatoryApi = {
     return ok(sessionSummariesFixture);
   },
   async getTimeline(threadId) {
-    return ok(timelineEventsFixture.filter((event) => event.threadId === threadId));
+    const events = timelineEventsFixture.filter((event) => event.threadId === threadId);
+    return ok({
+      threadId,
+      events,
+      facts: {
+        threadId,
+        rolloutPath: "fixture://timeline",
+        parserVersion: 1,
+        sourceMtimeMs: 0,
+        sourceSizeBytes: 0,
+        parsedThroughByte: events.length,
+        events,
+        toolCalls: [],
+        tokenSnapshots: [],
+        warnings: [],
+      },
+      nextByteOffset: events.length,
+      cacheStatus: "cold",
+    });
   },
   async getAgentGraph() {
     return ok(agentGraphFixture);
@@ -143,8 +162,12 @@ export const realApiClient: ObservatoryApi = {
   getThread(threadId) {
     return getJson<SessionSummary>(`/api/sessions/${encodeURIComponent(threadId)}`);
   },
-  getTimeline(threadId) {
-    return getJson<TimelineEvent[]>(`/api/timeline?threadId=${encodeURIComponent(threadId)}`);
+  getTimeline(threadId, options) {
+    const params = new URLSearchParams({ threadId });
+    if (options?.fromByte !== undefined) {
+      params.set("fromByte", String(options.fromByte));
+    }
+    return getJson<TimelinePayload>(`/api/timeline?${params.toString()}`);
   },
   getAgentGraph(rootThreadId) {
     return getJson<AgentGraph>(`/api/agent-graph?rootThreadId=${encodeURIComponent(rootThreadId)}`);

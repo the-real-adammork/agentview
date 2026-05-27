@@ -5,17 +5,6 @@ import { openStateStore, StateStoreError } from "../sqlite/stateStore";
 import type { HealthStatus } from "../../shared/contracts";
 import { fail, ok, writeJson } from "./http";
 
-const toUnavailableStatus = (): HealthStatus => ({
-  status: "unavailable",
-  mode: "real",
-  checkedAt: new Date().toISOString(),
-  stateDb: {
-    readOnly: true,
-    supported: false,
-    tables: [],
-  },
-});
-
 const errorStatus = (error: unknown) => {
   if (error instanceof StateStoreError) {
     return error.code === "STATE_DB_MISSING" || error.code === "SCHEMA_UNSUPPORTED" ? 503 : 500;

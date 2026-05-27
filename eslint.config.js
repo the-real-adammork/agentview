@@ -10,8 +10,13 @@ const browserGlobals = {
 };
 
 const nodeGlobals = {
+  clearTimeout: "readonly",
   console: "readonly",
+  document: "readonly",
+  fetch: "readonly",
+  performance: "readonly",
   process: "readonly",
+  setTimeout: "readonly",
 };
 
 export default tseslint.config(

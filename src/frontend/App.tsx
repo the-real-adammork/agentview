@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { createFixtureSnapshot, realApiClient } from "./api/client";
 import { Chrome } from "./components/Chrome";
@@ -8,7 +8,7 @@ import { DiagnosticsView } from "./views/DiagnosticsView";
 import { SessionsView } from "./views/SessionsView";
 import { TimelineView } from "./views/TimelineView";
 import { TokensView } from "./views/TokensView";
-import type { ApiError, HealthStatus, SessionFilter, SessionSummary } from "../shared/contracts";
+import type { ApiError, HealthStatus, SessionFilter, SessionSummary, TimelinePayload } from "../shared/contracts";
 
 const stylesheetHref = new URL("./styles/app.css", import.meta.url).href;
 
@@ -25,6 +25,10 @@ export function App() {
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [sessionsError, setSessionsError] = useState<ApiError | null>(null);
   const [activeSessionId, setActiveSessionId] = useState(fixture.sessions[0]?.id ?? "");
+  const [timelinePayload, setTimelinePayload] = useState<TimelinePayload | undefined>();
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineError, setTimelineError] = useState<ApiError | null>(null);
+  const [timelineKind, setTimelineKind] = useState("all");
 
   useEffect(() => {
     let cancelled = false;
@@ -80,6 +84,60 @@ export function App() {
 
   const activeSession = sessions.find((session) => session.id === activeSessionId) ?? sessions[0] ?? fixture.sessions[0];
 
+  const loadTimeline = useCallback((fromByte?: number) => {
+    if (!activeSession?.id) return;
+
+    setTimelineLoading(true);
+    setTimelineError(null);
+    realApiClient
+      .getTimeline(activeSession.id, fromByte === undefined ? undefined : { fromByte })
+      .then((result) => {
+        if (result.ok) {
+          setTimelinePayload((current) =>
+            fromByte === undefined
+              ? result.data
+              : {
+                  ...result.data,
+                  events: [...(current?.events ?? []), ...result.data.events],
+                },
+          );
+        } else {
+          setTimelineError(result.error);
+        }
+      })
+      .catch((error: unknown) => {
+        setTimelineError({
+          code: "NETWORK_ERROR",
+          message: error instanceof Error ? error.message : "Unable to load timeline.",
+        });
+      })
+      .finally(() => setTimelineLoading(false));
+  }, [activeSession?.id]);
+
+  useEffect(() => {
+    if (activeView !== "Timeline") return;
+    loadTimeline();
+  }, [activeView, activeSession?.id, loadTimeline]);
+
+  const fallbackTimeline: TimelinePayload = {
+    threadId: activeSession?.id ?? "",
+    events: fixture.timelineEvents.filter((event) => event.threadId === activeSession?.id),
+    facts: {
+      threadId: activeSession?.id ?? "",
+      rolloutPath: "fixture://timeline",
+      parserVersion: 1,
+      sourceMtimeMs: 0,
+      sourceSizeBytes: 0,
+      parsedThroughByte: 0,
+      events: fixture.timelineEvents.filter((event) => event.threadId === activeSession?.id),
+      toolCalls: [],
+      tokenSnapshots: [],
+      warnings: [],
+    },
+    nextByteOffset: 0,
+    cacheStatus: "cold",
+  };
+
   return (
     <>
       <link rel="stylesheet" href={stylesheetHref} />
@@ -98,7 +156,16 @@ export function App() {
             />
           ) : null}
           {activeView === "Timeline" ? (
-            <TimelineView events={fixture.timelineEvents} activeSession={activeSession} />
+            <TimelineView
+              payload={timelinePayload ?? fallbackTimeline}
+              activeSession={activeSession}
+              isLoading={timelineLoading}
+              error={timelineError}
+              activeKind={timelineKind}
+              onKindChange={setTimelineKind}
+              onRefresh={() => loadTimeline()}
+              onTail={() => loadTimeline(timelinePayload?.nextByteOffset ?? 0)}
+            />
           ) : null}
           {activeView === "Agent Graph" ? <AgentGraphView graph={fixture.agentGraph} /> : null}
           {activeView === "Tokens" ? <TokensView series={fixture.tokenSeries} /> : null}

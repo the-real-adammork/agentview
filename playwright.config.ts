@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { mkdtempSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -14,6 +14,8 @@ process.env.AGENTVIEW_API_BASE_URL = apiBaseUrl;
 
 const createE2eCodexHome = () => {
   const codexHome = mkdtempSync(join(tmpdir(), "agentview-e2e-codex-home-"));
+  const sessionsDir = join(codexHome, "sessions");
+  mkdirSync(sessionsDir, { recursive: true });
   const db = new DatabaseSync(join(codexHome, "state_5.sqlite"));
 
   db.exec(`
@@ -130,10 +132,36 @@ const createE2eCodexHome = () => {
   insertEdge.run("thread-subagent-implementation", "child-closed", "closed");
   db.close();
 
+  const largeOutput = "x".repeat(4600);
+  const timelineLines = [
+    { type: "task_started", timestamp: "2026-05-26T18:00:00.000Z", text: "Timeline task started" },
+    { type: "user_message", timestamp: "2026-05-26T18:00:01.000Z", role: "user", content: "Open the selected session" },
+    { type: "assistant_message", timestamp: "2026-05-26T18:00:02.000Z", role: "assistant", content: "I will inspect the rollout" },
+    { type: "tool_call", timestamp: "2026-05-26T18:00:03.000Z", call_id: "call-1", tool_name: "exec_command", arguments: { cmd: "cat secret.txt" } },
+    { type: "tool_result", timestamp: "2026-05-26T18:00:04.000Z", call_id: "call-1", tool_name: "exec_command", output: `OPENAI_API_KEY=sk-test ${largeOutput}`, exit_code: 0 },
+    { type: "token_snapshot", timestamp: "2026-05-26T18:00:05.000Z", usage: { input_tokens: 1000, output_tokens: 200, cached_input_tokens: 50, reasoning_output_tokens: 25 } },
+    { type: "agent_launch", timestamp: "2026-05-26T18:00:06.000Z", call_id: "agent-1", tool_name: "spawn_agent", arguments: { nickname: "timeline-worker", role: "implementation" } },
+    { type: "agent_wait", timestamp: "2026-05-26T18:00:07.000Z", call_id: "agent-1", tool_name: "wait_agent", output: "worker complete" },
+    { level: "warn", timestamp: "2026-05-26T18:00:08.000Z", text: "runtime warning" },
+    "{malformed",
+    ...Array.from({ length: 22 }, (_, index) => ({
+      type: "assistant_message",
+      timestamp: `2026-05-26T18:00:${String(10 + index).padStart(2, "0")}.000Z`,
+      content: `Scrubber event ${index}`,
+    })),
+  ]
+    .map((line) => (typeof line === "string" ? line : JSON.stringify(line)))
+    .join("\n");
+
+  writeFileSync(join(sessionsDir, "parent.jsonl"), `${timelineLines}\n`);
+  writeFileSync(join(sessionsDir, "subagent.jsonl"), `${timelineLines}\n`);
+  writeFileSync(join(sessionsDir, "archived.jsonl"), `${timelineLines}\n`);
+
   return codexHome;
 };
 
 const codexHome = process.env.CODEX_HOME ?? createE2eCodexHome();
+process.env.AGENTVIEW_E2E_CODEX_HOME = codexHome;
 const quotedCodexHome = JSON.stringify(codexHome);
 
 export default defineConfig({
@@ -149,13 +177,13 @@ export default defineConfig({
     {
       command: `CODEX_HOME=${quotedCodexHome} AGENTVIEW_API_PORT=${apiPort} npm run api`,
       url: `${apiBaseUrl}/api/health`,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 30_000,
     },
     {
       command: `VITE_AGENTVIEW_API_BASE_URL=${apiBaseUrl} npm run dev -- --port ${appPort} --strictPort`,
       url: appBaseUrl,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false,
       timeout: 30_000,
     },
   ],

@@ -1,0 +1,294 @@
+./src/fixtures/observatoryFixtures.ts:330:    processUuid: "proc-fixture-1",
+./src/fixtures/observatoryFixtures.ts:344:    processUuid: "proc-fixture-1",
+./src/fixtures/observatoryFixtures.ts:358:    processUuid: "proc-fixture-1",
+./src/fixtures/observatoryFixtures.ts:372:    processUuid: "proc-fixture-1",
+./src/fixtures/observatoryFixtures.ts:385:    processUuid: "proc-fixture-1",
+./src/shared/contracts.ts:1:export type ApiSource = "fixture" | "state-db" | "rollout-cache" | "logs-db";
+./src/shared/contracts.ts:27:  mode: "fixture" | "real";
+./src/backend/server.ts:3:import { handleFixtureApiRequest } from "./api/fixtures";
+./src/backend/api/fixtures.ts:9:} from "../../fixtures/observatoryFixtures";
+./src/backend/api/fixtures.ts:48:    source: "fixture",
+./src/backend/api/fixtures.ts:57:    source: "fixture",
+./src/backend/api/fixtures.ts:97:      mode: "fixture",
+./src/frontend/api/client.ts:7:} from "../../fixtures/observatoryFixtures";
+./src/frontend/api/client.ts:27:  source: "fixture",
+./src/frontend/api/client.ts:44:      mode: "fixture",
+./src/frontend/api/client.ts:55:export const fixtureApiClient: ObservatoryApi = {
+./src/frontend/api/client.ts:69:        rolloutPath: "fixture://timeline",
+./src/frontend/components/Chrome.tsx:12:  const source = health.mode === "real" ? "state-db" : "fixture";
+./src/frontend/App.tsx:20:  const fixture = useMemo(() => createFixtureSnapshot(), []);
+./src/frontend/App.tsx:22:  const [health, setHealth] = useState<HealthStatus>(fixture.health);
+./src/frontend/App.tsx:23:  const [sessions, setSessions] = useState<SessionSummary[]>(fixture.sessions);
+./src/frontend/App.tsx:27:  const [activeSessionId, setActiveSessionId] = useState(fixture.sessions[0]?.id ?? "");
+./src/frontend/App.tsx:85:  const activeSession = sessions.find((session) => session.id === activeSessionId) ?? sessions[0] ?? fixture.sessions[0];
+./src/frontend/App.tsx:124:    events: fixture.timelineEvents.filter((event) => event.threadId === activeSession?.id),
+./src/frontend/App.tsx:127:      rolloutPath: "fixture://timeline",
+./src/frontend/App.tsx:132:      events: fixture.timelineEvents.filter((event) => event.threadId === activeSession?.id),
+./src/frontend/App.tsx:170:          {activeView === "Agent Graph" ? <AgentGraphView graph={fixture.agentGraph} /> : null}
+./src/frontend/App.tsx:171:          {activeView === "Tokens" ? <TokensView series={fixture.tokenSeries} /> : null}
+./src/frontend/App.tsx:172:          {activeView === "Diagnostics" ? <DiagnosticsView logs={fixture.diagnosticsLogs} /> : null}
+./playwright.config.ts:116:    "UI fixture archived",
+./docs/reviews/2026-05-26-codex-session-observability-dashboard-technical-design-review.md:20:| Dashboard should show sandbox/approval prominently and track model/reasoning changes over time. | `TimelineView` responsibility, `Turn`, `TimelineEvent` | Covered | The design includes turn-level context and rendering responsibility for timeline grouping; verification covers timeline fixture rendering. |
+./docs/reviews/2026-05-26-codex-session-observability-dashboard-technical-design-review.md:26:| Join `function_call` and `function_call_output` by `call_id`; parse arguments when possible; derive duration and failures. | `Parsing And Cache Strategy`, `TimelineEvent`, `Verification Strategy` | Covered | The design requires call/output joins, duration derivation, best-effort failed shell detection, and parser fixtures. |
+./docs/reviews/2026-05-26-codex-session-observability-dashboard-technical-design-review.md:66:| Prototype should be ported into TypeScript modules, with mock data as fixtures rather than runtime dependency. | `Proposed Architecture`, `Responsibilities`, `Sequencing` | Covered | The design explicitly ports prototype files and demotes mock data to test/local-development fixtures. |
+./docs/reviews/2026-05-26-codex-session-observability-dashboard-technical-design-review-rerun.md:25:| Dashboard should show sandbox/approval prominently and track model/reasoning changes over time. | `TimelineView` responsibility, `Turn`, `TimelineEvent` | Covered | The design includes turn-level context and rendering responsibility for timeline grouping; verification covers timeline fixture rendering. |
+./docs/reviews/2026-05-26-codex-session-observability-dashboard-technical-design-review-rerun.md:31:| Join `function_call` and `function_call_output` by `call_id`; parse arguments when possible; derive duration and failures. | `Parsing And Cache Strategy`, `TimelineEvent`, `Verification Strategy` | Covered | The design requires call/output joins, duration derivation, best-effort failed shell detection, and parser fixtures. |
+./docs/reviews/2026-05-26-codex-session-observability-dashboard-technical-design-review-rerun.md:71:| Prototype should be ported into TypeScript modules, with mock data as fixtures rather than runtime dependency. | `Proposed Architecture`, `Responsibilities`, `Sequencing` | Covered | The design explicitly ports prototype files and demotes mock data to test/local-development fixtures. |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-implementation-phases.md:14:| Phase 1 - Fixture Shell And Contract | Bootstrap the Vite/React/Node/TypeScript app and prove all five views render from fixture data through the typed API contract. | None | Scaffold, shared contracts, fixture transport, app chrome, design tokens, first Playwright harness. | UI shell lane, contract/test harness lane; serialized package/config edits. | React shell, local API health, fixture ObservatoryApi, five route shells. | `npm run dev:all` plus Playwright opens every view from fixture data. | UI -> transport -> fixture API; no Codex source reads yet. | Create Playwright early. | Playwright smoke against fixture mode plus unit/typecheck. | `docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-1.md` | `docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md` |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-implementation-phases.md:15:| Phase 2 - Read-Only Sessions Index | Replace fixture Sessions with real read-only `state_5.sqlite` listing, filters, health, and child/open counts while keeping detail views fixture-backed. | Phase 1 fixture shell and transport. | Codex path guard, read-only SQLite state store, Sessions API/client/UI integration, first-paint performance proof. | Backend source lane and Sessions UI lane can overlap after contracts stabilize. | Sessions view, header counts, health/status surfaces. | Sessions list renders real or temp-fixture DB rows sorted by updated desc without JSONL parsing. | UI -> HTTP client -> state store -> read-only SQLite; graph counts from `thread_spawn_edges`. | Extend existing Playwright with temp `$CODEX_HOME`. | Playwright Sessions flow plus integration tests for SQLite fixtures. | `docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-2.md` | `docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md` |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-implementation-phases.md:16:| Phase 3 - Rollout Timeline And Cache | Add streaming JSONL parsing, redaction, derived cache, Timeline rendering, collapsed tool outputs, and selected-session tail polling. | Phase 2 real session lookup and transport. | Rollout stream/parser/cache, timeline APIs/client, Timeline UI, parser/privacy tests, E2E selected-session detail. | Parser/cache lane and Timeline UI lane can overlap after event contracts are fixed. | Timeline view, selected session detail, live appended rows for rollout files. | Opening a real or fixture rollout shows normalized events, joined tool output, scrubber ticks, redacted previews, and warm cache reuse. | UI -> timeline API -> thread lookup -> rollout stream/cache -> redaction -> Timeline. | Extend Playwright to open selected session and inspect timeline. | Playwright Timeline flow plus parser/cache integration tests. | `docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-3.md` | `docs/plans/2026-05-26-codex-session-observability-dashboard-phase-3-timeline-cache.md` |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-implementation-phases.md:17:| Phase 4 - Agent Graph And Tokens | Build Agent Graph and Tokens from state edges plus parsed rollout facts, including depth limits, token empty states, and drill-down navigation. | Phase 3 cached parsed rollout facts. | Graph/token API methods, React graph/token views, layout constraints, contract reuse, E2E navigation. | Graph lane and Tokens lane can run in parallel; shared parsed-facts contract is serialized. | Agent Graph view, Tokens view, cross-view navigation. | Root/depth graph and token charts render for fixture and real cached data; node/session drill-down opens Timeline. | UI -> graph/token APIs -> state edges + threads + rollout cache. | Extend Playwright with graph/tokens routes. | Playwright Graph/Tokens flows plus unit tests for derived graph/token series. | `docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-4.md` | `docs/plans/2026-05-26-codex-session-observability-dashboard-phase-4-graph-tokens.md` |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-implementation-phases.md:25:| Proposed Architecture, API / Transport, Ingest Worker | Phases 1-3, 5 | Phase 1 defines the transport-neutral contract; later phases replace fixture handlers with real sources. |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-implementation-phases.md:53:| Phase 1 - Fixture Shell And Contract | Fixture-backed Observatory app runs with all five views, persistent chrome, typed contract, local API health, and Playwright smoke. | One owner coordinates scaffold, contracts, fixture data, app shell, scripts, and acceptance packet. | UI shell; contract/test harness. | Browser -> fixture transport/API health. | Create Playwright immediately. | `npm run test`, `npm run typecheck`, `npm run e2e`. | `docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-1.md` | None | Stable scripts, contracts, route shell, visual tokens, fixture E2E harness. | Real Codex reads, parser, graph logic, diagnostics. | `docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md` |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-implementation-phases.md:54:| Phase 2 - Read-Only Sessions Index | Real Sessions view uses read-only `state_5.sqlite`/`thread_spawn_edges`, filters compose, and no JSONL is parsed on first paint. | One owner coordinates backend state source, Sessions UI, temp DB fixtures, performance evidence, and packet. | Backend state source; Sessions UI. | Browser -> HTTP client -> state store -> read-only SQLite. | Extend Phase 1 Playwright with temp `$CODEX_HOME`. | `npm run test -- --run`, `npm run e2e -- sessions`, first-paint perf check. | `docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-2.md` | Phase 1 | Real session contract, path guard, state DB schema checks, fast list behavior. | JSONL detail parsing, logs DB diagnostics, raw tail. | `docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md` |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-implementation-phases.md:75:- `docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md` - Bootstrap a fixture-backed app shell, typed contract, scripts, and Playwright harness.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-implementation-phases.md:107:Affected plan(s): `docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md`, `docs/plans/2026-05-26-codex-session-observability-dashboard-phase-5-diagnostics-hardening.md`  
+./docs/plans/2026-05-26-codex-session-observability-dashboard-implementation-phases.md:125:Affected plan(s): `docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md`  
+./package-lock.json:2037:        "@vitest/mocker": "3.2.4",
+./package-lock.json:2081:    "node_modules/@vitest/mocker": {
+./package-lock.json:2083:      "resolved": "https://registry.npmjs.org/@vitest/mocker/-/mocker-3.2.4.tgz",
+./package-lock.json:4896:        "@vitest/mocker": "3.2.4",
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-5-diagnostics-hardening.md:48:| Real `logs_2.sqlite` source | Task 1, Task 5 | Generate temp logs DB fixtures and optionally validate against local `$CODEX_HOME` if present. | The user requires private real log validation and local logs are unavailable. | Complete with fixtures; record real-data validation as not run. |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-5-diagnostics-hardening.md:49:| Raw TUI log source | Task 2 | Generate temp raw log fixture and keep raw mode advanced-only. | The user requires validation against private real raw log and it is unavailable. | Complete with fixture; record real raw-tail validation as not run. |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-5-diagnostics-hardening.md:67:| Structured diagnostics | Diagnostics view filters | `queryLogs`, `getDiagnosticsSummary` | `logs_2.sqlite.logs` | None | Temp logs DB fixture | E2E filters by level/target/scope and integration tests page by cursor. |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-5-diagnostics-hardening.md:68:| Failed command summaries | Diagnostics failed-command panel | `getDiagnosticsSummary` plus cached rollout failed-tool facts | rollout cache, optional `logs_2.sqlite.logs` | None | Temp rollout cache and logs DB fixtures | Integration/E2E prove failed commands render and fallback works when `logs_2.sqlite` is missing. |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-5-diagnostics-hardening.md:71:| Partial error handling | All five views | `ApiResult` error/warning envelopes | missing/locked/malformed sources | None | Temp missing/unsupported fixtures | E2E/integration tests show partial panels instead of blank dashboard. |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-5-diagnostics-hardening.md:76:Reuse the established Playwright harness and expand it to all five views. Add axe or equivalent accessibility checks and deterministic temp fixtures for logs, missing source files, schema drift, raw tail, and large row counts.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-5-diagnostics-hardening.md:97:- Evidence to collect: test output and fixture schema notes.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-5-diagnostics-hardening.md:100:- Automated tests: real temp SQLite logs fixture
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-5-diagnostics-hardening.md:102:- Mock-only risk: private real log target diversity may exceed fixtures
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-5-diagnostics-hardening.md:136:- Automated tests: real local API with temp logs DB and raw log fixture
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-5-diagnostics-hardening.md:165:- Evidence to collect: privacy test output and source-error fixture matrix.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-5-diagnostics-hardening.md:168:- Automated tests: fixtures with secret-like strings, missing files, unsupported schemas, malformed JSONL, corrupt cache
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-5-diagnostics-hardening.md:201:- Automated tests: real local API with generated temp source fixtures
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-5-diagnostics-hardening.md:237:- Automated tests: real local API with temp SQLite/JSONL/log/raw fixtures
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-5-diagnostics-hardening.md:257:  Expected: all five views pass browser flows through local API and generated source fixtures.
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-2.md:11:Phase 2 replaces the Sessions view with a real read-only `state_5.sqlite` index through the local API. The app resolves safe `CODEX_HOME` paths, checks schema availability, lists sessions sorted by `updated_at_ms` descending, composes filters, shows child/open counts, supports row selection for placeholder detail views, and records a 500-row first-paint performance guard without rollout JSONL reads on the list path.
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-2.md:13:Timeline, Agent Graph, Tokens, and Diagnostics remain fixture-backed placeholders per the phase boundary.
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-2.md:31:| Session lookup | `docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-3-implementation-focused-test.txt` | Playwright row click selects a real session row and preserves the placeholder Timeline detail route. |
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-2.md:42:| Mock/fixture audit scan | Pass, reviewed | `docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/mock-fixture-audit.txt` |
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-2.md:48:| `mf-phase2-001` | Fixture | Test-only temp Codex home SQLite fixture | `test-only` | `task-1-integration-focused-test.txt` |
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-2.md:49:| `mf-phase2-002` | Fixture | Test-only sessions API SQLite fixtures | `test-only` | `task-2-implementation-focused-test.txt` |
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-2.md:51:| `mf-phase2-004` | Fixture | Test-only Playwright state DB fixture | `test-only` | `task-3-implementation-focused-test.txt` |
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-2.md:52:| `mf-phase2-005` | Fixture | Test-only 500-row performance fixture | `test-only` | `task-4-implementation-focused-test.txt` |
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-2.md:54:Audit review: runtime-relevant fixture matches are expected phase boundaries. `src/backend/api/fixtures.ts`, `src/fixtures/observatoryFixtures.ts`, fixture source tags, and fixture-backed client fallbacks remain for Timeline, Agent Graph, Tokens, Diagnostics, and jsdom/local fallback behavior. The Sessions runtime path is covered by `state-db` API evidence and Playwright/perf evidence. Test fixture matches under `tests/**`, `playwright.config.ts`, and `scripts/perf/**` are tracked above. Documentation and design-prototype matches are not runtime service wiring.
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-2.md:58:Private local `~/.codex` validation was not run. The phase plan permits completion with generated temp `state_5.sqlite` fixtures unless the user requires private real-data validation.
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-2.md:62:- Warning and failed-tool counts remain placeholder statuses until later rollout/log source phases.
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-2.md:63:- Private Codex schema drift may differ from generated fixtures; unsupported schemas return typed errors instead of falling back to fixture Sessions.
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-2.md:72:- Later views can keep using fixture placeholders until their own phases replace Timeline, Agent Graph, Tokens, and Diagnostics data sources.
+./tests/unit/app-shell.test.tsx:13:} from "../../src/fixtures/observatoryFixtures";
+./tests/unit/app-shell.test.tsx:17:describe("fixture-backed five-view app shell", () => {
+./tests/unit/app-shell.test.tsx:23:    expect(banner).toHaveTextContent(/fixture mode/i);
+./tests/unit/app-shell.test.tsx:35:      /source:\s*fixture/i,
+./tests/unit/app-shell.test.tsx:39:  it("shows session fixture table headers and marks the first session as active", () => {
+./tests/unit/app-shell.test.tsx:58:  it("navigates from sessions to timeline, agent graph, tokens, and diagnostics fixture views", () => {
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-4-graph-tokens.md:45:| Real deep agent tree sample | Task 4 | Generate fixture parent/child edges with depth >= 3 and optional local real-data validation. | The user requires private real graph validation and no local source exists. | Complete with fixtures; record real-data validation as not run. |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-4-graph-tokens.md:63:| Agent graph render | Agent Graph view | `getAgentGraph(rootThreadId, options)` | `state_5.sqlite.thread_spawn_edges`, `threads`, optional rollout cache | None | Temp SQLite/cache fixtures | E2E renders root/depth 1/depth 2, status styling, inspector, and Timeline navigation. |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-4-graph-tokens.md:64:| Token series render | Tokens view | `getTokenSeries(threadId)` | rollout cache facts and session summaries | None | Temp JSONL/cache fixtures | E2E renders aggregates, curve, rate meters, cached-ratio empty state, drill-down. |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-4-graph-tokens.md:69:Extend existing Playwright fixtures with parent/child edge rows and rollout token snapshots. Use the same temp `$CODEX_HOME` and cache fixtures from Phases 2-3 so the browser flow proves real service wiring.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-4-graph-tokens.md:88:- Evidence to collect: test output and fixture graph shape.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-4-graph-tokens.md:91:- Automated tests: real temp SQLite fixtures and optional cache facts
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-4-graph-tokens.md:94:- Required real dependencies: temp SQLite fixture
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-4-graph-tokens.md:120:- Evidence to collect: test output and fixture token snapshot summary.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-4-graph-tokens.md:123:- Automated tests: real temp JSONL/cache fixtures
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-4-graph-tokens.md:126:- Required real dependencies: temp filesystem/cache fixtures
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-4-graph-tokens.md:158:- Automated tests: real local API with temp SQLite, JSONL, and cache fixtures
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-4-graph-tokens.md:165:- [ ] Step 2: Run focused tests and confirm placeholder views fail.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-4-graph-tokens.md:188:- Evidence to collect: command output, Playwright artifacts, fixture graph/token descriptions.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-4-graph-tokens.md:191:- Automated tests: real local API with temp SQLite, JSONL, and cache fixtures
+./tests/integration/timelineApi.test.ts:11:} from "../fixtures/codexHome";
+./tests/integration/timelineApi.test.ts:124:  fixture: CodexHomeFixture,
+./tests/integration/timelineApi.test.ts:128:  const api = await startApi({ codexHome: fixture.codexHome, env });
+./tests/integration/timelineApi.test.ts:134:    await fixture.cleanup();
+./tests/integration/timelineApi.test.ts:139:  fixture: CodexHomeFixture,
+./tests/integration/timelineApi.test.ts:143:  const rolloutPath = join(fixture.codexHome, relativePath);
+./tests/integration/timelineApi.test.ts:156:    const fixture = await createCodexHomeFixture({
+./tests/integration/timelineApi.test.ts:171:    await createRolloutFile(fixture, "sessions/2026/thread-timeline.jsonl", [
+./tests/integration/timelineApi.test.ts:195:      fixture,
+./tests/integration/timelineApi.test.ts:236:    const fixture = await createCodexHomeFixture({
+./tests/integration/timelineApi.test.ts:249:    await withApi(fixture, async ({ baseUrl }) => {
+./tests/integration/timelineApi.test.ts:272:    const fixture = await createCodexHomeFixture({
+./tests/integration/timelineApi.test.ts:285:    await withApi(fixture, async ({ baseUrl }) => {
+./tests/e2e/sessions-index.spec.ts:14:  test("loads real state-db sessions sorted by update time and selects rows for placeholder detail views", async ({
+./tests/e2e/sessions-index.spec.ts:26:    await expect(rows.nth(0)).toContainText("UI fixture archived");
+./tests/unit/contracts.test.ts:9:} from "../../src/fixtures/observatoryFixtures";
+./tests/unit/contracts.test.ts:26:  expect(result.source).toBe("fixture");
+./tests/unit/contracts.test.ts:32:describe("observatory Task 2 contract fixtures", () => {
+./tests/unit/contracts.test.ts:33:  it("wraps session summaries in the shared ApiResult fixture envelope", () => {
+./tests/unit/contracts.test.ts:38:      source: "fixture",
+./tests/unit/contracts.test.ts:65:      source: "fixture",
+./tests/unit/contracts.test.ts:102:  it("provides a graph fixture with root, nodes, edges, and open-child summary", () => {
+./tests/unit/contracts.test.ts:107:      source: "fixture",
+./tests/unit/contracts.test.ts:143:      source: "fixture",
+./tests/unit/contracts.test.ts:173:      source: "fixture",
+./tests/unit/contracts.test.ts:192:  it("extends ObservatoryApi with all fixture-backed Task 2 view methods", () => {
+./tests/unit/contracts.test.ts:200:        source: "fixture",
+./tests/unit/contracts.test.ts:206:          threadId: "fixture-thread",
+./tests/unit/contracts.test.ts:209:            threadId: "fixture-thread",
+./tests/unit/contracts.test.ts:210:            rolloutPath: "fixture://timeline",
+./tests/unit/contracts.test.ts:223:        source: "fixture",
+./tests/unit/contracts.test.ts:229:        source: "fixture",
+./tests/unit/contracts.test.ts:235:        source: "fixture",
+./tests/unit/contracts.test.ts:241:        source: "fixture",
+./tests/e2e/observatory-shell.spec.ts:53:test.describe("observatory local fixture shell", () => {
+./tests/e2e/observatory-shell.spec.ts:54:  test("restricts fixture API CORS to loopback browser origins", async ({ request }) => {
+./tests/e2e/observatory-shell.spec.ts:103:  test("boots from local API fixtures, visits every primary view, and blocks external runtime requests", async ({
+./tests/e2e/observatory-shell.spec.ts:127:        mode: "fixture",
+./tests/e2e/observatory-shell.spec.ts:129:      source: "fixture",
+./tests/perf/rolloutParse.test.ts:22:  it("keeps derived warm cache faster than cold parsing for a large local fixture", async () => {
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-3-timeline-cache.md:9:**Smoke-Testable Outcome:** Opening a real or temp fixture session shows normalized timeline events from JSONL, joined tool calls/results, redacted previews, collapsed large outputs, scrubber ticks, warm cache reuse, and append-only tail updates.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-3-timeline-cache.md:27:| Parser/cache | Task 1, Task 2 | one sub-agent | Timeline UI after event contract is stable | `src/backend/rollout/*`, `src/backend/cache/*`, `src/shared/contracts.ts` | Parser/cache tests and cache fixture inspection |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-3-timeline-cache.md:28:| Timeline UI | Task 3 | one sub-agent | Parser/cache lane after fixture API exists | `src/frontend/views/TimelineView.tsx`, timeline components/styles | Playwright Timeline flow |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-3-timeline-cache.md:45:| Large real rollout sample | Task 5 | Generate representative JSONL fixtures and optionally use local `$CODEX_HOME` if present. | The user requires validation against private real transcripts and none are available. | Complete with fixtures; record real-data validation as not run. |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-3-timeline-cache.md:66:| Redacted tool previews | Timeline rows and collapsed output | Redaction helper and parser previews | Cache stores derived previews | None | Local JSONL fixture containing secret-like text | Tests prove previews are redacted before render and raw defaults are hidden. |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-3-timeline-cache.md:67:| Selected rollout tail | Timeline live mode | `tailThread(threadId, fromByte)` | Rollout file byte offset and cache update | Poll/watch timer | Append-only fixture file | Integration/E2E append rows without scroll jump and return next byte offset. |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-3-timeline-cache.md:71:Extend the Phase 2 Playwright fixture to create rollout JSONL files linked from `threads.rollout_path`. Add Timeline assertions as soon as `getTimeline` exists so parser/UI integration is verified while the feature is built.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-3-timeline-cache.md:91:- Evidence to collect: fixture list, test output, redaction cases covered.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-3-timeline-cache.md:94:- Automated tests: local JSONL fixtures and redaction fixtures
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-3-timeline-cache.md:97:- Required real dependencies: local filesystem fixtures
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-3-timeline-cache.md:100:- [ ] Step 1: Write failing parser/redaction fixtures for every design-listed event and secret class.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-3-timeline-cache.md:110:**Execution:** sub-agent lane: Parser/cache; parallel with Task 3 after fixture API contract exists; checkpoint cache/API tests
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-3-timeline-cache.md:129:- Mock-only risk: real active writer lock behavior may differ from fixtures
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-3-timeline-cache.md:161:- Automated tests: real local API with temp SQLite and JSONL fixture
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-3-timeline-cache.md:168:- [ ] Step 2: Run focused tests and confirm Timeline still uses fixture/placeholder behavior.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-3-timeline-cache.md:191:- Expected result: append-only fixture returns complete new lines and next offset; large fixture streams without whole-file UI parsing; warm cache beats cold parse.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-3-timeline-cache.md:249:  Expected: browser verifies row-to-Timeline detail through real local API and JSONL fixture.
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-1.md:5:Phase plan: `docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md`
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-1.md:7:Phase branch: `impl/phase-1-fixture-shell`
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-1.md:11:Phase 1 delivers the fixture-backed AgentView Observatory shell: Vite/React frontend, local loopback Node API, shared TypeScript contracts, fixture transport, five primary views, style-token guard, and Playwright browser smoke coverage. Real Codex source reads remain outside this phase boundary and begin in Phase 2.
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-1.md:18:| Task 2 | `8eb64aa` | Define shared contracts and fixture data |
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-1.md:19:| Task 3 | `5a8d9d4` | Port fixture-backed five-view shell |
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-1.md:20:| Task 4 | `4cd0292` | Add local API fixture server and Playwright harness |
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-1.md:42:| Mock/fixture audit scan from `qa-acceptance.md` | Pass, reviewed | `docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/mock-fixture-audit.txt` |
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-1.md:48:| `mf-phase1-001` | Fixture | `src/fixtures/observatoryFixtures.ts` | `intentional-phase-boundary` | Phase 1 explicitly delivers typed fixture data for the five-view shell. Phase 2 owns conversion to read-only Codex source integration. |
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-1.md:49:| `mf-phase1-002` | Fake service | `src/backend/api/fixtures.ts`, `src/frontend/api/client.ts` | `intentional-phase-boundary` | Phase 1 explicitly proves browser-to-local fixture API wiring. Phase 2 owns replacing Sessions with real read-only source integration. |
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-1.md:51:Audit review: runtime-relevant matches are the tracked fixture data, fixture API handlers, frontend fixture client, fixture source tags in contracts/chrome, and the Phase 1 app shell state. Test matches are unit/E2E assertions for the intended fixture boundary. Documentation and `docs/design/workflowkit-evangelion/*` matches are source references only and are not loaded by the app. `package-lock.json` matches are dependency package names, not repo mocks.
+./docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-1.md:63:Phase 2 may rely on the package scripts, shared `ObservatoryApi` envelope, local loopback API server shape, fixture-backed five-view UI shell, Playwright harness, ESLint 9 flat config, and token/runtime-asset guard. Real Codex source reads are still intentionally absent from Phase 1.
+./tests/integration/stateStore.test.ts:7:} from "../fixtures/codexHome";
+./tests/integration/stateStore.test.ts:27:    const fixture = await createCodexHomeFixture();
+./tests/integration/stateStore.test.ts:30:      const before = await stat(fixture.stateDbPath);
+./tests/integration/stateStore.test.ts:31:      const store = await openStateStore({ codexHome: fixture.codexHome });
+./tests/integration/stateStore.test.ts:47:      const after = await stat(fixture.stateDbPath);
+./tests/integration/stateStore.test.ts:50:      await fixture.cleanup();
+./tests/integration/stateStore.test.ts:56:    const fixture = await createUnsupportedCodexHomeFixture();
+./tests/integration/stateStore.test.ts:59:      await expect(openStateStore({ codexHome: fixture.codexHome })).rejects.toMatchObject({
+./tests/integration/stateStore.test.ts:68:      await fixture.cleanup();
+./tests/integration/stateStore.test.ts:72:  it("normalizes SessionSummary rows from temp SQLite fixtures sorted by updated_at_ms desc", async () => {
+./tests/integration/stateStore.test.ts:74:    const fixture = await createCodexHomeFixture({
+./tests/integration/stateStore.test.ts:133:      const store = await openStateStore({ codexHome: fixture.codexHome });
+./tests/integration/stateStore.test.ts:182:      await fixture.cleanup();
+./tests/integration/sessionsApi.test.ts:12:} from "../fixtures/codexHome";
+./tests/integration/sessionsApi.test.ts:197:  fixture: CodexHomeFixture,
+./tests/integration/sessionsApi.test.ts:201:  const api = await startApi({ codexHome: fixture.codexHome, env });
+./tests/integration/sessionsApi.test.ts:207:    await fixture.cleanup();
+./tests/integration/sessionsApi.test.ts:217:    const fixture = await createCodexHomeFixture();
+./tests/integration/sessionsApi.test.ts:219:    await withApi(fixture, async ({ baseUrl }) => {
+./tests/integration/sessionsApi.test.ts:244:    const fixture = await createCodexHomeFixture({
+./tests/integration/sessionsApi.test.ts:299:    const rolloutPath = join(fixture.codexHome, "sessions", "2026", "parent.jsonl");
+./tests/integration/sessionsApi.test.ts:309:        fixture,
+./tests/integration/sessionsApi.test.ts:354:    const fixture = await createCodexHomeFixture({
+./tests/integration/sessionsApi.test.ts:405:    await withApi(fixture, async ({ baseUrl }) => {
+./tests/integration/sessionsApi.test.ts:433:    const fixture = await createCodexHomeFixture({
+./tests/integration/sessionsApi.test.ts:446:    await withApi(fixture, async ({ baseUrl }) => {
+./tests/integration/sessionsApi.test.ts:473:    const fixture = await createUnsupportedCodexHomeFixture();
+./tests/integration/sessionsApi.test.ts:475:    await withApi(fixture, async ({ baseUrl }) => {
+./tests/integration/sessionsApi.test.ts:490:  it("reports missing state_5.sqlite as source unavailable instead of falling back to fixture sessions", async () => {
+./tests/integration/sessionsApi.test.ts:492:    const fixture: CodexHomeFixture = {
+./tests/integration/sessionsApi.test.ts:498:    await withApi(fixture, async ({ baseUrl }) => {
+./tests/integration/sessionsApi.test.ts:513:    const fixture = await createCodexHomeFixture();
+./tests/integration/sessionsApi.test.ts:515:    await withApi(fixture, async ({ baseUrl }) => {
+./tests/integration/sessionsApi.test.ts:540:    const fixture = await createCodexHomeFixture();
+./tests/integration/sessionsApi.test.ts:542:    await withApi(fixture, async ({ baseUrl }) => {
+./docs/designs/2026-05-26-codex-session-observability-dashboard.md:17:- `docs/design/workflowkit-evangelion/Observatory.html`, `styles.css`, `mock.js`, `ui.jsx`, `app.jsx`, and `tweaks-panel.jsx` provide a direct-editable prototype that should be ported into TypeScript modules rather than treated as production architecture.
+./docs/designs/2026-05-26-codex-session-observability-dashboard.md:59:The prototype UI should be ported, not embedded. `styles.css` becomes the seed for app-level CSS variables, palette channels, dense table treatment, panels, and reduced-motion behavior. `app.jsx`, `ui.jsx`, and `tweaks-panel.jsx` become typed React modules. `mock.js` becomes fixture data for tests and Storybook-like local development states, not a runtime dependency. The five views retain the prototype's core interactions: row click opens Timeline, graph node navigation, token chart drill-down, diagnostics filters, collapsed tool output, and raw-log access behind an advanced control.
+./docs/designs/2026-05-26-codex-session-observability-dashboard.md:452:1. Bootstrap the TypeScript/Vite/React app, local Node API, shared contracts, development scripts, and fixture-driven UI shell using the prototype as the visual reference.
+./docs/designs/2026-05-26-codex-session-observability-dashboard.md:462:  - Parser fixtures for `session_meta`, `turn_context`, `event_msg` variants, `response_item` variants, malformed lines, unknown event types, joined tool calls/results, token snapshots, and sub-agent launch/wait events.
+./docs/designs/2026-05-26-codex-session-observability-dashboard.md:463:  - Redaction fixtures for common secret-like values, credentials in URLs, JWT-like strings, private-key blocks, environment assignments, and non-secret false positives.
+./docs/designs/2026-05-26-codex-session-observability-dashboard.md:467:  - Temporary `state_5.sqlite` and `logs_2.sqlite` fixtures with observed table shapes, indexes, parent/child edges, warning logs, and missing optional rows.
+./docs/designs/2026-05-26-codex-session-observability-dashboard.md:471:  - Sessions renders 500 fixture rows in under 200ms on the target development machine; search and every `SessionFilter` axis compose without layout flash.
+./docs/designs/2026-05-26-codex-session-observability-dashboard.md:474:  - Agent Graph renders root, depth 1, and depth 2 without overlapping in common fixture sizes, with a deeper-depth indicator when needed.
+./docs/designs/2026-05-26-codex-session-observability-dashboard.md:479:  - Snapshot or DOM tests for the five required views with fixture data.
+./docs/designs/2026-05-26-codex-session-observability-dashboard.md:486:- Codex storage schemas are private and may drift. Mitigation: schema checks, typed partial errors, unknown-event preservation, and parser fixtures based on observed source samples.
+./docs/plans/reviews/2026-05-26-codex-session-observability-dashboard-implementation-plan-review-agent.md:30:**Affected plans:** Phase 1 and Phase 5, especially `docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md` and `docs/plans/2026-05-26-codex-session-observability-dashboard-phase-5-diagnostics-hardening.md`
+./docs/plans/reviews/2026-05-26-codex-session-observability-dashboard-implementation-plan-review-agent.md:34:- Phase 1 ports the prototype visual shell and styles but does not name a self-host/system-font requirement in the File Map, task acceptance, or acceptance gate (`...phase-1-fixture-shell.md:50`-`60`, `...phase-1-fixture-shell.md:143`-`170`, `...phase-1-fixture-shell.md:241`-`256`).
+./docs/plans/reviews/2026-05-26-codex-session-observability-dashboard-implementation-plan-review-agent.md:66:- Phase 1 escalates Node/npm toolchain and browser automation runtime (`...phase-1-fixture-shell.md:45`-`46`).
+./docs/plans/reviews/2026-05-26-codex-session-observability-dashboard-implementation-plan-review-agent.md:81:**Affected plans:** `docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md`
+./docs/plans/reviews/2026-05-26-codex-session-observability-dashboard-implementation-plan-review-agent.md:85:- Phase 1 acceptance says lint should catch raw component hex "if the lint rule is available", otherwise the packet records a targeted `rg` check (`...phase-1-fixture-shell.md:248`-`249`).
+./docs/plans/reviews/2026-05-26-codex-session-observability-dashboard-implementation-plan-review-agent.md:97:| Bootstrap Vite/React/Node/shared contracts | Phase 1 | Strong vertical fixture shell with Playwright established early. |
+./docs/plans/reviews/2026-05-26-codex-session-observability-dashboard-implementation-plan-review-agent.md:99:| Read-only `state_5.sqlite` Sessions index | Phase 2 | Covered with temp SQLite fixtures, path guard, first-paint perf, filters, and child/open counts. |
+./docs/plans/reviews/2026-05-26-codex-session-observability-dashboard-implementation-plan-review-agent.md:113:- The phase sequence is vertical and smoke-testable. Phase 1 brings up the fixture app, Phase 2 makes Sessions real, Phase 3 makes selected Timeline real, Phase 4 completes Graph/Tokens, and Phase 5 completes Diagnostics and hardening.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:3:**Goal:** Bootstrap the TypeScript app, local API boundary, shared contracts, fixture transport, five-view shell, visual tokens, and E2E harness.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:5:**Phase Boundary:** This phase delivers a working fixture-backed Observatory shell only. Later phases replace fixture handlers with read-only Codex sources while preserving the contracts, scripts, route structure, and visual foundation created here.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:9:**Smoke-Testable Outcome:** A developer can run the local app, open every required view, see persistent hazard/status chrome, and verify browser-to-fixture API wiring through Playwright.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:11:**Phase Acceptance:** Playwright launches the Vite app and local API, visits Sessions, Timeline, Agent Graph, Tokens, and Diagnostics in fixture mode, and saves `docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-1.md`.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:53:- Create: `src/shared/contracts.ts` - transport-neutral request/response envelopes, five-view contracts, fixture entity types, and `ObservatoryApi`.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:54:- Create: `src/shared/redaction.ts` - deterministic preview redaction stub and tests target for later phases.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:55:- Create: `src/backend/server.ts`, `src/backend/api/fixtures.ts` - local-only API server and fixture handlers.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:56:- Create: `src/frontend/main.tsx`, `src/frontend/App.tsx`, `src/frontend/api/client.ts`, `src/frontend/views/*.tsx`, `src/frontend/components/*.tsx`, `src/frontend/styles/*.css` - fixture-backed React app shell ported from prototype primitives.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:57:- Create: `src/fixtures/observatoryFixtures.ts` - typed fixture data derived from `docs/design/workflowkit-evangelion/mock.js`.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:58:- Create: `tests/unit/*.test.ts`, `tests/e2e/observatory-shell.spec.ts`, `scripts/check-style-tokens.mjs` - contract, redaction, fixture, deterministic style-token/runtime asset checks, and browser smoke coverage.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:65:| App health | Browser app boot | `getHealth()` fixture/local handler | None | None | Local Node API bound to loopback | Playwright sees healthy status chrome and API response test passes. |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:66:| Fixture sessions navigation | Sessions row click and primary nav | `ObservatoryApi` fixture methods | Fixture module | None | Vite dev server + local API | Playwright navigates through all five views without network errors. |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:94:- Automated tests: mocked fixtures
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:115:- Create: `src/fixtures/observatoryFixtures.ts`
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:123:- Expected result: fixture data satisfies `SessionSummary`, `TimelineEvent`, `AgentGraph`, `TokenSeries`, and `RuntimeLog` contracts.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:124:- Evidence to collect: Vitest output and fixture count summary.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:127:- Automated tests: mocked fixtures
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:128:- Production/dev path exercised: no, contract-only fixture path
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:133:- [ ] Step 1: Write tests that fixture payloads satisfy the shared contracts and `ApiResult<T>` envelope.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:135:- [ ] Step 3: Port representative mock data into typed fixtures and add a conservative redaction helper stub.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:160:- Expected result: all views render from fixtures with persistent top hazard strip and bottom status bar; component styles use CSS variables; external runtime fonts/assets are absent or self-hosted.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:164:- Automated tests: mocked fixtures
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:165:- Production/dev path exercised: yes, React rendering and fixture transport
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:172:- [ ] Step 3: Implement the fixture-backed UI shell using CSS variables, square 1px panels/tables, uppercase chrome, tabular numerals, reduced-motion gates, local/system font stacks or self-hosted assets, and no raw component hex outside token definitions.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:174:- [ ] Step 5: Commit this task. Suggested message: `feat: add fixture observatory shell`
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:184:- Create: `src/backend/api/fixtures.ts`
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:198:- Automated tests: mocked fixtures through real local HTTP/dev server
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:206:- [ ] Step 3: Implement the fixture API server, dev orchestration script, and Playwright config.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:228:- Evidence to collect: command summaries, Playwright artifact paths, known fixture-only boundaries.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:231:- Automated tests: mocked fixtures
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:255:  Expected: Playwright verifies API health, all five fixture-backed views, and no unexpected non-local runtime network requests.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md:259:- Fixture sessions navigation - Playwright covers all five views through fixture transport.
+./docs/plans/reviews/2026-05-26-codex-session-observability-dashboard-implementation-plan-review.md:21:| App bootstrap, contracts, local API boundary, future IPC shape | Phase 1 | Covered with shared `ObservatoryApi`, fixture API, and typed envelopes. |
+./docs/plans/reviews/2026-05-26-codex-session-observability-dashboard-implementation-plan-review.md:22:| Sessions from `state_5.sqlite`, `thread_spawn_edges`, filters, fast first paint | Phase 2 | Covered with read-only state store, SQL fixtures, Playwright, and perf guard. |
+./docs/plans/reviews/2026-05-26-codex-session-observability-dashboard-implementation-plan-review.md:33:- The plans are sequential and build on verified behavior: fixture shell -> real Sessions -> real Timeline/cache -> Graph/Tokens -> Diagnostics/hardening.
+./docs/design/workflowkit-evangelion/tweaks-panel.jsx:182:// before our handler exists and the toolbar toggle would silently no-op.
+./docs/design/workflowkit-evangelion/tweaks-panel.jsx:407:function TweakText({ label, value, placeholder, onChange }) {
+./docs/design/workflowkit-evangelion/tweaks-panel.jsx:410:      <input className="twk-field" type="text" value={value} placeholder={placeholder}
+./docs/design/workflowkit-evangelion/Observatory.html:24:  <script src="mock.js"></script>
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:3:**Goal:** Replace fixture Sessions data with a real read-only `state_5.sqlite` session index, schema health checks, safe `$CODEX_HOME` path handling, filters, and child/open counts.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:5:**Phase Boundary:** This phase makes the Sessions view real and keeps Timeline, Agent Graph, Tokens, and Diagnostics on fixture or placeholder detail data. Later phases may rely on real `SessionSummary`, `getThread`, source path validation, and `thread_spawn_edges` counts without reworking the transport.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:9:**Smoke-Testable Outcome:** With a temp fixture `$CODEX_HOME` or local `~/.codex`, the app lists sessions sorted by `updated_at_ms` desc, composes filters, shows child/open counts, and never parses JSONL during first paint.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:18:- Preserve Phase 1 scripts and fixture behavior for views outside this phase.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:28:| Sessions UI | Task 3 | one sub-agent | Backend state source after mock contract is stable | `src/frontend/views/SessionsView.tsx`, client types | Playwright sessions flow |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:45:| Local Codex source data | Task 2, Task 5 | Generate temp `state_5.sqlite` fixtures and optionally test against `$CODEX_HOME` if present. | The user requires validation against private real data and local `~/.codex` is unavailable. | Phase can complete with temp fixtures; record real-data validation as not run. |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:57:- Create: `tests/fixtures/codexHome.ts` - temp Codex home and SQLite fixture builder.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:67:| Session lookup | Row click selects session | `getThread(threadId)` | `state_5.sqlite.threads` | None | Read-only SQLite connection | E2E row click updates selected session and preserves placeholder detail route. |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:68:| Filter composition | Search/filter controls | Session query builder | Parameterized SQL | None | Temp fixture DB | Unit/integration assertions for search, cwd, date, source, role, model, archived, warnings, failed-tool status, token thresholds. |
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:72:Reuse Phase 1 Playwright. Add a temp `$CODEX_HOME` fixture setup that creates `state_5.sqlite` and `thread_spawn_edges` before the server starts, then pass that root through environment variables in the Playwright web server command.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:91:- Expected result: read-only DB fixture opens, schema checks run, path traversal is rejected, and session rows normalize correctly.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:92:- Evidence to collect: test output and temp fixture schema notes.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:95:- Automated tests: real local temp SQLite fixture
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:97:- Mock-only risk: private Codex schema drift may still differ from fixtures
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:130:- Automated tests: real local API against temp SQLite fixture
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:132:- Mock-only risk: real local Codex DB may have unsupported schema not represented in fixture
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:146:**Execution:** sub-agent lane: Sessions UI; parallel with Task 4 after API fixtures exist; checkpoint `npm run e2e -- --grep @sessions`
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:164:- Automated tests: real local API with temp SQLite fixture
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:167:- Required real dependencies: Playwright browser runtime and temp SQLite fixture
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:171:- [ ] Step 2: Run tests and confirm fixture-only UI fails real API expectations.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:172:- [ ] Step 3: Implement real Sessions data flow, fixed columns, async count placeholders, loading/error states, and reduced-motion-safe interactions.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:192:- Expected result: 500 fixture rows first paint under the threshold recorded in the technical design or packet, with virtualization enabled if needed.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:196:- Automated tests: real local API with generated temp SQLite fixture
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:226:- Expected result: Phase 2 behavior passes through real temp SQLite fixtures and packet records no JSONL initial render.
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:230:- Automated tests: real local API with temp SQLite fixture
+./docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md:248:  Expected: unit and integration tests pass, including temp SQLite fixtures.
+./docs/plans/reviews/2026-05-26-codex-session-observability-dashboard-phase-breakup-review.md:20:| Bootstrap Vite/React/Node/shared contract/test setup | Phase 1 | Covered as a fixture-backed vertical slice. |
+./docs/plans/reviews/2026-05-26-codex-session-observability-dashboard-phase-breakup-review.md:32:- Phase 1 is intentionally fixture-backed because the repository has no runtime code; it still proves browser-to-local-API wiring and establishes the E2E harness.
+./docs/design/workflowkit-evangelion/app.jsx:296:              placeholder='title · first user message · uuid'
+./docs/design/workflowkit-evangelion/Component Library.html:236:  /* fake nav for button demo */
+./docs/design/workflowkit-evangelion/Component Library.html:889:              <input placeholder="title · first user message · uuid" style="background: none; border: 0; outline: none; color: var(--ink-strong);">
+./docs/design/workflowkit-evangelion/Engineering Handoff.html:490:├── <span class="h">mock.js</span>                     <span class="d">— synthetic data (replace with ingest layer)</span>
+./docs/design/workflowkit-evangelion/Engineering Handoff.html:1077:        <div class="label">Bug fixture</div>
+./docs/design/workflowkit-evangelion/mock.js:1:/* WorkflowKit Observatory — mock data
+./docs/design/workflowkit-evangelion/mock.js:55:    "Test fixture: synthesize a sub-agent tree of depth 3",
+./docs/design/workflowkit-evangelion/mock.js:76:    "generate a fixture with 3 levels of spawn_agent",

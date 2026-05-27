@@ -4,6 +4,7 @@ import { handleFixtureApiRequest } from "./api/fixtures";
 import { corsHeadersForOrigin } from "./api/http";
 import { handleHealthApiRequest } from "./api/health";
 import { handleSessionsApiRequest } from "./api/sessions";
+import { handleTimelineApiRequest } from "./api/timeline";
 
 const port = Number.parseInt(process.env.AGENTVIEW_API_PORT ?? "4317", 10);
 const host = "127.0.0.1";
@@ -21,6 +22,10 @@ const server = createServer(async (request, response) => {
     }
 
     if (await handleSessionsApiRequest(request, response)) {
+      return;
+    }
+
+    if (await handleTimelineApiRequest(request, response)) {
       return;
     }
 

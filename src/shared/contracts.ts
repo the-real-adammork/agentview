@@ -130,6 +130,39 @@ export interface TimelineEvent {
   durationMs?: number;
   isCollapsedByDefault?: boolean;
   hasRawAvailable?: boolean;
+  rawPreview?: string;
+}
+
+export interface CachedToolCall {
+  callId: string;
+  toolName: string;
+  startedAt?: string;
+  completedAt?: string;
+  argumentsPreview?: string;
+  outputPreview?: string;
+  outputBytes?: number;
+  exitCode?: number;
+}
+
+export interface CachedRolloutFacts {
+  threadId: string;
+  rolloutPath: string;
+  parserVersion: number;
+  sourceMtimeMs: number;
+  sourceSizeBytes: number;
+  parsedThroughByte: number;
+  events: TimelineEvent[];
+  toolCalls: CachedToolCall[];
+  tokenSnapshots: TokenSnapshot[];
+  warnings: string[];
+}
+
+export interface TimelinePayload {
+  threadId: string;
+  events: TimelineEvent[];
+  facts: CachedRolloutFacts;
+  nextByteOffset: number;
+  cacheStatus: "cold" | "warm" | "stale" | "corrupt" | "tail";
 }
 
 export interface AgentNode {
@@ -210,7 +243,7 @@ export interface ObservatoryApi {
   getHealth(): Promise<ApiResult<HealthStatus>>;
   listSessions(filter?: SessionFilter, page?: PageOptions): Promise<ApiResult<SessionSummary[]>>;
   getThread?(threadId: string): Promise<ApiResult<SessionSummary>>;
-  getTimeline(threadId: string): Promise<ApiResult<TimelineEvent[]>>;
+  getTimeline(threadId: string, options?: { fromByte?: number }): Promise<ApiResult<TimelinePayload>>;
   getAgentGraph(rootThreadId: string): Promise<ApiResult<AgentGraph>>;
   getTokenSeries(threadId: string): Promise<ApiResult<TokenSeries>>;
   queryLogs(): Promise<ApiResult<RuntimeLog[]>>;

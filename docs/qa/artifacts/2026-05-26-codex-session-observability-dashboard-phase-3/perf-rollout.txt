@@ -1,0 +1,13 @@
+
+> agentview@0.1.0 perf:rollout
+> tsx scripts/perf/rollout-parse.mjs
+
+{
+  "result": "pass",
+  "lineCount": 2500,
+  "coldMs": 21,
+  "warmMs": 1,
+  "coldStatus": "cold",
+  "warmStatus": "warm",
+  "events": 2500
+}
