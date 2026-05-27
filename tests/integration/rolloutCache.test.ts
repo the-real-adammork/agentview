@@ -168,4 +168,144 @@ describe("rollout cache", () => {
     ]);
     await expect(stat(cacheArtifact)).resolves.toMatchObject({ size: expect.any(Number) });
   });
+
+  it("persists observed rollout facts needed by timeline, graph, tokens, and diagnostics consumers", async () => {
+    const root = await createTempRoot();
+    const rolloutPath = await writeRollout(root, "observed-cache.jsonl", [
+      {
+        timestamp: "2026-05-27T14:10:00.000Z",
+        type: "event_msg",
+        turn_id: "turn-cache-1",
+        payload: { type: "task_started", task: "Populate observed cache facts" },
+      },
+      {
+        timestamp: "2026-05-27T14:10:01.000Z",
+        type: "event_msg",
+        turn_id: "turn-cache-1",
+        payload: {
+          type: "token_count",
+          last_token_usage: { input_tokens: 13, output_tokens: 21 },
+          total_token_usage: { input_tokens: 500, cached_input_tokens: 100, output_tokens: 75, total_tokens: 575 },
+          model_context_window: 128000,
+          plan_type: "team",
+        },
+      },
+      {
+        timestamp: "2026-05-27T14:10:02.000Z",
+        type: "response_item",
+        turn_id: "turn-cache-1",
+        payload: {
+          type: "function_call",
+          call_id: "call-cache-1",
+          name: "shell",
+          arguments: JSON.stringify({ cmd: "exit 9" }),
+        },
+      },
+      {
+        timestamp: "2026-05-27T14:10:03.250Z",
+        type: "event_msg",
+        turn_id: "turn-cache-1",
+        payload: {
+          type: "function_call_output",
+          call_id: "call-cache-1",
+          output: JSON.stringify({ exit_code: 9, duration_ms: 1250, output: "failed cache command" }),
+        },
+      },
+      {
+        timestamp: "2026-05-27T14:10:04.000Z",
+        type: "response_item",
+        turn_id: "turn-cache-1",
+        payload: {
+          type: "spawn_agent",
+          call_id: "call-cache-spawn",
+          child_thread_id: "thread-cache-child",
+          agent_nickname: "cache-lane",
+          agent_role: "parser",
+          task: "Check cache shape.",
+        },
+      },
+      {
+        timestamp: "2026-05-27T14:10:05.000Z",
+        type: "event_msg",
+        turn_id: "turn-cache-1",
+        payload: {
+          type: "wait_agent",
+          call_id: "call-cache-spawn",
+          child_thread_id: "thread-cache-child",
+          status: "closed",
+          last_agent_message: "Cache shape covered.",
+        },
+      },
+      {
+        timestamp: "2026-05-27T14:10:06.000Z",
+        type: "event_msg",
+        turn_id: "turn-cache-1",
+        payload: { type: "task_complete", last_agent_message: "Observed cache facts complete." },
+      },
+    ]);
+
+    const result = await getCachedFacts({ codexHome: root, threadId: "thread-cache-observed", rolloutPath });
+    const warm = await getCachedFacts({ codexHome: root, threadId: "thread-cache-observed", rolloutPath });
+
+    expect(result.status).toBe("cold");
+    expect(warm.status).toBe("warm");
+    expect(warm.facts).toMatchObject({
+      threadId: "thread-cache-observed",
+      turns: [
+        expect.objectContaining({
+          turnId: "turn-cache-1",
+          startedAt: "2026-05-27T14:10:00.000Z",
+          completedAt: "2026-05-27T14:10:06.000Z",
+          lastAgentMessagePreview: "Observed cache facts complete.",
+          inputTokenCount: 500,
+          outputTokenCount: 75,
+          totalTokenCount: 575,
+        }),
+      ],
+      tokenSnapshots: [
+        expect.objectContaining({
+          lastInput: 13,
+          lastOutput: 21,
+          modelContextWindow: 128000,
+          planType: "team",
+        }),
+      ],
+      agentLaunches: [
+        expect.objectContaining({
+          childThreadId: "thread-cache-child",
+          nickname: "cache-lane",
+          role: "parser",
+          taskPreview: "Check cache shape.",
+        }),
+      ],
+      agentWaits: [
+        expect.objectContaining({
+          childThreadId: "thread-cache-child",
+          status: "closed",
+          reportPreview: "Cache shape covered.",
+        }),
+      ],
+      summary: expect.objectContaining({
+        eventCount: 7,
+        turnCount: 1,
+        toolCallCount: 1,
+        failedToolCallCount: 1,
+        tokenSnapshotCount: 1,
+        agentLaunchCount: 1,
+        agentWaitCount: 1,
+        warningCount: 0,
+      }),
+    });
+    expect(warm.facts.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "tool_call",
+          callId: "call-cache-1",
+          joinedExitCode: 9,
+          joinedDurationMs: 1250,
+          joinedOutputPreview: expect.stringContaining("failed cache command"),
+        }),
+      ]),
+    );
+  });
 });

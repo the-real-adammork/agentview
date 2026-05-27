@@ -1,0 +1,656 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/unit/parseRollout.test.ts tests/integration/rolloutCache.test.ts tests/integration/timelineApi.test.ts tests/integration/liveTail.test.ts tests/privacy/privacyPreviews.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-rollout-parser
+
+(node:91732) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ tests/privacy/privacyPreviews.test.ts (3 tests | 1 failed) 7ms
+   ✓ privacy preview hardening > redacts common credential spellings, credential URLs, and base instructions 1ms
+   ✓ privacy preview hardening > keeps rollout default previews free of base instructions and secret material 1ms
+   × privacy preview hardening > redacts observed envelope message arrays, tool commands, and output wrappers before deriving previews 5ms
+     → expected [ { …(18) }, { …(18) }, { …(18) } ] to deeply equal ArrayContaining{…}
+ ❯ tests/integration/liveTail.test.ts (4 tests | 1 failed) 11ms
+   ✓ tailRolloutFile > returns complete appended JSONL rows and the next byte offset 3ms
+   ✓ tailRolloutFile > holds incomplete trailing lines until a newline is present 1ms
+   × tailRolloutFile > tails only complete observed envelope rows and preserves byte offsets across partial appends 5ms
+     → expected [ { …(18) } ] to deeply equal [ ObjectContaining{…} ]
+   ✓ tailRolloutFile > restarts from byte zero when the source file was truncated 1ms
+ ❯ tests/unit/parseRollout.test.ts (6 tests | 2 failed) 35ms
+   × parseRolloutFile > parses observed event_msg and response_item envelopes with nested payload types and message content arrays 17ms
+     → expected [ …(4) ] to deeply equal []
+   ✓ parseRolloutFile > normalizes known Codex rollout variants into stable timeline events 2ms
+   ✓ parseRolloutFile > emits parse-error and warning events for malformed lines and unknown rollout events 1ms
+   ✓ parseRolloutFile > joins tool call arguments with matching output and redacts previews before caching 2ms
+   ✓ parseRolloutFile > normalizes token snapshots and agent spawn/wait events 10ms
+   × parseRolloutFile > derives observed token, tool, spawn, and wait facts from payload envelopes 2ms
+     → expected [] to deeply equal [ ObjectContaining{…} ]
+ ❯ tests/integration/rolloutCache.test.ts (5 tests | 1 failed) 36ms
+   ✓ rollout cache > cold parses a rollout and writes derived cache facts under the app cache root 15ms
+   ✓ rollout cache > returns warm cache facts without reparsing an unchanged source file 4ms
+   ✓ rollout cache > invalidates stale cache entries when rollout mtime or size changes 3ms
+   ✓ rollout cache > falls back to parsing and rewrites cache when a cache artifact is corrupt 5ms
+   × rollout cache > persists observed rollout facts needed by timeline, graph, tokens, and diagnostics consumers 8ms
+     → expected { …(14) } to match object { …(6) }
+(19 matching properties omitted from actual)
+ ❯ tests/integration/timelineApi.test.ts (4 tests | 1 failed) 1061ms
+   ✓ timeline API > serves selected-session timeline payloads from the rollout parser and derived cache 282ms
+   × timeline API > serves observed envelope events with joined tool, token, turn, and agent facts 268ms
+     → expected { ok: true, data: { …(5) }, …(2) } to match object { ok: true, …(3) }
+(27 matching properties omitted from actual)
+   ✓ timeline API > returns a typed missing-rollout error when the selected thread has no readable rollout file 255ms
+   ✓ timeline API > rejects traversal rollout paths before reading files outside CODEX_HOME 255ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/liveTail.test.ts > tailRolloutFile > tails only complete observed envelope rows and preserves byte offsets across partial appends
+AssertionError: expected [ { …(18) } ] to deeply equal [ ObjectContaining{…} ]
+
+- Expected
++ Received
+
+  [
+-   ObjectContaining {
+-     "kind": "assistant_message",
+-     "previewText": "Complete observed tail row",
++   {
++     "argumentsPreview": undefined,
++     "callId": undefined,
++     "durationMs": undefined,
++     "exitCode": undefined,
++     "hasRawAvailable": false,
++     "id": "thread-observed-tail:2:0",
++     "isCollapsedByDefault": false,
++     "kind": "warning",
++     "outputBytes": 0,
++     "outputPreview": undefined,
++     "previewText": "Unknown rollout event response_item: {\"type\":\"message\",\"message\":{\"role\":\"assistant\",\"content\":[{\"type\":\"output_text\",\"text\":\"Complete observed tail row\"}]}}",
++     "rawPreview": undefined,
++     "severity": "warning",
+      "sourceLine": 2,
+      "threadId": "thread-observed-tail",
++     "timestamp": "2026-05-27T14:30:01.000Z",
++     "toolName": undefined,
++     "turnId": undefined,
+    },
+  ]
+
+ ❯ tests/integration/liveTail.test.ts:121:35
+    119| 
+    120|     expect(result.truncated).toBe(false);
+    121|     expect(result.payload.events).toEqual([
+       |                                   ^
+    122|       expect.objectContaining({
+    123|         threadId: "thread-observed-tail",
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  tests/integration/rolloutCache.test.ts > rollout cache > persists observed rollout facts needed by timeline, graph, tokens, and diagnostics consumers
+AssertionError: expected { …(14) } to match object { …(6) }
+(19 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "agentLaunches": [
+-     ObjectContaining {
+-       "childThreadId": "thread-cache-child",
+-       "nickname": "cache-lane",
+-       "role": "parser",
+-       "taskPreview": "Check cache shape.",
+-     },
+-   ],
+-   "agentWaits": [
+-     ObjectContaining {
+-       "childThreadId": "thread-cache-child",
+-       "reportPreview": "Cache shape covered.",
+-       "status": "closed",
+-     },
+-   ],
+-   "summary": ObjectContaining {
+-     "agentLaunchCount": 1,
+-     "agentWaitCount": 1,
++   "agentLaunches": [],
++   "agentWaits": [],
++   "summary": {
++     "agentLaunchCount": 0,
++     "agentWaitCount": 0,
++     "completedAt": "2026-05-27T14:10:06.000Z",
+      "eventCount": 7,
+-     "failedToolCallCount": 1,
+-     "tokenSnapshotCount": 1,
+-     "toolCallCount": 1,
++     "failedToolCallCount": 0,
++     "parsedThroughByte": 1616,
++     "startedAt": "2026-05-27T14:10:00.000Z",
++     "tokenSnapshotCount": 0,
++     "toolCallCount": 0,
+      "turnCount": 1,
+-     "warningCount": 0,
++     "warningCount": 7,
+    },
+    "threadId": "thread-cache-observed",
+-   "tokenSnapshots": [
+-     ObjectContaining {
+-       "lastInput": 13,
+-       "lastOutput": 21,
+-       "modelContextWindow": 128000,
+-       "planType": "team",
+-     },
+-   ],
+-   "turns": [
+-     ObjectContaining {
+-       "completedAt": "2026-05-27T14:10:06.000Z",
+-       "inputTokenCount": 500,
+-       "lastAgentMessagePreview": "Observed cache facts complete.",
+-       "outputTokenCount": 75,
+-       "startedAt": "2026-05-27T14:10:00.000Z",
+-       "totalTokenCount": 575,
+-       "turnId": "turn-cache-1",
+-     },
+-   ],
++   "tokenSnapshots": [],
++   "turns": [],
+  }
+
+ ❯ tests/integration/rolloutCache.test.ts:252:24
+    250|     expect(result.status).toBe("cold");
+    251|     expect(warm.status).toBe("warm");
+    252|     expect(warm.facts).toMatchObject({
+       |                        ^
+    253|       threadId: "thread-cache-observed",
+    254|       turns: [
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+ FAIL  tests/integration/timelineApi.test.ts > timeline API > serves observed envelope events with joined tool, token, turn, and agent facts
+AssertionError: expected { ok: true, data: { …(5) }, …(2) } to match object { ok: true, …(3) }
+(27 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "data": {
+-     "events": ArrayContaining [
+-       ObjectContaining {
+-         "kind": "task_started",
+-         "previewText": "Serve observed timeline",
++     "events": [
++       {
++         "hasRawAvailable": false,
++         "id": "thread-observed-api:1:0",
++         "isCollapsedByDefault": false,
++         "kind": "warning",
++         "outputBytes": 0,
++         "previewText": "Unknown rollout event event_msg: {\"type\":\"task_started\",\"task\":\"Serve observed timeline\"}",
++         "severity": "warning",
++         "sourceLine": 1,
++         "threadId": "thread-observed-api",
++         "timestamp": "2026-05-27T14:20:00.000Z",
++         "turnId": "turn-api-1",
+        },
+-       ObjectContaining {
+-         "kind": "user_message",
+-         "previewText": "Open the observed timeline.",
++       {
++         "hasRawAvailable": false,
++         "id": "thread-observed-api:2:1",
++         "isCollapsedByDefault": false,
++         "kind": "warning",
++         "outputBytes": 0,
++         "previewText": "Unknown rollout event event_msg: {\"type\":\"message\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Open the observed timeline.\"}]}}",
++         "severity": "warning",
++         "sourceLine": 2,
++         "threadId": "thread-observed-api",
++         "timestamp": "2026-05-27T14:20:01.000Z",
++         "turnId": "turn-api-1",
+        },
+-       ObjectContaining {
++       {
++         "argumentsPreview": "{\"cmd\":\"npm run observed\"}",
+          "callId": "call-api-1",
+-         "commandPreview": "npm run observed",
+-         "joinedDurationMs": 4000,
+-         "joinedExitCode": 2,
+-         "joinedOutputPreview": StringContaining "observed failed output",
+-         "kind": "tool_call",
++         "hasRawAvailable": false,
++         "id": "thread-observed-api:3:2",
++         "isCollapsedByDefault": false,
++         "kind": "warning",
++         "outputBytes": 0,
++         "previewText": "Unknown rollout event response_item: {\"type\":\"function_call\",\"call_id\":\"call-api-1\",\"name\":\"shell\",\"arguments\":\"{\\\"cmd\\\":\\\"npm run observed\\\"}\"}",
++         "severity": "warning",
++         "sourceLine": 3,
++         "threadId": "thread-observed-api",
++         "timestamp": "2026-05-27T14:20:02.000Z",
++         "toolName": "shell",
++         "turnId": "turn-api-1",
+        },
+-       ObjectContaining {
+-         "kind": "token_snapshot",
+-         "tokenSnapshot": ObjectContaining {
+-           "lastInput": 8,
+-           "lastOutput": 5,
+-           "modelContextWindow": 200000,
+-           "planType": "pro",
++       {
++         "callId": "call-api-1",
++         "hasRawAvailable": true,
++         "id": "thread-observed-api:4:3",
++         "isCollapsedByDefault": false,
++         "kind": "warning",
++         "outputBytes": 68,
++         "outputPreview": "{\"exit_code\":2,\"duration_ms\":4000,\"output\":\"observed failed output\"}",
++         "previewText": "Unknown rollout event event_msg: {\"type\":\"function_call_output\",\"call_id\":\"call-api-1\",\"output\":\"{\\\"exit_code\\\":2,\\\"duration_ms\\\":4000,\\\"output\\\":\\\"observed failed output\\\"}\"}",
++         "rawPreview": "{\"exit_code\":2,\"duration_ms\":4000,\"output\":\"observed failed output\"}",
++         "severity": "warning",
++         "sourceLine": 4,
++         "threadId": "thread-observed-api",
++         "timestamp": "2026-05-27T14:20:06.000Z",
++         "turnId": "turn-api-1",
++       },
++       {
++         "hasRawAvailable": false,
++         "id": "thread-observed-api:5:4",
++         "isCollapsedByDefault": false,
++         "kind": "warning",
++         "outputBytes": 0,
++         "previewText": "Unknown rollout event event_msg: {\"type\":\"token_count\",\"last_token_usage\":{\"input_tokens\":8,\"output_tokens\":5},\"total_token_usage\":{\"input_tokens\":80,\"cached_input_tokens\":20,\"output_tokens\":30,\"total_tokens\":110},\"model_context_window\":200000,\"plan_type\":\"pro\"}",
++         "severity": "warning",
++         "sourceLine": 5,
++         "threadId": "thread-observed-api",
++         "timestamp": "2026-05-27T14:20:07.000Z",
++         "turnId": "turn-api-1",
+        },
++       {
++         "callId": "call-api-spawn",
++         "hasRawAvailable": false,
++         "id": "thread-observed-api:6:5",
++         "isCollapsedByDefault": false,
++         "kind": "warning",
++         "outputBytes": 0,
++         "previewText": "Unknown rollout event response_item: {\"type\":\"spawn_agent\",\"call_id\":\"call-api-spawn\",\"child_thread_id\":\"thread-api-child\",\"agent_nickname\":\"api-child\",\"agent_role\":\"test worker\",\"task\":\"Verify API payload.\"}",
++         "severity": "warning",
++         "sourceLine": 6,
++         "threadId": "thread-observed-api",
++         "timestamp": "2026-05-27T14:20:08.000Z",
++         "turnId": "turn-api-1",
+        },
+-       ObjectContaining {
+-         "agentNickname": "api-child",
+-         "agentRole": "test worker",
+-         "agentTaskPreview": "Verify API payload.",
+-         "childThreadId": "thread-api-child",
+-         "kind": "agent_launch",
++       {
++         "callId": "call-api-spawn",
++         "hasRawAvailable": false,
++         "id": "thread-observed-api:7:6",
++         "isCollapsedByDefault": false,
++         "kind": "warning",
++         "outputBytes": 0,
++         "previewText": "Unknown rollout event event_msg: {\"type\":\"wait_agent\",\"call_id\":\"call-api-spawn\",\"child_thread_id\":\"thread-api-child\",\"status\":\"closed\",\"last_agent_message\":\"API payload checked.\"}",
++         "severity": "warning",
++         "sourceLine": 7,
++         "threadId": "thread-observed-api",
++         "timestamp": "2026-05-27T14:20:09.000Z",
++         "turnId": "turn-api-1",
++       },
++       {
++         "hasRawAvailable": false,
++         "id": "thread-observed-api:8:7",
++         "isCollapsedByDefault": false,
++         "kind": "warning",
++         "outputBytes": 0,
++         "previewText": "Unknown rollout event event_msg: {\"type\":\"task_complete\",\"last_agent_message\":\"Observed timeline served.\"}",
++         "severity": "warning",
++         "sourceLine": 8,
++         "threadId": "thread-observed-api",
++         "timestamp": "2026-05-27T14:20:10.000Z",
++         "turnId": "turn-api-1",
+        },
+      ],
+-     "facts": ObjectContaining {
+-       "summary": ObjectContaining {
+-         "agentLaunchCount": 1,
+-         "agentWaitCount": 1,
+-         "failedToolCallCount": 1,
+-         "tokenSnapshotCount": 1,
++     "facts": {
++       "agentLaunches": [],
++       "agentWaits": [],
++       "events": [
++         {
++           "hasRawAvailable": false,
++           "id": "thread-observed-api:1:0",
++           "isCollapsedByDefault": false,
++           "kind": "warning",
++           "outputBytes": 0,
++           "previewText": "Unknown rollout event event_msg: {\"type\":\"task_started\",\"task\":\"Serve observed timeline\"}",
++           "severity": "warning",
++           "sourceLine": 1,
++           "threadId": "thread-observed-api",
++           "timestamp": "2026-05-27T14:20:00.000Z",
++           "turnId": "turn-api-1",
++         },
++         {
++           "hasRawAvailable": false,
++           "id": "thread-observed-api:2:1",
++           "isCollapsedByDefault": false,
++           "kind": "warning",
++           "outputBytes": 0,
++           "previewText": "Unknown rollout event event_msg: {\"type\":\"message\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"Open the observed timeline.\"}]}}",
++           "severity": "warning",
++           "sourceLine": 2,
++           "threadId": "thread-observed-api",
++           "timestamp": "2026-05-27T14:20:01.000Z",
++           "turnId": "turn-api-1",
++         },
++         {
++           "argumentsPreview": "{\"cmd\":\"npm run observed\"}",
++           "callId": "call-api-1",
++           "hasRawAvailable": false,
++           "id": "thread-observed-api:3:2",
++           "isCollapsedByDefault": false,
++           "kind": "warning",
++           "outputBytes": 0,
++           "previewText": "Unknown rollout event response_item: {\"type\":\"function_call\",\"call_id\":\"call-api-1\",\"name\":\"shell\",\"arguments\":\"{\\\"cmd\\\":\\\"npm run observed\\\"}\"}",
++           "severity": "warning",
++           "sourceLine": 3,
++           "threadId": "thread-observed-api",
++           "timestamp": "2026-05-27T14:20:02.000Z",
++           "toolName": "shell",
++           "turnId": "turn-api-1",
+          },
+-       "turns": [
+-         ObjectContaining {
+-           "lastAgentMessagePreview": "Observed timeline served.",
++         {
++           "callId": "call-api-1",
++           "hasRawAvailable": true,
++           "id": "thread-observed-api:4:3",
++           "isCollapsedByDefault": false,
++           "kind": "warning",
++           "outputBytes": 68,
++           "outputPreview": "{\"exit_code\":2,\"duration_ms\":4000,\"output\":\"observed failed output\"}",
++           "previewText": "Unknown rollout event event_msg: {\"type\":\"function_call_output\",\"call_id\":\"call-api-1\",\"output\":\"{\\\"exit_code\\\":2,\\\"duration_ms\\\":4000,\\\"output\\\":\\\"observed failed output\\\"}\"}",
++           "rawPreview": "{\"exit_code\":2,\"duration_ms\":4000,\"output\":\"observed failed output\"}",
++           "severity": "warning",
++           "sourceLine": 4,
++           "threadId": "thread-observed-api",
++           "timestamp": "2026-05-27T14:20:06.000Z",
++           "turnId": "turn-api-1",
++         },
++         {
++           "hasRawAvailable": false,
++           "id": "thread-observed-api:5:4",
++           "isCollapsedByDefault": false,
++           "kind": "warning",
++           "outputBytes": 0,
++           "previewText": "Unknown rollout event event_msg: {\"type\":\"token_count\",\"last_token_usage\":{\"input_tokens\":8,\"output_tokens\":5},\"total_token_usage\":{\"input_tokens\":80,\"cached_input_tokens\":20,\"output_tokens\":30,\"total_tokens\":110},\"model_context_window\":200000,\"plan_type\":\"pro\"}",
++           "severity": "warning",
++           "sourceLine": 5,
++           "threadId": "thread-observed-api",
++           "timestamp": "2026-05-27T14:20:07.000Z",
++           "turnId": "turn-api-1",
++         },
++         {
++           "callId": "call-api-spawn",
++           "hasRawAvailable": false,
++           "id": "thread-observed-api:6:5",
++           "isCollapsedByDefault": false,
++           "kind": "warning",
++           "outputBytes": 0,
++           "previewText": "Unknown rollout event response_item: {\"type\":\"spawn_agent\",\"call_id\":\"call-api-spawn\",\"child_thread_id\":\"thread-api-child\",\"agent_nickname\":\"api-child\",\"agent_role\":\"test worker\",\"task\":\"Verify API payload.\"}",
++           "severity": "warning",
++           "sourceLine": 6,
++           "threadId": "thread-observed-api",
++           "timestamp": "2026-05-27T14:20:08.000Z",
++           "turnId": "turn-api-1",
++         },
++         {
++           "callId": "call-api-spawn",
++           "hasRawAvailable": false,
++           "id": "thread-observed-api:7:6",
++           "isCollapsedByDefault": false,
++           "kind": "warning",
++           "outputBytes": 0,
++           "previewText": "Unknown rollout event event_msg: {\"type\":\"wait_agent\",\"call_id\":\"call-api-spawn\",\"child_thread_id\":\"thread-api-child\",\"status\":\"closed\",\"last_agent_message\":\"API payload checked.\"}",
++           "severity": "warning",
++           "sourceLine": 7,
++           "threadId": "thread-observed-api",
++           "timestamp": "2026-05-27T14:20:09.000Z",
++           "turnId": "turn-api-1",
++         },
++         {
++           "hasRawAvailable": false,
++           "id": "thread-observed-api:8:7",
++           "isCollapsedByDefault": false,
++           "kind": "warning",
++           "outputBytes": 0,
++           "previewText": "Unknown rollout event event_msg: {\"type\":\"task_complete\",\"last_agent_message\":\"Observed timeline served.\"}",
++           "severity": "warning",
++           "sourceLine": 8,
++           "threadId": "thread-observed-api",
++           "timestamp": "2026-05-27T14:20:10.000Z",
+            "turnId": "turn-api-1",
+          },
+        ],
++       "parsedThroughByte": 1800,
++       "parserVersion": 1,
++       "rolloutPath": "/private/var/folders/_t/dr_6mmcd1t19vnlhdmr3p7kh0000gn/T/agentview-codex-home-nrGSk1/sessions/2026/thread-observed-api.jsonl",
++       "sourceMtimeMs": 1779892916667.2878,
++       "sourceSizeBytes": 1800,
++       "summary": {
++         "agentLaunchCount": 0,
++         "agentWaitCount": 0,
++         "completedAt": "2026-05-27T14:20:10.000Z",
++         "eventCount": 8,
++         "failedToolCallCount": 0,
++         "parsedThroughByte": 1800,
++         "startedAt": "2026-05-27T14:20:00.000Z",
++         "tokenSnapshotCount": 0,
++         "toolCallCount": 0,
++         "turnCount": 1,
++         "warningCount": 8,
++       },
++       "threadId": "thread-observed-api",
++       "tokenSnapshots": [],
++       "toolCalls": [],
++       "turns": [],
++       "warnings": [
++         "line 1: unknown rollout event event_msg",
++         "line 2: unknown rollout event event_msg",
++         "line 3: unknown rollout event response_item",
++         "line 4: unknown rollout event event_msg",
++         "line 5: unknown rollout event event_msg",
++         "line 6: unknown rollout event response_item",
++         "line 7: unknown rollout event event_msg",
++         "line 8: unknown rollout event event_msg",
++       ],
+      },
+      "threadId": "thread-observed-api",
+    },
+    "ok": true,
+    "source": "rollout-cache",
+-   "warnings": [],
++   "warnings": [
++     "line 1: unknown rollout event event_msg",
++     "line 2: unknown rollout event event_msg",
++     "line 3: unknown rollout event response_item",
++     "line 4: unknown rollout event event_msg",
++     "line 5: unknown rollout event event_msg",
++     "line 6: unknown rollout event response_item",
++     "line 7: unknown rollout event event_msg",
++     "line 8: unknown rollout event event_msg",
++   ],
+  }
+
+ ❯ withApi.AGENTVIEW_CACHE_ROOT tests/integration/timelineApi.test.ts:336:31
+    334| 
+    335|         expect(response.status).toBe(200);
+    336|         expect(response.body).toMatchObject({
+       |                               ^
+    337|           ok: true,
+    338|           source: "rollout-cache",
+ ❯ withApi tests/integration/timelineApi.test.ts:133:12
+ ❯ tests/integration/timelineApi.test.ts:330:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/6]⎯
+
+ FAIL  tests/privacy/privacyPreviews.test.ts > privacy preview hardening > redacts observed envelope message arrays, tool commands, and output wrappers before deriving previews
+AssertionError: expected [ { …(18) }, { …(18) }, { …(18) } ] to deeply equal ArrayContaining{…}
+
+- Expected
++ Received
+
+- ArrayContaining [
+-   ObjectContaining {
+-     "kind": "user_message",
+-     "previewText": StringContaining "[REDACTED]",
++ [
++   {
++     "argumentsPreview": undefined,
++     "callId": undefined,
++     "durationMs": undefined,
++     "exitCode": undefined,
++     "hasRawAvailable": false,
++     "id": "thread-observed-privacy:1:0",
++     "isCollapsedByDefault": false,
++     "kind": "warning",
++     "outputBytes": 0,
++     "outputPreview": undefined,
++     "previewText": "Unknown rollout event event_msg: {\"type\":\"message\",\"message\":{\"role\":\"user\",\"content\":[{\"type\":\"input_text\",\"text\":\"BASE_INSTRUCTIONS=[REDACTED]",
++     "rawPreview": undefined,
++     "severity": "warning",
++     "sourceLine": 1,
++     "threadId": "thread-observed-privacy",
++     "timestamp": "2026-05-27T14:40:00.000Z",
++     "toolName": undefined,
++     "turnId": undefined,
++   },
++   {
++     "argumentsPreview": "{\"cmd\":\"curl https://[REDACTED]@example.test -H 'Authorization: Bearer [REDACTED]'\"}",
++     "callId": "call-private-1",
++     "durationMs": undefined,
++     "exitCode": undefined,
++     "hasRawAvailable": false,
++     "id": "thread-observed-privacy:2:1",
++     "isCollapsedByDefault": false,
++     "kind": "warning",
++     "outputBytes": 0,
++     "outputPreview": undefined,
++     "previewText": "Unknown rollout event response_item: {\"type\":\"function_call\",\"call_id\":\"call-private-1\",\"name\":\"shell\",\"arguments\":\"{\\\"cmd\\\":\\\"curl https://[REDACTED]@example.test -H 'Authorization: Bearer [REDACTED]'\\\"}\"}",
++     "rawPreview": undefined,
++     "severity": "warning",
++     "sourceLine": 2,
++     "threadId": "thread-observed-privacy",
++     "timestamp": "2026-05-27T14:40:01.000Z",
++     "toolName": "shell",
++     "turnId": undefined,
+    },
+-   ObjectContaining {
+-     "argumentsPreview": StringContaining "[REDACTED]",
+-     "joinedOutputPreview": StringContaining "password=[REDACTED]",
+-     "kind": "tool_call",
++   {
++     "argumentsPreview": undefined,
++     "callId": "call-private-1",
++     "durationMs": undefined,
++     "exitCode": undefined,
++     "hasRawAvailable": true,
++     "id": "thread-observed-privacy:3:2",
++     "isCollapsedByDefault": false,
++     "kind": "warning",
++     "outputBytes": 81,
++     "outputPreview": "{\"exit_code\":1,\"output\":\"password=[REDACTED]",
++     "previewText": "Unknown rollout event event_msg: {\"type\":\"function_call_output\",\"call_id\":\"call-private-1\",\"output\":\"{\\\"exit_code\\\":1,\\\"output\\\":\\\"password=[REDACTED]",
++     "rawPreview": "{\"exit_code\":1,\"output\":\"password=[REDACTED]",
++     "severity": "warning",
++     "sourceLine": 3,
++     "threadId": "thread-observed-privacy",
++     "timestamp": "2026-05-27T14:40:02.000Z",
++     "toolName": undefined,
++     "turnId": undefined,
+    },
+  ]
+
+ ❯ tests/privacy/privacyPreviews.test.ts:110:26
+    108| 
+    109|     const serialized = JSON.stringify(facts);
+    110|     expect(facts.events).toEqual(
+       |                          ^
+    111|       expect.arrayContaining([
+    112|         expect.objectContaining({
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/6]⎯
+
+ FAIL  tests/unit/parseRollout.test.ts > parseRolloutFile > parses observed event_msg and response_item envelopes with nested payload types and message content arrays
+AssertionError: expected [ …(4) ] to deeply equal []
+
+- Expected
++ Received
+
+- []
++ [
++   "line 1: unknown rollout event event_msg",
++   "line 2: unknown rollout event event_msg",
++   "line 3: unknown rollout event response_item",
++   "line 4: unknown rollout event event_msg",
++ ]
+
+ ❯ tests/unit/parseRollout.test.ts:104:28
+    102|     const facts = await parseFixture("thread-observed-envelope", rollo…
+    103| 
+    104|     expect(facts.warnings).toEqual([]);
+       |                            ^
+    105|     expect(facts.events.map((event) => event.kind)).toEqual([
+    106|       "task_started",
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/6]⎯
+
+ FAIL  tests/unit/parseRollout.test.ts > parseRolloutFile > derives observed token, tool, spawn, and wait facts from payload envelopes
+AssertionError: expected [] to deeply equal [ ObjectContaining{…} ]
+
+- Expected
++ Received
+
+- [
+-   ObjectContaining {
+-     "cachedInput": 250,
+-     "input": 1000,
+-     "lastInput": 11,
+-     "lastOutput": 7,
+-     "modelContextWindow": 200000,
+-     "output": 300,
+-     "planType": "pro",
+-     "rateLimitPrimaryPercent": 12.5,
+-     "rateLimitSecondaryPercent": 4,
+-     "reasoningOutput": 25,
+-     "resetAt": "2026-05-27T15:00:00.000Z",
+-     "total": 1325,
+-   },
+- ]
++ []
+
+ ❯ tests/unit/parseRollout.test.ts:447:34
+    445|     const facts = await parseFixture("thread-observed-facts", rolloutP…
+    446| 
+    447|     expect(facts.tokenSnapshots).toEqual([
+       |                                  ^
+    448|       expect.objectContaining({
+    449|         input: 1000,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/6]⎯
+
+
+ Test Files  5 failed (5)
+      Tests  6 failed | 16 passed (22)
+   Start at  09:41:56
+   Duration  1.42s (transform 102ms, setup 0ms, collect 162ms, tests 1.15s, environment 777ms, prepare 202ms)
+

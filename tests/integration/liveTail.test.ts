@@ -69,6 +69,83 @@ describe("tailRolloutFile", () => {
     expect(result.payload.nextByteOffset).toBe(0);
   });
 
+  it("tails only complete observed envelope rows and preserves byte offsets across partial appends", async () => {
+    const root = await createRoot();
+    const rolloutPath = join(root, "observed-tail.jsonl");
+    const firstLine = `${JSON.stringify({
+      timestamp: "2026-05-27T14:30:00.000Z",
+      type: "event_msg",
+      payload: {
+        type: "message",
+        message: {
+          role: "user",
+          content: [{ type: "input_text", text: "Before observed tail" }],
+        },
+      },
+    })}\n`;
+    await writeFile(rolloutPath, firstLine, "utf8");
+    const fromByte = Buffer.byteLength(firstLine, "utf8");
+
+    const completeLine = `${JSON.stringify({
+      timestamp: "2026-05-27T14:30:01.000Z",
+      type: "response_item",
+      payload: {
+        type: "message",
+        message: {
+          role: "assistant",
+          content: [{ type: "output_text", text: "Complete observed tail row" }],
+        },
+      },
+    })}\n`;
+    const partialLine = JSON.stringify({
+      timestamp: "2026-05-27T14:30:02.000Z",
+      type: "event_msg",
+      payload: {
+        type: "message",
+        message: {
+          role: "assistant",
+          content: [{ type: "output_text", text: "Partial row must wait" }],
+        },
+      },
+    });
+    await appendFile(rolloutPath, `${completeLine}${partialLine}`, "utf8");
+
+    const result = await tailRolloutFile({
+      path: rolloutPath,
+      threadId: "thread-observed-tail",
+      fromByte,
+      sourceLine: 2,
+    });
+
+    expect(result.truncated).toBe(false);
+    expect(result.payload.events).toEqual([
+      expect.objectContaining({
+        threadId: "thread-observed-tail",
+        sourceLine: 2,
+        kind: "assistant_message",
+        previewText: "Complete observed tail row",
+      }),
+    ]);
+    expect(result.payload.nextByteOffset).toBe(fromByte + Buffer.byteLength(completeLine, "utf8"));
+
+    await appendFile(rolloutPath, "\n", "utf8");
+    const completedPartial = await tailRolloutFile({
+      path: rolloutPath,
+      threadId: "thread-observed-tail",
+      fromByte: result.payload.nextByteOffset,
+      sourceLine: 3,
+    });
+
+    expect(completedPartial.payload.events).toEqual([
+      expect.objectContaining({
+        sourceLine: 3,
+        kind: "assistant_message",
+        previewText: "Partial row must wait",
+      }),
+    ]);
+    expect(completedPartial.payload.nextByteOffset).toBeGreaterThan(result.payload.nextByteOffset);
+  });
+
   it("restarts from byte zero when the source file was truncated", async () => {
     const root = await createRoot();
     const rolloutPath = join(root, "truncated.jsonl");
