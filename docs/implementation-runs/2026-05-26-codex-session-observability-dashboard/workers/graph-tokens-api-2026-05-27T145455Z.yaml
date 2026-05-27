@@ -2,7 +2,7 @@ status: complete
 task: "Task 4"
 lane: graph-tokens-api
 base_commit: 881bcbc12e756c7f06db948222b00e40a77ee83b
-head_commit: 9cf634f1e59bbd0f53581d38b58160e32759c277
+head_commit: b2d530cdd56bfba673903cc8370f04f2bdccb695
 changed_files:
   - src/backend/api/agentGraph.ts
   - src/backend/sqlite/stateStore.ts
