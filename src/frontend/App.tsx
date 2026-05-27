@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { createFixtureSnapshot, realApiClient } from "./api/client";
+import { openLiveStream } from "./api/liveStream";
 import { Chrome } from "./components/Chrome";
 import { SegBar } from "./components/SegBar";
 import { AgentGraphView } from "./views/AgentGraphView";
@@ -235,6 +236,52 @@ export function App() {
     if (activeView !== "Tokens") return;
     loadTokenSeries();
   }, [activeView, activeSession?.id, loadTokenSeries]);
+
+  // Live updates: initial paint stays the fetch path above; the SSE stream applies deltas
+  // through the same state setters. Never load-bearing — VITE_AGENTVIEW_LIVE=0 disables it.
+  const liveEnabled = (import.meta.env.VITE_AGENTVIEW_LIVE ?? "1") !== "0";
+  const liveThreadId = activeSession?.id ?? null;
+
+  useEffect(() => {
+    if (!liveEnabled) return undefined;
+
+    const handle = openLiveStream({
+      threadId: liveThreadId,
+      fromByte:
+        timelinePayload && timelinePayload.threadId === liveThreadId ? timelinePayload.nextByteOffset : null,
+      logCursorId: null,
+      callbacks: {
+        onSessions: ({ sessions: nextSessions }) => {
+          setSessions(nextSessions);
+          setActiveSessionId(
+            (current) => nextSessions.find((session) => session.id === current)?.id ?? nextSessions[0]?.id ?? "",
+          );
+        },
+        onTimeline: (payload) => {
+          if (payload.threadId !== liveThreadId) return;
+          setTimelinePayload((current) => {
+            if (!current) return current; // initial fetch owns first paint
+            return payload.reset
+              ? { ...current, events: payload.events, nextByteOffset: payload.nextByteOffset }
+              : { ...current, nextByteOffset: payload.nextByteOffset, events: [...current.events, ...payload.events] };
+          });
+        },
+        onTokens: (payload) => {
+          if (payload.threadId === liveThreadId) setTokenSeries(payload.series);
+        },
+        onDiagnostics: ({ summary }) => {
+          setSessionDiagnostics(
+            Object.fromEntries(summary.sessionsWarningBadges.map((badge) => [badge.threadId, badge])),
+          );
+        },
+        onReady: () => undefined,
+        onError: () => undefined,
+      },
+    });
+
+    return () => handle.close();
+    // Reopen only when the followed session changes; cursor baseline is read at open time.
+  }, [liveThreadId, liveEnabled]);
 
   const fallbackTimeline: TimelinePayload = {
     threadId: activeSession?.id ?? "",

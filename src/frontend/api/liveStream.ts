@@ -40,10 +40,13 @@ export const openLiveStream = ({
   fromByte,
   logCursorId,
   callbacks,
-  EventSourceImpl = EventSource,
+  EventSourceImpl,
   maxRetries = 5,
   reconnectDelayMs = 3000,
 }: OpenLiveStreamOptions): LiveStreamHandle => {
+  // Resolve EventSource from the environment; absent (e.g. jsdom/SSR) → no-op, stay on fetch.
+  const EventSourceCtor =
+    EventSourceImpl ?? (globalThis as { EventSource?: typeof EventSource }).EventSource;
   let source: EventSource | null = null;
   let closed = false;
   let consecutiveFailures = 0;
@@ -71,8 +74,8 @@ export const openLiveStream = ({
   };
 
   const connect = () => {
-    if (closed) return;
-    const es = new EventSourceImpl(buildUrl());
+    if (closed || !EventSourceCtor) return;
+    const es = new EventSourceCtor(buildUrl());
     source = es;
 
     addJsonListener<LiveSessionsPayload>(es, "sessions", callbacks.onSessions);
