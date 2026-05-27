@@ -1,0 +1,117 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/integration/logStore.test.ts tests/integration/diagnosticsApi.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-phase-5-diagnostics-hardening
+
+(node:96676) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:96677) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ tests/integration/logStore.test.ts (5 tests | 1 failed) 32ms
+   ✓ read-only diagnostics log store > opens a temp logs_2.sqlite database read-only and reports supported schema health 16ms
+   ✓ read-only diagnostics log store > rejects unsupported logs schemas with a typed SCHEMA_UNSUPPORTED error 1ms
+   ✓ read-only diagnostics log store > applies level, target, thread, and scope filters as exact parameterized predicates 4ms
+   ✓ read-only diagnostics log store > returns deterministic cursor pages ordered by newest log first 3ms
+   × read-only diagnostics log store > summarizes warning counts, loudest targets, failed commands, and session badge counts 7ms
+     → expected { …(4) } to match object { …(4) }
+ ❯ tests/integration/diagnosticsApi.test.ts (4 tests | 1 failed) 1044ms
+   ✓ diagnostics API routes > serves filtered log rows from logs_2.sqlite with cursor pagination 268ms
+   ✓ diagnostics API routes > returns typed unsupported-schema errors for malformed logs_2.sqlite files 254ms
+   × diagnostics API routes > returns warning counts, loudest targets, failed commands, and warning badge summaries 264ms
+     → expected { ok: true, data: { …(4) }, …(2) } to match object { ok: true, source: 'logs-db', …(2) }
+(12 matching properties omitted from actual)
+   ✓ diagnostics API routes > falls back to cached rollout failed-tool facts when logs_2.sqlite is unavailable 258ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/diagnosticsApi.test.ts > diagnostics API routes > returns warning counts, loudest targets, failed commands, and warning badge summaries
+AssertionError: expected { ok: true, data: { …(4) }, …(2) } to match object { ok: true, source: 'logs-db', …(2) }
+(12 matching properties omitted from actual)
+
+- Expected
++ Received
+
+@@ -1,11 +1,11 @@
+  {
+    "data": {
+      "failedCommands": [
+-       ObjectContaining {
++       {
+          "command": "npm run test -- --run diagnostics",
+-         "count": 1,
++         "count": 2,
+          "exitCode": 1,
+          "lastOutputPreview": "diagnostics implementation missing",
+          "source": "logs-db",
+          "threadId": "thread-summary-api",
+          "toolName": "shell",
+@@ -24,12 +24,12 @@
+          "totalCount": 1,
+          "warningCount": 1,
+        },
+      ],
+      "sessionsWarningBadges": [
+-       ObjectContaining {
+-         "failedToolCount": 1,
++       {
++         "failedToolCount": 2,
+          "failedToolCountStatus": "ready",
+          "threadId": "thread-summary-api",
+          "warningCount": 3,
+          "warningCountStatus": "ready",
+        },
+
+ ❯ tests/integration/diagnosticsApi.test.ts:160:29
+    158| 
+    159|       expect(response.status).toBe(200);
+    160|       expect(response.body).toMatchObject({
+       |                             ^
+    161|         ok: true,
+    162|         source: "logs-db",
+ ❯ withApi tests/helpers/apiServer.ts:123:12
+ ❯ tests/integration/diagnosticsApi.test.ts:153:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/integration/logStore.test.ts > read-only diagnostics log store > summarizes warning counts, loudest targets, failed commands, and session badge counts
+AssertionError: expected { …(4) } to match object { …(4) }
+
+- Expected
++ Received
+
+@@ -1,10 +1,10 @@
+  {
+    "failedCommands": [
+      {
+        "command": "npm test",
+-       "count": 1,
++       "count": 2,
+        "exitCode": 1,
+        "lastOutputPreview": "expected failing tests",
+        "source": "logs-db",
+        "threadId": "thread-summary",
+        "toolName": "shell",
+@@ -24,11 +24,11 @@
+        "warningCount": 1,
+      },
+    ],
+    "sessionsWarningBadges": [
+      {
+-       "failedToolCount": 1,
++       "failedToolCount": 2,
+        "failedToolCountStatus": "ready",
+        "threadId": "thread-summary",
+        "warningCount": 2,
+        "warningCountStatus": "ready",
+      },
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  2 failed | 7 passed (9)
+   Start at  01:18:33
+   Duration  1.33s (transform 39ms, setup 0ms, collect 47ms, tests 1.08s, environment 222ms, prepare 58ms)
+

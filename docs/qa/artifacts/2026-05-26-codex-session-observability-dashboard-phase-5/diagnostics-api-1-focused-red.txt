@@ -1,0 +1,230 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/integration/logStore.test.ts tests/integration/diagnosticsApi.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-phase-5-diagnostics-hardening
+
+(node:88822) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:88821) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ tests/integration/logStore.test.ts (5 tests | 5 failed) 19ms
+   × read-only diagnostics log store > opens a temp logs_2.sqlite database read-only and reports supported schema health 8ms
+     → Cannot find module '../../src/backend/sqlite/logStore' imported from '/Users/adam/Projects/agentview/.worktrees/impl-phase-5-diagnostics-hardening/tests/integration/logStore.test.ts'
+   × read-only diagnostics log store > rejects unsupported logs schemas with a typed SCHEMA_UNSUPPORTED error 1ms
+     → Cannot find module '../../src/backend/sqlite/logStore' imported from '/Users/adam/Projects/agentview/.worktrees/impl-phase-5-diagnostics-hardening/tests/integration/logStore.test.ts'
+   × read-only diagnostics log store > applies level, target, thread, and scope filters as exact parameterized predicates 3ms
+     → Cannot find module '../../src/backend/sqlite/logStore' imported from '/Users/adam/Projects/agentview/.worktrees/impl-phase-5-diagnostics-hardening/tests/integration/logStore.test.ts'
+   × read-only diagnostics log store > returns deterministic cursor pages ordered by newest log first 3ms
+     → Cannot find module '../../src/backend/sqlite/logStore' imported from '/Users/adam/Projects/agentview/.worktrees/impl-phase-5-diagnostics-hardening/tests/integration/logStore.test.ts'
+   × read-only diagnostics log store > summarizes warning counts, loudest targets, failed commands, and session badge counts 3ms
+     → Cannot find module '../../src/backend/sqlite/logStore' imported from '/Users/adam/Projects/agentview/.worktrees/impl-phase-5-diagnostics-hardening/tests/integration/logStore.test.ts'
+ ❯ tests/integration/diagnosticsApi.test.ts (4 tests | 4 failed) 1043ms
+   × diagnostics API routes > serves filtered log rows from logs_2.sqlite with cursor pagination 274ms
+     → expected { ok: true, …(3) } to match object { ok: true, source: 'logs-db', …(2) }
+   × diagnostics API routes > returns typed unsupported-schema errors for malformed logs_2.sqlite files 256ms
+     → expected 200 to be 503 // Object.is equality
+   × diagnostics API routes > returns warning counts, loudest targets, failed commands, and warning badge summaries 256ms
+     → expected 404 to be 200 // Object.is equality
+   × diagnostics API routes > falls back to cached rollout failed-tool facts when logs_2.sqlite is unavailable 256ms
+     → expected 404 to be 200 // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 9 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/diagnosticsApi.test.ts > diagnostics API routes > serves filtered log rows from logs_2.sqlite with cursor pagination
+AssertionError: expected { ok: true, …(3) } to match object { ok: true, source: 'logs-db', …(2) }
+
+- Expected
++ Received
+
+  {
+-   "data": {
+-     "logs": [
+-       ObjectContaining {
+-         "bodyPreview": "new warning",
++   "data": [
++     {
++       "bodyPreview": "skill manifest missing required field description; using defaults",
++       "estimatedBytes": 62,
++       "file": "loader.rs",
++       "id": "log-1000",
+        "level": "WARN",
+-         "threadId": "thread-api",
++       "line": 41,
++       "modulePath": "codex_core_skills::loader",
++       "processUuid": "proc-fixture-1",
++       "redactionApplied": false,
++       "target": "codex_core_skills::loader",
++       "threadId": "019e67b0-3000-7700-9000-00005bee6c00",
++       "timestampMs": 1779818400000,
+      },
+-       ObjectContaining {
+-         "bodyPreview": "middle warning",
+-         "level": "WARN",
+-         "threadId": "thread-api",
++     {
++       "bodyPreview": "task_started turn=t01 model=gpt-codex-5 effort=high",
++       "estimatedBytes": 54,
++       "file": "handlers.rs",
++       "id": "log-1001",
++       "level": "INFO",
++       "line": 88,
++       "modulePath": "codex_core::session::handlers",
++       "processUuid": "proc-fixture-1",
++       "redactionApplied": false,
++       "target": "codex_core::session::handlers",
++       "threadId": "019e67b0-3000-7700-9000-00005bee6c00",
++       "timestampMs": 1779818401200,
+      },
+-     ],
+-     "nextCursor": Any<String>,
++     {
++       "bodyPreview": "token_count input=7200 output=1220 cached=320 ctx_pct=4.1",
++       "estimatedBytes": 61,
++       "file": "turn.rs",
++       "id": "log-1002",
++       "level": "DEBUG",
++       "line": 129,
++       "modulePath": "codex_core::session::turn",
++       "processUuid": "proc-fixture-1",
++       "redactionApplied": false,
++       "target": "codex_core::session::turn",
++       "threadId": "019e67b0-3000-7700-9000-00005bee6c00",
++       "timestampMs": 1779818402400,
+      },
++     {
++       "bodyPreview": "DATABASE_PASSWORD=[REDACTED]",
++       "estimatedBytes": 25,
++       "file": "handlers.rs",
++       "id": "log-1003",
++       "level": "ERROR",
++       "line": 142,
++       "modulePath": "codex_core::session::handlers",
++       "processUuid": "proc-fixture-1",
++       "redactionApplied": true,
++       "target": "codex_core::session::handlers",
++       "threadId": "019e67b0-3000-7700-9000-00005bee6c00",
++       "timestampMs": 1779818403600,
++     },
++     {
++       "bodyPreview": "trace_safe redacted 2 fields",
++       "estimatedBytes": 28,
++       "file": "trace_safe.rs",
++       "id": "log-1004",
++       "level": "TRACE",
++       "line": 18,
++       "modulePath": "codex_otel::trace_safe",
++       "processUuid": "proc-fixture-1",
++       "redactionApplied": false,
++       "target": "codex_otel.trace_safe",
++       "timestampMs": 1779818404800,
++     },
++   ],
+    "ok": true,
+-   "source": "logs-db",
++   "source": "fixture",
+    "warnings": [],
+  }
+
+ ❯ tests/integration/diagnosticsApi.test.ts:62:30
+     60| 
+     61|       expect(firstPage.status).toBe(200);
+     62|       expect(firstPage.body).toMatchObject({
+       |                              ^
+     63|         ok: true,
+     64|         source: "logs-db",
+ ❯ withApi tests/helpers/apiServer.ts:123:12
+ ❯ tests/integration/diagnosticsApi.test.ts:55:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯
+
+ FAIL  tests/integration/diagnosticsApi.test.ts > diagnostics API routes > returns typed unsupported-schema errors for malformed logs_2.sqlite files
+AssertionError: expected 200 to be 503 // Object.is equality
+
+- Expected
++ Received
+
+- 503
++ 200
+
+ ❯ tests/integration/diagnosticsApi.test.ts:99:31
+     97|       const response = await requestJson(baseUrl, "/api/logs?limit=1");
+     98| 
+     99|       expect(response.status).toBe(503);
+       |                               ^
+    100|       expect(response.body).toMatchObject({
+    101|         ok: false,
+ ❯ withApi tests/helpers/apiServer.ts:123:12
+ ❯ tests/integration/diagnosticsApi.test.ts:96:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯
+
+ FAIL  tests/integration/diagnosticsApi.test.ts > diagnostics API routes > returns warning counts, loudest targets, failed commands, and warning badge summaries
+AssertionError: expected 404 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 404
+
+ ❯ tests/integration/diagnosticsApi.test.ts:159:31
+    157|       );
+    158| 
+    159|       expect(response.status).toBe(200);
+       |                               ^
+    160|       expect(response.body).toMatchObject({
+    161|         ok: true,
+ ❯ withApi tests/helpers/apiServer.ts:123:12
+ ❯ tests/integration/diagnosticsApi.test.ts:153:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯
+
+ FAIL  tests/integration/diagnosticsApi.test.ts > diagnostics API routes > falls back to cached rollout failed-tool facts when logs_2.sqlite is unavailable
+AssertionError: expected 404 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 404
+
+ ❯ tests/integration/diagnosticsApi.test.ts:265:31
+    263|       const response = await requestJson(baseUrl, "/api/diagnostics/su…
+    264| 
+    265|       expect(response.status).toBe(200);
+       |                               ^
+    266|       expect(response.body).toMatchObject({
+    267|         ok: true,
+ ❯ withApi tests/helpers/apiServer.ts:123:12
+ ❯ tests/integration/diagnosticsApi.test.ts:262:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/9]⎯
+
+ FAIL  tests/integration/logStore.test.ts > read-only diagnostics log store > opens a temp logs_2.sqlite database read-only and reports supported schema health
+ FAIL  tests/integration/logStore.test.ts > read-only diagnostics log store > rejects unsupported logs schemas with a typed SCHEMA_UNSUPPORTED error
+ FAIL  tests/integration/logStore.test.ts > read-only diagnostics log store > applies level, target, thread, and scope filters as exact parameterized predicates
+ FAIL  tests/integration/logStore.test.ts > read-only diagnostics log store > returns deterministic cursor pages ordered by newest log first
+ FAIL  tests/integration/logStore.test.ts > read-only diagnostics log store > summarizes warning counts, loudest targets, failed commands, and session badge counts
+Error: Cannot find module '../../src/backend/sqlite/logStore' imported from '/Users/adam/Projects/agentview/.worktrees/impl-phase-5-diagnostics-hardening/tests/integration/logStore.test.ts'
+ ❯ loadLogStore tests/integration/logStore.test.ts:77:35
+     75| 
+     76| const logStoreSpecifier = ["..", "..", "src", "backend", "sqlite", "lo…
+     77| const loadLogStore = async () => (await import(/* @vite-ignore */ logS…
+       |                                   ^
+     78| 
+     79| const fixtures: DiagnosticsCodexHomeFixture[] = [];
+ ❯ tests/integration/logStore.test.ts:106:30
+
+Caused by: Error: Failed to load url ../../src/backend/sqlite/logStore (resolved id: ../../src/backend/sqlite/logStore). Does the file exist?
+ ❯ loadAndTransform ../../node_modules/vite/dist/node/chunks/config.js:22679:33
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/9]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  9 failed (9)
+   Start at  01:14:33
+   Duration  1.32s (transform 41ms, setup 0ms, collect 55ms, tests 1.06s, environment 230ms, prepare 64ms)
+

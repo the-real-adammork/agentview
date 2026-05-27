@@ -1,0 +1,19 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/integration/logStore.test.ts tests/integration/diagnosticsApi.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-phase-5-diagnostics-hardening
+
+(node:98528) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:98527) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/integration/logStore.test.ts (5 tests) 25ms
+ ✓ tests/integration/diagnosticsApi.test.ts (4 tests) 1042ms
+
+ Test Files  2 passed (2)
+      Tests  9 passed (9)
+   Start at  01:19:15
+   Duration  1.32s (transform 49ms, setup 0ms, collect 55ms, tests 1.07s, environment 241ms, prepare 63ms)
+

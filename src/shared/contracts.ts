@@ -242,9 +242,54 @@ export interface RuntimeLog {
   file?: string;
   line?: number;
   threadId?: string;
+  scope?: string;
   processUuid?: string;
   estimatedBytes: number;
   redactionApplied: boolean;
+}
+
+export interface RuntimeLogQuery {
+  level?: RuntimeLogLevel;
+  target?: string;
+  threadId?: string;
+  scope?: string;
+  limit?: number;
+  cursor?: string;
+}
+
+export interface RuntimeLogPage {
+  logs: RuntimeLog[];
+  nextCursor: string | null;
+}
+
+export interface DiagnosticsSummary {
+  warningCounts: {
+    total: number;
+    byThreadId: Record<string, number>;
+    byLevel: Partial<Record<RuntimeLogLevel, number>>;
+  };
+  loudestTargets: Array<{
+    target: string;
+    totalCount: number;
+    warningCount: number;
+    errorCount: number;
+  }>;
+  failedCommands: Array<{
+    threadId: string;
+    toolName: string;
+    command: string;
+    exitCode: number;
+    count: number;
+    lastOutputPreview: string;
+    source: "logs-db" | "rollout-cache";
+  }>;
+  sessionsWarningBadges: Array<{
+    threadId: string;
+    warningCountStatus: "ready" | "unavailable";
+    warningCount: number;
+    failedToolCountStatus: "ready" | "unavailable";
+    failedToolCount: number;
+  }>;
 }
 
 export interface ObservatoryApi {
@@ -254,5 +299,6 @@ export interface ObservatoryApi {
   getTimeline(threadId: string, options?: { fromByte?: number }): Promise<ApiResult<TimelinePayload>>;
   getAgentGraph(rootThreadId: string, options?: { maxDepth?: number }): Promise<ApiResult<AgentGraph>>;
   getTokenSeries(threadId: string): Promise<ApiResult<TokenSeries>>;
-  queryLogs(): Promise<ApiResult<RuntimeLog[]>>;
+  queryLogs(query?: RuntimeLogQuery): Promise<ApiResult<RuntimeLogPage>>;
+  getDiagnosticsSummary?(options?: { threadIds?: string[]; targetLimit?: number }): Promise<ApiResult<DiagnosticsSummary>>;
 }

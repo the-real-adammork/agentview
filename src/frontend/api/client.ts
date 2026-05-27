@@ -12,6 +12,8 @@ import type {
   ObservatoryApi,
   PageOptions,
   RuntimeLog,
+  RuntimeLogPage,
+  RuntimeLogQuery,
   SessionFilter,
   SessionSummary,
   TimelineEvent,
@@ -87,7 +89,7 @@ export const fixtureApiClient: ObservatoryApi = {
     return ok(tokenSeriesFixture);
   },
   async queryLogs() {
-    return ok(diagnosticsLogsFixture);
+    return ok({ logs: diagnosticsLogsFixture, nextCursor: null });
   },
 };
 
@@ -127,6 +129,20 @@ export const buildSessionQuery = (filter: SessionFilter = {}, page: PageOptions 
 
   const query = params.toString();
   return query ? `?${query}` : "";
+};
+
+const buildLogQuery = (query: RuntimeLogQuery = {}) => {
+  const params = new URLSearchParams();
+
+  appendParam(params, "level", query.level);
+  appendParam(params, "target", query.target);
+  appendParam(params, "threadId", query.threadId);
+  appendParam(params, "scope", query.scope);
+  appendParam(params, "limit", query.limit);
+  appendParam(params, "cursor", query.cursor);
+
+  const queryString = params.toString();
+  return queryString ? `?${queryString}` : "";
 };
 
 async function getJson<T>(path: string): Promise<ApiResult<T>> {
@@ -179,7 +195,16 @@ export const realApiClient: ObservatoryApi = {
   getTokenSeries(threadId) {
     return getJson<TokenSeries>(`/api/tokens?threadId=${encodeURIComponent(threadId)}`);
   },
-  queryLogs() {
-    return getJson<RuntimeLog[]>("/api/logs");
+  queryLogs(query) {
+    return getJson<RuntimeLogPage>(`/api/logs${buildLogQuery(query)}`);
+  },
+  getDiagnosticsSummary(options) {
+    const params = new URLSearchParams();
+    for (const threadId of options?.threadIds ?? []) {
+      appendParam(params, "threadId", threadId);
+    }
+    appendParam(params, "targetLimit", options?.targetLimit);
+    const queryString = params.toString();
+    return getJson(`/api/diagnostics/summary${queryString ? `?${queryString}` : ""}`);
   },
 };

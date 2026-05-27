@@ -237,7 +237,10 @@ describe("observatory Task 2 contract fixtures", () => {
       }),
       queryLogs: async () => ({
         ok: true,
-        data: diagnosticsLogsFixture,
+        data: {
+          logs: diagnosticsLogsFixture,
+          nextCursor: null,
+        },
         source: "fixture",
         warnings: [],
       }),

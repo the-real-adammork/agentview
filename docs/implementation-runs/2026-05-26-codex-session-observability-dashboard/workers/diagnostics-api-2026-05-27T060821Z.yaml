@@ -1,0 +1,57 @@
+status: test_proposed
+worker: worker-diagnostics-api-1
+run: 2026-05-26-codex-session-observability-dashboard
+phase: 5
+task: "Task 1: Add Read-Only Logs Store And Diagnostics Summary API"
+test_files_changed:
+  - tests/integration/logStore.test.ts
+  - tests/integration/diagnosticsApi.test.ts
+helper_files_changed:
+  - tests/fixtures/diagnostics.ts
+  - tests/helpers/apiServer.ts
+qa_artifacts:
+  - docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/diagnostics-api-1-focused-red.txt
+commands:
+  - command: "npm run test -- --run tests/integration/logStore.test.ts tests/integration/diagnosticsApi.test.ts"
+    result: "failed as expected: 2 test files failed, 9 tests failed"
+    artifact: docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/diagnostics-api-1-focused-red.txt
+expected_failure:
+  - "src/backend/sqlite/logStore is missing, so all log store tests fail at dynamic import."
+  - "/api/diagnostics/summary is not registered, so summary and rollout-cache fallback API tests return 404."
+  - "/api/logs still serves fixture data instead of logs_2.sqlite, so real logs-db route expectations fail."
+requirement_mapping:
+  read_only_temp_sqlite_logs_db_open:
+    - "logStore opens a generated temp logs_2.sqlite fixture and reports readOnly supported schema health."
+  unsupported_schema_handling:
+    - "logStore rejects malformed logs schema with SCHEMA_UNSUPPORTED and missing columns."
+    - "diagnostics API returns typed SCHEMA_UNSUPPORTED for malformed logs_2.sqlite."
+  parameterized_filters:
+    - "logStore applies exact level, target, threadId, and scope predicates, including injection-shaped literal values."
+    - "diagnostics API accepts level, target, threadId, and scope query filters for logs."
+  cursor_pagination:
+    - "logStore and API tests expect newest-first pages with opaque nextCursor."
+  warning_counts_and_loudest_targets:
+    - "summary tests expect total/by-thread/by-level warning counts and loudest target rows."
+  failed_command_summaries:
+    - "summary tests expect failed command aggregation from logs-db rows with toolName, command, exitCode, and output preview."
+  rollout_cache_fallback:
+    - "API summary falls back to warm rollout cache failed-tool facts when logs_2.sqlite is absent."
+service_wiring_rows:
+  - structured_diagnostics
+  - failed_command_summaries
+  - sessions_warning_badges
+mock_or_fixture_disclosure:
+  automated_tests: "real temp SQLite logs_2.sqlite fixture, real temp state_5.sqlite fixture, and warm rollout cache JSON fixture"
+  production_path_exercised: "planned real API process and dynamic logStore import; currently fails because Task 1 route/module is absent"
+  mock_only_risk: "fixture log schema and failed-command columns may need reconciliation with private real Codex logs_2.sqlite diversity"
+  real_dependencies: "node:sqlite, Vitest, local API process"
+blockers:
+  - "No production implementation requested or added."
+  - "A supervisor-inbox heartbeat timestamp changed outside this worker scope during the run and was left untouched."
+changed_files:
+  - tests/fixtures/diagnostics.ts
+  - tests/helpers/apiServer.ts
+  - tests/integration/logStore.test.ts
+  - tests/integration/diagnosticsApi.test.ts
+  - docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/diagnostics-api-1-focused-red.txt
+  - docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/diagnostics-api-2026-05-27T060821Z.yaml
