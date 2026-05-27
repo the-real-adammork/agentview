@@ -28,6 +28,21 @@ export interface HealthStatus {
   checkedAt: string;
 }
 
+export type ThreadSource = "user" | "subagent";
+export type CountStatus = "not_requested" | "loading" | "ready" | "unavailable";
+export type FailedToolCountStatus = CountStatus | "unknown";
+
+export interface SessionFilter {
+  search?: string;
+  cwd?: string;
+  archived?: "include" | "exclude" | "only";
+}
+
+export interface PageOptions {
+  limit?: number;
+  offset?: number;
+}
+
 export interface SessionSummary {
   id: string;
   title: string;
@@ -40,6 +55,26 @@ export interface SessionSummary {
   childCount: number;
   openChildCount: number;
   tokenTotal: number;
+  rolloutPath?: string;
+  createdAtMs?: number;
+  updatedAtMs?: number;
+  repoLabel?: string;
+  titlePreview?: string;
+  firstUserMessagePreview?: string;
+  preview?: string;
+  reasoningEffort?: string | null;
+  tokensUsed?: number;
+  threadSource?: ThreadSource | null;
+  agentNickname?: string | null;
+  agentRole?: string | null;
+  gitSha?: string | null;
+  gitBranch?: string | null;
+  gitOriginUrlPreview?: string | null;
+  archived?: boolean;
+  warningCountStatus?: CountStatus;
+  warningCount?: number | null;
+  failedToolCountStatus?: FailedToolCountStatus;
+  failedToolCount?: number | null;
 }
 
 export type TimelineEventKind =

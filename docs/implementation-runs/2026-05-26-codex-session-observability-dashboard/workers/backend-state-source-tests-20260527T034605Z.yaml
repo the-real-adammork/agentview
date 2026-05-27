@@ -1,0 +1,42 @@
+status: test_proposed
+result: fail_expected
+worker_id: worker-backend-state-source-tests
+run_id: 2026-05-26-codex-session-observability-dashboard
+phase: "Phase 2 - Sessions Index"
+task: "Task 1: Add Codex Path Guard And Read-Only State Store"
+worker_branch: impl/phase-2-backend-state-source-tests
+worker_worktree: /Users/adam/Projects/agentview/.worktrees/impl-phase-2-backend-state-source-tests
+base_commit: a524f4e73e90645dc711e09ca2450bcd8e2a684a
+changed_test_files:
+  - tests/unit/codexPaths.test.ts
+  - tests/integration/stateStore.test.ts
+  - tests/fixtures/codexHome.ts
+changed_config_files:
+  - vitest.config.ts
+command:
+  run: "npm run test -- --run tests/unit/codexPaths.test.ts tests/integration/stateStore.test.ts"
+  result: fail_expected
+  exit_code: 1
+  artifact: docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-1-test-proposal.txt
+expected_failure:
+  - "tests/unit/codexPaths.test.ts fails because ../../src/backend/codexPaths is not implemented yet."
+  - "tests/integration/stateStore.test.ts fails because ../../src/backend/sqlite/stateStore is not implemented yet."
+requirement_mapping:
+  codex_home_resolution: "codexPaths.test.ts requires injected CODEX_HOME resolution to a normalized absolute real path and defaulting to <homeDir>/.codex."
+  traversal_rejection: "codexPaths.test.ts requires source path normalization to accept in-home session paths and reject relative or absolute traversal outside CODEX_HOME with CODEX_PATH_TRAVERSAL."
+  read_only_open_behavior: "stateStore.test.ts requires openStateStore({ codexHome }) to open state_5.sqlite read-only, report readOnly schema health, and leave DB mtime unchanged after health checks."
+  unsupported_schema_detection: "stateStore.test.ts creates a malformed state_5.sqlite and expects SCHEMA_UNSUPPORTED with missing threads/thread_spawn_edges schema details before rows are served."
+  normalized_session_summary_rows: "stateStore.test.ts builds real temp SQLite threads/thread_spawn_edges data and expects listSessions to return non-archived SessionSummary rows sorted by updated_at_ms desc with title fallback, repo/git fields, source/agent fields, child/open counts, and async badge statuses."
+service_wiring_rows:
+  - "Health and source availability"
+  - "Sessions first paint"
+mock_or_fixture_disclosure:
+  automated_tests: "real temp filesystem and real temp SQLite fixtures built with node:sqlite"
+  production_dev_path_exercised: "planned path only; production modules are intentionally missing in this test-proposal phase"
+  mock_only_risk: "private Codex state_5.sqlite schema drift may differ from the fixture schema; tests use the observed phase design schema."
+  required_real_dependencies: "Node 24 node:sqlite, local temp filesystem, Vitest configured to collect unit and integration tests"
+  dependency_gap: null
+blockers:
+  - "Production files src/backend/codexPaths.ts and src/backend/sqlite/stateStore.ts are not implemented, which is the expected red failure."
+worker_result_yaml_path: /Users/adam/Projects/agentview/.worktrees/impl-phase-2-backend-state-source-tests/docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/backend-state-source-tests-20260527T034605Z.yaml
+commit: null

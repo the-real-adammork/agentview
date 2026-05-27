@@ -1,0 +1,51 @@
+status: complete
+result: pass
+worker_id: worker-backend-state-source-task1
+run_id: 2026-05-26-codex-session-observability-dashboard
+phase: "Phase 2 - Sessions Index"
+task: "Task 1: Add Codex Path Guard And Read-Only State Store"
+worker_branch: impl/phase-2-backend-state-source-tests
+worker_worktree: /Users/adam/Projects/agentview/.worktrees/impl-phase-2-backend-state-source-tests
+changed_files:
+  - src/backend/codexPaths.ts
+  - src/backend/sqlite/stateStore.ts
+  - src/shared/contracts.ts
+  - vitest.config.ts
+  - tests/unit/codexPaths.test.ts
+  - tests/integration/stateStore.test.ts
+  - tests/fixtures/codexHome.ts
+  - docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-1-implementation-focused-test.txt
+  - docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-1-implementation-typecheck.txt
+commands:
+  - run: "npm run test -- --run tests/unit/codexPaths.test.ts tests/integration/stateStore.test.ts"
+    result: pass
+    exit_code: 0
+    artifact: docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-1-implementation-focused-test.txt
+  - run: "npm run typecheck"
+    result: pass
+    exit_code: 0
+    artifact: docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-1-implementation-typecheck.txt
+service_wiring_rows:
+  - "Health and source availability"
+  - "Sessions first paint"
+real_dependencies:
+  - "Node 24 node:sqlite DatabaseSync with readOnly: true"
+  - "Local temp filesystem"
+  - "Vitest unit and integration collection"
+mocks_fixtures_ledger:
+  - name: "Temp Codex home SQLite fixture"
+    path: tests/fixtures/codexHome.ts
+    type: "real temp filesystem + real SQLite state_5.sqlite"
+    covers: "threads and thread_spawn_edges schema, archive filtering, updated_at_ms sorting, child/open counts, schema rejection"
+    risk: "Private Codex state_5.sqlite may contain schema drift or optional fields not represented by fixture rows."
+  - name: "Unsupported schema fixture"
+    path: tests/fixtures/codexHome.ts
+    type: "real SQLite malformed schema"
+    covers: "SCHEMA_UNSUPPORTED before serving rows"
+residual_risks:
+  - "node:sqlite emits an ExperimentalWarning in test output on Node 24."
+  - "Task 1 implements only the source layer; API routes and UI wiring remain out of scope for later tasks."
+review_status: "test proposal approved; implementation focused tests and typecheck pass"
+blockers: []
+worker_result_yaml_path: docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/backend-state-source-task1-implementation.yaml
+commit: null

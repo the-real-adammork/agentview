@@ -1,0 +1,68 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/unit/codexPaths.test.ts tests/integration/stateStore.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-phase-2-backend-state-source-tests
+
+(node:8312) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ tests/unit/codexPaths.test.ts (3 tests | 3 failed) 5ms
+   × Codex source path guard > resolves CODEX_HOME from an injected environment to a normalized absolute path 4ms
+     → Cannot find module '../../src/backend/codexPaths' imported from '/Users/adam/Projects/agentview/.worktrees/impl-phase-2-backend-state-source-tests/tests/unit/codexPaths.test.ts'
+   × Codex source path guard > defaults CODEX_HOME to .codex under the injected home directory 0ms
+     → Cannot find module '../../src/backend/codexPaths' imported from '/Users/adam/Projects/agentview/.worktrees/impl-phase-2-backend-state-source-tests/tests/unit/codexPaths.test.ts'
+   × Codex source path guard > rejects traversal outside the resolved Codex home 0ms
+     → Cannot find module '../../src/backend/codexPaths' imported from '/Users/adam/Projects/agentview/.worktrees/impl-phase-2-backend-state-source-tests/tests/unit/codexPaths.test.ts'
+ ❯ tests/integration/stateStore.test.ts (3 tests | 3 failed) 4ms
+   × read-only Codex state store > opens state_5.sqlite read-only and reports supported schema health 4ms
+     → Cannot find module '../../src/backend/sqlite/stateStore' imported from '/Users/adam/Projects/agentview/.worktrees/impl-phase-2-backend-state-source-tests/tests/integration/stateStore.test.ts'
+   × read-only Codex state store > rejects unsupported state_5.sqlite schemas before serving rows 0ms
+     → Cannot find module '../../src/backend/sqlite/stateStore' imported from '/Users/adam/Projects/agentview/.worktrees/impl-phase-2-backend-state-source-tests/tests/integration/stateStore.test.ts'
+   × read-only Codex state store > normalizes SessionSummary rows from temp SQLite fixtures sorted by updated_at_ms desc 0ms
+     → Cannot find module '../../src/backend/sqlite/stateStore' imported from '/Users/adam/Projects/agentview/.worktrees/impl-phase-2-backend-state-source-tests/tests/integration/stateStore.test.ts'
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 6 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/stateStore.test.ts > read-only Codex state store > opens state_5.sqlite read-only and reports supported schema health
+ FAIL  tests/integration/stateStore.test.ts > read-only Codex state store > rejects unsupported state_5.sqlite schemas before serving rows
+ FAIL  tests/integration/stateStore.test.ts > read-only Codex state store > normalizes SessionSummary rows from temp SQLite fixtures sorted by updated_at_ms desc
+Error: Cannot find module '../../src/backend/sqlite/stateStore' imported from '/Users/adam/Projects/agentview/.worktrees/impl-phase-2-backend-state-source-tests/tests/integration/stateStore.test.ts'
+ ❯ loadStateStore tests/integration/stateStore.test.ts:22:4
+     20| 
+     21| const loadStateStore = async () =>
+     22|   (await import(/* @vite-ignore */ stateStoreSpecifier)) as StateStore…
+       |    ^
+     23| 
+     24| describe("read-only Codex state store", () => {
+ ❯ tests/integration/stateStore.test.ts:26:32
+
+Caused by: Error: Failed to load url ../../src/backend/sqlite/stateStore (resolved id: ../../src/backend/sqlite/stateStore). Does the file exist?
+ ❯ loadAndTransform ../../node_modules/vite/dist/node/chunks/config.js:22679:33
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/6]⎯
+
+ FAIL  tests/unit/codexPaths.test.ts > Codex source path guard > resolves CODEX_HOME from an injected environment to a normalized absolute path
+ FAIL  tests/unit/codexPaths.test.ts > Codex source path guard > defaults CODEX_HOME to .codex under the injected home directory
+ FAIL  tests/unit/codexPaths.test.ts > Codex source path guard > rejects traversal outside the resolved Codex home
+Error: Cannot find module '../../src/backend/codexPaths' imported from '/Users/adam/Projects/agentview/.worktrees/impl-phase-2-backend-state-source-tests/tests/unit/codexPaths.test.ts'
+ ❯ loadCodexPaths tests/unit/codexPaths.test.ts:17:4
+     15| 
+     16| const loadCodexPaths = async () =>
+     17|   (await import(/* @vite-ignore */ codexPathsSpecifier)) as CodexPaths…
+       |    ^
+     18| 
+     19| describe("Codex source path guard", () => {
+ ❯ tests/unit/codexPaths.test.ts:21:34
+
+Caused by: Error: Failed to load url ../../src/backend/codexPaths (resolved id: ../../src/backend/codexPaths). Does the file exist?
+ ❯ loadAndTransform ../../node_modules/vite/dist/node/chunks/config.js:22679:33
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/6]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  6 failed (6)
+   Start at  22:55:37
+   Duration  273ms (transform 23ms, setup 0ms, collect 28ms, tests 9ms, environment 229ms, prepare 55ms)
+

@@ -1,0 +1,17 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/unit/codexPaths.test.ts tests/integration/stateStore.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-phase-2-backend-state-source-tests
+
+(node:14425) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/codexPaths.test.ts (3 tests) 11ms
+ ✓ tests/integration/stateStore.test.ts (3 tests) 15ms
+
+ Test Files  2 passed (2)
+      Tests  6 passed (6)
+   Start at  22:59:11
+   Duration  285ms (transform 34ms, setup 0ms, collect 33ms, tests 25ms, environment 238ms, prepare 52ms)
+
