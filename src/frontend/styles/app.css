@@ -110,6 +110,9 @@ button {
 }
 
 .segbar__button:focus-visible,
+.diagnostics-toolbar button:focus-visible,
+.diagnostics-action:focus-visible,
+.raw-tail button:focus-visible,
 .field input:focus-visible,
 .field select:focus-visible,
 .session-row:focus-visible {
@@ -169,6 +172,13 @@ button {
 .sessions-toolbar {
   display: grid;
   grid-template-columns: minmax(220px, 2fr) repeat(5, minmax(120px, 1fr));
+  gap: var(--space-3);
+  align-items: end;
+}
+
+.diagnostics-toolbar {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(140px, 1fr)) auto;
   gap: var(--space-3);
   align-items: end;
 }
@@ -288,6 +298,9 @@ tbody tr[aria-current="true"] {
 }
 
 .graph-toolbar button,
+.diagnostics-toolbar button,
+.diagnostics-action,
+.raw-tail button,
 .table-frame button {
   min-height: 36px;
   border: var(--border-width) solid var(--color-border);
@@ -613,7 +626,8 @@ tbody tr[aria-current="true"] {
 }
 
 @media (max-width: 900px) {
-  .sessions-toolbar {
+  .sessions-toolbar,
+  .diagnostics-toolbar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
@@ -635,6 +649,71 @@ tbody tr[aria-current="true"] {
 
 .metric strong {
   font-size: 1.35rem;
+}
+
+.diagnostics-targets,
+.failed-command-list,
+.raw-tail {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.diagnostics-targets {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.diagnostics-targets a,
+.failed-command,
+.raw-tail {
+  border: var(--border-width) solid var(--color-border);
+  background: var(--color-panel-raised);
+  padding: var(--space-3);
+}
+
+.diagnostics-targets a {
+  color: var(--color-accent-strong);
+  overflow-wrap: anywhere;
+}
+
+.failed-command {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.failed-command div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.failed-command span,
+.raw-tail__actions,
+.diagnostics-badges {
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.failed-command p,
+.raw-tail pre {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.raw-tail pre {
+  max-height: 20rem;
+  overflow: auto;
+  border: var(--border-width) solid var(--color-border);
+  background: var(--color-panel);
+  padding: var(--space-3);
+  white-space: pre-wrap;
+}
+
+.raw-tail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
 }
 
 .node-list__item {
@@ -666,6 +745,10 @@ tbody tr[aria-current="true"] {
   }
 
   .timeline-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .diagnostics-toolbar {
     grid-template-columns: 1fr;
   }
 }

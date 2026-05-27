@@ -1,4 +1,4 @@
-export type ApiSource = "fixture" | "state-db" | "rollout-cache" | "logs-db";
+export type ApiSource = "fixture" | "state-db" | "rollout-cache" | "logs-db" | "raw-log";
 
 export type ApiResult<T> =
   | {
@@ -262,6 +262,14 @@ export interface RuntimeLogPage {
   nextCursor: string | null;
 }
 
+export interface RawTuiLogTail {
+  fromByte: number;
+  textPreview: string;
+  redactionApplied: boolean;
+  nextByteOffset: number;
+  truncated: boolean;
+}
+
 export interface DiagnosticsSummary {
   warningCounts: {
     total: number;
@@ -301,4 +309,5 @@ export interface ObservatoryApi {
   getTokenSeries(threadId: string): Promise<ApiResult<TokenSeries>>;
   queryLogs(query?: RuntimeLogQuery): Promise<ApiResult<RuntimeLogPage>>;
   getDiagnosticsSummary?(options?: { threadIds?: string[]; targetLimit?: number }): Promise<ApiResult<DiagnosticsSummary>>;
+  tailRawTuiLog?(options?: { fromByte?: number; maxBytes?: number }): Promise<ApiResult<RawTuiLogTail>>;
 }

@@ -1,0 +1,67 @@
+worker_id: "worker-diagnostics-ui-1"
+lane: "diagnostics-ui"
+task: "Task 2"
+status: complete
+started_at: "2026-05-27T06:28:19Z"
+completed_at: "2026-05-27T06:46:35Z"
+base_commit: "8533b05"
+head_commit: null
+branch: "impl/phase-5-diagnostics-hardening/diagnostics-ui"
+worktree: ".worktrees/impl-phase-5-diagnostics-hardening"
+changed_files:
+  - "src/shared/contracts.ts"
+  - "src/backend/diagnostics/rawTuiLog.ts"
+  - "src/backend/api/diagnostics.ts"
+  - "src/backend/codexPaths.ts"
+  - "src/frontend/api/client.ts"
+  - "src/frontend/views/DiagnosticsView.tsx"
+  - "src/frontend/views/SessionsView.tsx"
+  - "src/frontend/App.tsx"
+  - "src/frontend/styles/app.css"
+  - "playwright.config.ts"
+  - "tests/e2e/diagnostics-ui.spec.ts"
+  - "tests/integration/rawTuiLog.test.ts"
+commands:
+  - command: "npm run test -- --run tests/integration/rawTuiLog.test.ts tests/integration/diagnosticsApi.test.ts tests/unit/contracts.test.ts"
+    result: pass
+    artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-2-focused-tests.txt"
+  - command: "npm run e2e -- --grep @diagnostics"
+    result: pass
+    artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-2-diagnostics-e2e.txt"
+  - command: "npm run typecheck"
+    result: pass
+    artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-2-typecheck.txt"
+service_wiring_rows:
+  - "structured_diagnostics"
+  - "failed_command_summaries"
+  - "sessions_warning_badges"
+  - "raw_advanced_tail"
+real_dependencies:
+  - "node:sqlite"
+  - "local API process"
+  - "Playwright browser runtime"
+  - "temp CODEX_HOME logs DB, rollout cache, and raw log files"
+mocks_or_fixtures:
+  - id: "mf-phase5-004"
+    name: "diagnostics E2E temp logs/raw/cache fixtures"
+    kind: fixture
+    scope: test-only
+    affected_paths:
+      - "tests/e2e/diagnostics-ui.spec.ts"
+      - "tests/integration/rawTuiLog.test.ts"
+      - "playwright.config.ts"
+    service_wiring_rows:
+      - "structured_diagnostics"
+      - "failed_command_summaries"
+      - "sessions_warning_badges"
+      - "raw_advanced_tail"
+    disposition: test-only
+    acceptable_because: "Generated temp files exercise the real local API, SQLite log store, rollout cache fallback, and raw TUI tail code paths; they are not used by production/dev runtime."
+    conversion_task: null
+    evidence:
+      - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-2-diagnostics-e2e.txt"
+residual_risks:
+  - "Private real raw TUI log diversity is not validated; phase scope permits generated temp raw log fixtures."
+review_status: approved
+lesson_candidate: null
+plan_updates_recommended: []

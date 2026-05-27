@@ -1,0 +1,42 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/integration/rawTuiLog.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-phase-5-diagnostics-hardening
+
+(node:29455) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ tests/integration/rawTuiLog.test.ts (1 test | 1 failed) 269ms
+   × raw TUI log diagnostics API > tails the allowlisted codex-tui.log with redacted previews and a resumable next offset 268ms
+     → expected 404 to be 200 // Object.is equality
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/rawTuiLog.test.ts > raw TUI log diagnostics API > tails the allowlisted codex-tui.log with redacted previews and a resumable next offset
+AssertionError: expected 404 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 404
+
+ ❯ tests/integration/rawTuiLog.test.ts:30:32
+     28|       const firstTail = await requestJson(baseUrl, "/api/diagnostics/r…
+     29| 
+     30|       expect(firstTail.status).toBe(200);
+       |                                ^
+     31|       expect(firstTail.body).toMatchObject({
+     32|         ok: true,
+ ❯ withApi tests/helpers/apiServer.ts:123:12
+ ❯ tests/integration/rawTuiLog.test.ts:27:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (1)
+   Start at  01:34:28
+   Duration  611ms (transform 22ms, setup 0ms, collect 23ms, tests 269ms, environment 178ms, prepare 35ms)
+

@@ -28,7 +28,19 @@ tasks:
         artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-1-integration-typecheck.txt"
   "2":
     title: "Build Diagnostics UI, Failed Command Panel, Warning Badges, And Raw Advanced Tail"
-    status: not_started
+    status: done
+    lane: "diagnostics-ui"
+    commit: null
+    verification:
+      - command: "npm run test -- --run tests/integration/rawTuiLog.test.ts tests/integration/diagnosticsApi.test.ts tests/unit/contracts.test.ts"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-2-focused-tests.txt"
+      - command: "npm run e2e -- --grep @diagnostics"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-2-diagnostics-e2e.txt"
+      - command: "npm run typecheck"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-2-typecheck.txt"
   "3":
     title: "Harden Shared Error Envelope, Privacy Defaults, Source Safety, And Runtime Asset Policy"
     status: done
@@ -63,8 +75,8 @@ service_wiring:
     status: integration-covered
     evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-1-integration-focused-test.txt"
   raw_advanced_tail:
-    status: pending
-    evidence: null
+    status: e2e-covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-2-diagnostics-e2e.txt"
   partial_error_handling:
     status: integration-covered
     evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-3-source-errors.txt"
@@ -120,10 +132,29 @@ mock_fixture_ledger:
     conversion_task: null
     evidence:
       - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-3-source-errors.txt"
+  - id: "mf-phase5-004"
+    name: "diagnostics E2E temp logs/raw/cache fixtures"
+    kind: fixture
+    introduced_by: "Task 2"
+    scope: test-only
+    affected_paths:
+      - "tests/e2e/diagnostics-ui.spec.ts"
+      - "tests/integration/rawTuiLog.test.ts"
+      - "playwright.config.ts"
+    service_wiring_rows:
+      - "structured_diagnostics"
+      - "failed_command_summaries"
+      - "sessions_warning_badges"
+      - "raw_advanced_tail"
+    disposition: test-only
+    acceptable_because: "Generated temp files exercise the real local API, SQLite log store, rollout cache fallback, and raw TUI tail code paths; they are not used by production/dev runtime."
+    conversion_task: null
+    evidence:
+      - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-5/task-2-diagnostics-e2e.txt"
 acceptance:
   status: pending
   packet: "docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-5.md"
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T06:27:37Z"
+updated_at: "2026-05-27T06:46:35Z"

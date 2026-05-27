@@ -11,6 +11,7 @@ import { TokensView } from "./views/TokensView";
 import type {
   AgentGraph,
   ApiError,
+  DiagnosticsSummary,
   HealthStatus,
   SessionFilter,
   SessionSummary,
@@ -44,6 +45,39 @@ export function App() {
   const [tokenSeries, setTokenSeries] = useState<TokenSeries | undefined>(fixture.tokenSeries);
   const [tokenSeriesLoading, setTokenSeriesLoading] = useState(false);
   const [tokenSeriesError, setTokenSeriesError] = useState<ApiError | null>(null);
+  const [sessionDiagnostics, setSessionDiagnostics] = useState<Record<string, DiagnosticsSummary["sessionsWarningBadges"][number]>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
+    if (!realApiClient.getDiagnosticsSummary || sessions.length === 0) {
+      setSessionDiagnostics({});
+      return () => undefined;
+    }
+
+    timeout = setTimeout(() => {
+      void realApiClient
+        .getDiagnosticsSummary?.({ threadIds: sessions.map((session) => session.id), targetLimit: 1 })
+        .then((result) => {
+          if (cancelled || !result?.ok) {
+            return;
+          }
+
+          setSessionDiagnostics(
+            Object.fromEntries(result.data.sessionsWarningBadges.map((badge) => [badge.threadId, badge])),
+          );
+        })
+        .catch(() => undefined);
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      if (timeout) {
+        clearTimeout(timeout);
+      }
+    };
+  }, [sessions]);
 
   useEffect(() => {
     let cancelled = false;
@@ -233,6 +267,7 @@ export function App() {
               isLoading={sessionsLoading}
               error={sessionsError}
               activeSessionId={activeSessionId}
+              diagnosticsByThreadId={sessionDiagnostics}
               onFilterChange={setSessionFilter}
               onSelectSession={selectSession}
             />
@@ -272,7 +307,7 @@ export function App() {
               topSessions={topTokenSessions}
             />
           ) : null}
-          {activeView === "Diagnostics" ? <DiagnosticsView logs={fixture.diagnosticsLogs} /> : null}
+          {activeView === "Diagnostics" ? <DiagnosticsView logs={fixture.diagnosticsLogs} sessions={sessions} /> : null}
         </main>
       </Chrome>
     </>

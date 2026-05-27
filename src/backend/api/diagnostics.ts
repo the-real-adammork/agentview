@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type { CachedToolCall, DiagnosticsSummary, RuntimeLogLevel, RuntimeLogQuery } from "../../shared/contracts";
 import { getRolloutFactsWithCache } from "../cache/rolloutCache";
+import { RawTuiLogError, tailRawTuiLog } from "../diagnostics/rawTuiLog";
 import { resolveCodexHome } from "../codexPaths";
 import { parseRolloutFile } from "../rollout/jsonlStream";
 import { resolveRolloutPath } from "./timeline";
@@ -54,11 +55,48 @@ const parseSummaryQuery = (url: URL) => {
   };
 };
 
+const parseRawTailQuery = (url: URL) => {
+  const fromByte = parseInteger(url.searchParams.get("fromByte"), "fromByte", 0);
+  if (!fromByte.ok) return fromByte;
+
+  const maxBytes = parseInteger(url.searchParams.get("maxBytes"), "maxBytes", 1);
+  if (!maxBytes.ok) return maxBytes;
+
+  return {
+    ok: true as const,
+    fromByte: fromByte.value,
+    maxBytes: maxBytes.value,
+  };
+};
+
 const logStoreStatus = (error: unknown) => {
   if (error instanceof LogStoreError) {
     return error.code === "LOGS_DB_MISSING" || error.code === "SCHEMA_UNSUPPORTED" ? 503 : 400;
   }
   return 500;
+};
+
+const rawTailStatus = (error: unknown) => {
+  if ((error as NodeJS.ErrnoException).code === "ENOENT") return 404;
+  if (error instanceof RawTuiLogError) return 400;
+  return 500;
+};
+
+const writeRawTailError = (response: ServerResponse, origin: string | undefined, error: unknown) => {
+  writeJson(
+    response,
+    rawTailStatus(error),
+    fail("raw-log", {
+      code:
+        error instanceof RawTuiLogError
+          ? error.code
+          : (error as NodeJS.ErrnoException).code === "ENOENT"
+            ? "RAW_TUI_LOG_MISSING"
+            : "RAW_TUI_LOG_UNAVAILABLE",
+      message: error instanceof Error ? error.message : "Unable to read raw TUI log.",
+    }),
+    origin,
+  );
 };
 
 const writeLogStoreError = (response: ServerResponse, origin: string | undefined, error: unknown) => {
@@ -158,7 +196,7 @@ export const handleDiagnosticsApiRequest = async (request: IncomingMessage, resp
   const origin = request.headers.origin;
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
 
-  if (url.pathname !== "/api/logs" && url.pathname !== "/api/diagnostics/summary") {
+  if (url.pathname !== "/api/logs" && url.pathname !== "/api/diagnostics/summary" && url.pathname !== "/api/diagnostics/raw-tail") {
     return false;
   }
 
@@ -201,6 +239,36 @@ export const handleDiagnosticsApiRequest = async (request: IncomingMessage, resp
       }
     } catch (error) {
       writeLogStoreError(response, origin, error);
+      return true;
+    }
+  }
+
+  if (url.pathname === "/api/diagnostics/raw-tail") {
+    const parsed = parseRawTailQuery(url);
+    if (!parsed.ok) {
+      writeJson(
+        response,
+        400,
+        fail("raw-log", {
+          code: "INVALID_RAW_TAIL_FILTER",
+          message: parsed.message,
+        }),
+        origin,
+      );
+      return true;
+    }
+
+    try {
+      const codexHome = await resolveCodexHome();
+      writeJson(
+        response,
+        200,
+        ok("raw-log", await tailRawTuiLog({ codexHome, fromByte: parsed.fromByte, maxBytes: parsed.maxBytes })),
+        origin,
+      );
+      return true;
+    } catch (error) {
+      writeRawTailError(response, origin, error);
       return true;
     }
   }

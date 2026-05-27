@@ -1,5 +1,5 @@
 import { ShortId } from "../components/ShortId";
-import type { ApiError, ArchivedFilter, SessionFilter, SessionSummary, ThreadSource } from "../../shared/contracts";
+import type { ApiError, ArchivedFilter, DiagnosticsSummary, SessionFilter, SessionSummary, ThreadSource } from "../../shared/contracts";
 
 interface SessionsViewProps {
   activeSessionId: string;
@@ -7,6 +7,7 @@ interface SessionsViewProps {
   filter: SessionFilter;
   onFilterChange: (filter: SessionFilter) => void;
   sessions: SessionSummary[];
+  diagnosticsByThreadId: Record<string, DiagnosticsSummary["sessionsWarningBadges"][number]>;
   isLoading: boolean;
   error: ApiError | null;
 }
@@ -26,6 +27,7 @@ export function SessionsView({
   onSelectSession,
   filter,
   sessions,
+  diagnosticsByThreadId,
   isLoading,
   error,
 }: SessionsViewProps) {
@@ -134,44 +136,60 @@ export function SessionsView({
               <th scope="col">Model</th>
               <th scope="col">Tokens</th>
               <th scope="col">Children</th>
+              <th scope="col">Diagnostics</th>
               <th scope="col">Updated</th>
             </tr>
           </thead>
           <tbody>
             {isLoading && sessions.length === 0 ? (
               <tr>
-                <td colSpan={7}>Loading sessions...</td>
+                <td colSpan={8}>Loading sessions...</td>
               </tr>
             ) : null}
             {!isLoading && sessions.length === 0 ? (
               <tr>
-                <td colSpan={7}>No sessions match the current filters.</td>
+                <td colSpan={8}>No sessions match the current filters.</td>
               </tr>
             ) : null}
-            {sessions.map((session) => (
-              <tr
-                aria-current={session.id === activeSessionId ? "true" : undefined}
-                className="session-row"
-                key={session.id}
-                onClick={() => onSelectSession(session.id)}
-                tabIndex={0}
-              >
-                <th scope="row">
-                  <span className="session-title">{session.title}</span>
-                  <ShortId value={session.id} />
-                </th>
-                <td className="badge-cell">{session.archived ? "archived" : session.status}</td>
-                <td>{session.branch || session.gitBranch || "-"}</td>
-                <td>{session.model || "-"}</td>
-                <td className="numeric">{numberFormatter.format(session.tokensUsed ?? session.tokenTotal)}</td>
-                <td className="numeric badge-cell">
-                  {session.openChildCount}/{session.childCount}
-                </td>
-                <td>
-                  <time dateTime={session.updatedAt}>{formatTime(session.updatedAt)}</time>
-                </td>
-              </tr>
-            ))}
+            {sessions.map((session) => {
+              const diagnostics = diagnosticsByThreadId[session.id];
+              return (
+                <tr
+                  aria-current={session.id === activeSessionId ? "true" : undefined}
+                  className="session-row"
+                  key={session.id}
+                  onClick={() => onSelectSession(session.id)}
+                  tabIndex={0}
+                >
+                  <th scope="row">
+                    <span className="session-title">{session.title}</span>
+                    <ShortId value={session.id} />
+                  </th>
+                  <td className="badge-cell">{session.archived ? "archived" : session.status}</td>
+                  <td>{session.branch || session.gitBranch || "-"}</td>
+                  <td>{session.model || "-"}</td>
+                  <td className="numeric">{numberFormatter.format(session.tokensUsed ?? session.tokenTotal)}</td>
+                  <td className="numeric badge-cell">
+                    {session.openChildCount}/{session.childCount}
+                  </td>
+                  <td className="badge-cell">
+                    {diagnostics ? (
+                      <span className="diagnostics-badges">
+                        {diagnostics.warningCount} {diagnostics.warningCount === 1 ? "warning" : "warnings"}
+                        {" / "}
+                        {diagnostics.failedToolCount}{" "}
+                        {diagnostics.failedToolCount === 1 ? "failed command" : "failed commands"}
+                      </span>
+                    ) : (
+                      "-"
+                    )}
+                  </td>
+                  <td>
+                    <time dateTime={session.updatedAt}>{formatTime(session.updatedAt)}</time>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

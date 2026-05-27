@@ -57,3 +57,11 @@ export const resolveCodexSourcePath = async (codexHome: string, sourcePath: stri
 
   return ensureInside(root, resolve(root, sourcePath));
 };
+
+export const resolveCodexRawTuiLogPath = async (codexHome: string) => {
+  const root = await realpath(resolve(codexHome));
+  const candidate = resolve(root, "log/codex-tui.log");
+  const actual = await realpath(candidate);
+
+  return ensureInside(root, actual);
+};

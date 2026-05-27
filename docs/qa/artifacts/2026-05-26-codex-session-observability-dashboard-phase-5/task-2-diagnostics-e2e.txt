@@ -1,0 +1,28 @@
+
+> agentview@0.1.0 e2e
+> playwright test --grep @diagnostics
+
+(node:52676) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m(node:52704) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m(node:52705) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m(node:52705) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+[2m[WebServer] [22m(node:52763) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 5 tests using 1 worker
+
+(node:52765) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:52765) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:52765) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+  ✓  1 tests/e2e/diagnostics-ui.spec.ts:137:3 › Diagnostics UI @diagnostics › filters structured diagnostics by level, target, and scope against local API logs (255ms)
+  ✓  2 tests/e2e/diagnostics-ui.spec.ts:187:3 › Diagnostics UI @diagnostics › renders failed-command summaries and uses loudest-target links to filter logs (203ms)
+  ✓  3 tests/e2e/diagnostics-ui.spec.ts:223:3 › Diagnostics UI @diagnostics › shows rollout-cache failed-command fallback when logs_2.sqlite is missing (168ms)
+  ✓  4 tests/e2e/diagnostics-ui.spec.ts:246:3 › Diagnostics UI @diagnostics › hydrates Sessions warning badges after first paint without blocking rows (163ms)
+  ✓  5 tests/e2e/diagnostics-ui.spec.ts:294:3 › Diagnostics UI @diagnostics › keeps raw TUI tail hidden until advanced reveal, redacts previews, and appends from next offset (277ms)
+
+  5 passed (2.1s)

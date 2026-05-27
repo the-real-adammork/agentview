@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -13,10 +13,16 @@ const apiBaseUrl = `http://127.0.0.1:${apiPort}`;
 process.env.AGENTVIEW_API_BASE_URL = apiBaseUrl;
 
 const createE2eCodexHome = () => {
-  const codexHome = mkdtempSync(join(tmpdir(), "agentview-e2e-codex-home-"));
+  const codexHome = join(tmpdir(), `agentview-e2e-codex-home-${appPort}-${apiPort}`);
+  const stateDbPath = join(codexHome, "state_5.sqlite");
+
+  if (existsSync(stateDbPath)) {
+    return codexHome;
+  }
+
   const sessionsDir = join(codexHome, "sessions");
   mkdirSync(sessionsDir, { recursive: true });
-  const db = new DatabaseSync(join(codexHome, "state_5.sqlite"));
+  const db = new DatabaseSync(stateDbPath);
 
   db.exec(`
     CREATE TABLE threads (
@@ -167,6 +173,7 @@ const createE2eCodexHome = () => {
 };
 
 const codexHome = process.env.CODEX_HOME ?? createE2eCodexHome();
+process.env.CODEX_HOME = codexHome;
 process.env.AGENTVIEW_E2E_CODEX_HOME = codexHome;
 const quotedCodexHome = JSON.stringify(codexHome);
 

@@ -14,6 +14,7 @@ import type {
   RuntimeLog,
   RuntimeLogPage,
   RuntimeLogQuery,
+  RawTuiLogTail,
   SessionFilter,
   SessionSummary,
   TimelineEvent,
@@ -201,10 +202,19 @@ export const realApiClient: ObservatoryApi = {
   getDiagnosticsSummary(options) {
     const params = new URLSearchParams();
     for (const threadId of options?.threadIds ?? []) {
-      appendParam(params, "threadId", threadId);
+      if (threadId.trim()) {
+        params.append("threadId", threadId);
+      }
     }
     appendParam(params, "targetLimit", options?.targetLimit);
     const queryString = params.toString();
     return getJson(`/api/diagnostics/summary${queryString ? `?${queryString}` : ""}`);
+  },
+  tailRawTuiLog(options) {
+    const params = new URLSearchParams();
+    appendParam(params, "fromByte", options?.fromByte);
+    appendParam(params, "maxBytes", options?.maxBytes);
+    const queryString = params.toString();
+    return getJson<RawTuiLogTail>(`/api/diagnostics/raw-tail${queryString ? `?${queryString}` : ""}`);
   },
 };
