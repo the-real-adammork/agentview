@@ -20,7 +20,7 @@ const LONG_OPAQUE = /\b[0-9a-fA-F]{32,}\b/g;
 export function maskPreviewSecrets(text: string, options: { includeMetadata: true }): RedactionResult;
 export function maskPreviewSecrets(text: string, options?: RedactionOptions): string;
 export function maskPreviewSecrets(text: string, options?: RedactionOptions): string | RedactionResult {
-  let masked = text
+  const masked = text
     .replace(CREDENTIALED_URL, `$1${REDACTED}@`)
     .replace(BEARER_HEADER, `$1${REDACTED}`)
     .replace(SECRET_ASSIGNMENT, `$1=${REDACTED}`)

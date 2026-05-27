@@ -1,5 +1,5 @@
 phase: "2026-05-26-codex-session-observability-dashboard-phase-1"
-status: running
+status: complete
 plan: "docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixture-shell.md"
 branch: "impl/phase-1-fixture-shell"
 worktree: "."
@@ -70,9 +70,27 @@ tasks:
         artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-4-integration-e2e.txt"
   "5":
     title: "Integrate Phase 1 Acceptance Packet"
-    status: not_started
+    status: done
     lane: "phase-owner"
-    verification: []
+    verification:
+      - command: "npm run typecheck"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/phase-1-acceptance-typecheck.txt"
+      - command: "npm run test -- --run"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/phase-1-acceptance-test.txt"
+      - command: "npm run lint"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/phase-1-acceptance-lint.txt"
+      - command: "npm run tokens:check"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/phase-1-acceptance-tokens-check.txt"
+      - command: "npm run e2e"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/phase-1-acceptance-e2e.txt"
+      - command: "rg -n --hidden --glob '!node_modules' --glob '!.git' --glob '!docs/qa/artifacts/**' --glob '!docs/implementation-runs/**' 'mock|fixture|fake|stub|noop|no-op|placeholder|TODO.*real|temporary.*fake|fixture-only|disabled network' ."
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/mock-fixture-audit.txt"
 service_wiring:
   app_health:
     status: covered
@@ -87,9 +105,28 @@ service_wiring:
     status: covered
     evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-3-integration-tokens-check.txt"
 acceptance:
-  status: pending
+  status: passed
   packet: "docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-1.md"
-  commands: []
+  commands:
+    - command: "npm run typecheck"
+      result: pass
+      artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/phase-1-acceptance-typecheck.txt"
+    - command: "npm run test -- --run"
+      result: pass
+      artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/phase-1-acceptance-test.txt"
+    - command: "npm run lint"
+      result: pass
+      artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/phase-1-acceptance-lint.txt"
+    - command: "npm run tokens:check"
+      result: pass
+      artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/phase-1-acceptance-tokens-check.txt"
+    - command: "npm run e2e"
+      result: pass
+      artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/phase-1-acceptance-e2e.txt"
+    - command: "rg -n --hidden --glob '!node_modules' --glob '!.git' --glob '!docs/qa/artifacts/**' --glob '!docs/implementation-runs/**' 'mock|fixture|fake|stub|noop|no-op|placeholder|TODO.*real|temporary.*fake|fixture-only|disabled network' ."
+      result: pass
+      artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/mock-fixture-audit.txt"
+  mock_fixture_ledger_status: reconciled
 mock_fixture_ledger:
   - id: "mf-phase1-001"
     name: "observatory typed fixture data"
@@ -123,4 +160,5 @@ mock_fixture_ledger:
       - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-4-integration-e2e.txt"
 lessons: []
 blockers: []
-updated_at: "2026-05-27T03:14:42Z"
+completed_at: "2026-05-27T03:20:15Z"
+updated_at: "2026-05-27T03:20:15Z"
