@@ -1,0 +1,78 @@
+status: complete
+task: "Phase 2 Task 2: Wire Health, Sessions, And Thread API Routes"
+changed_files:
+  - src/backend/api/health.ts
+  - src/backend/api/http.ts
+  - src/backend/api/sessions.ts
+  - src/backend/server.ts
+  - src/backend/sqlite/stateStore.ts
+  - src/shared/contracts.ts
+  - docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt
+  - docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/sessions-api-implementation-20260527T043105Z.yaml
+commands:
+  - command: "npm run test -- --run tests/integration/sessionsApi.test.ts"
+    result: pass
+    artifact: docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt
+    summary: "Vitest ran tests/integration/sessionsApi.test.ts: 8 tests passed; Node emitted the expected experimental node:sqlite warning."
+  - command: "npm run typecheck"
+    result: pass
+    artifact: docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt
+    summary: "tsc --noEmit passed for tsconfig.json and tsconfig.node.json."
+service_wiring_rows:
+  - "Health and source availability"
+  - "Sessions first paint"
+  - "Session lookup"
+  - "Filter composition"
+real_dependencies:
+  - name: "state_5.sqlite"
+    kind: "read-only SQLite database"
+    scope: "health, sessions list, and thread lookup API routes"
+    evidence_path: docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt
+  - name: "local API server"
+    kind: "HTTP process"
+    scope: "integration tests start npm run api on a loopback port"
+    evidence_path: docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt
+mocks_or_fixtures:
+  - name: "temporary Codex state DB fixture"
+    kind: "fixture"
+    scope: "integration tests only"
+    affected_paths:
+      - tests/integration/sessionsApi.test.ts
+    service_wiring_rows:
+      - "Health and source availability"
+      - "Sessions first paint"
+      - "Session lookup"
+      - "Filter composition"
+    disposition: "keep_for_tests"
+    acceptable_reason: "Provides deterministic local CODEX_HOME/state_5.sqlite coverage without reading private user data."
+    conversion_task: null
+    evidence_path: docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt
+  - name: "unsupported state DB schema fixture"
+    kind: "fixture"
+    scope: "integration tests only"
+    affected_paths:
+      - tests/integration/sessionsApi.test.ts
+    service_wiring_rows:
+      - "Health and source availability"
+    disposition: "keep_for_tests"
+    acceptable_reason: "Exercises the real schema validation error path deterministically."
+    conversion_task: null
+    evidence_path: docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt
+  - name: "JSONL read trap preloader"
+    kind: "test instrumentation"
+    scope: "integration tests only"
+    affected_paths:
+      - tests/integration/sessionsApi.test.ts
+    service_wiring_rows:
+      - "Sessions first paint"
+    disposition: "keep_for_tests"
+    acceptable_reason: "Fails the approved first-paint test if the sessions list reads rollout JSONL instead of state_5.sqlite."
+    conversion_task: null
+    evidence_path: docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt
+residual_risks:
+  - "This worker did not validate against private real ~/.codex data."
+  - "Warning and failed-tool count values remain status placeholders until later source wiring."
+review_status: not_reviewed
+plan_updates_recommended: []
+blockers: []
+lesson_candidate: null

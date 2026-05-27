@@ -29,6 +29,7 @@ export interface StateStoreHealth {
 export interface StateStore {
   getHealth(): Promise<StateStoreHealth>;
   listSessions(filter?: SessionFilter, page?: PageOptions): Promise<SessionSummary[]>;
+  getThread(threadId: string): Promise<SessionSummary | null>;
   close(): Promise<void>;
 }
 
@@ -184,6 +185,41 @@ const validateSchema = (db: DatabaseSync) => {
   return tables;
 };
 
+const selectThreadSql = `
+  SELECT
+    t.id,
+    t.rollout_path,
+    t.created_at,
+    t.updated_at,
+    t.cwd,
+    t.title,
+    t.tokens_used,
+    t.archived,
+    t.git_sha,
+    t.git_branch,
+    t.git_origin_url,
+    t.first_user_message,
+    t.agent_nickname,
+    t.agent_role,
+    t.model,
+    t.reasoning_effort,
+    t.created_at_ms,
+    t.updated_at_ms,
+    t.thread_source,
+    t.preview,
+    COALESCE(edge_counts.child_count, 0) AS child_count,
+    COALESCE(edge_counts.open_child_count, 0) AS open_child_count
+  FROM threads t
+  LEFT JOIN (
+    SELECT
+      parent_thread_id,
+      COUNT(*) AS child_count,
+      SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) AS open_child_count
+    FROM thread_spawn_edges
+    GROUP BY parent_thread_id
+  ) edge_counts ON edge_counts.parent_thread_id = t.id
+`;
+
 export const openStateStore = async ({ codexHome }: { codexHome: string }): Promise<StateStore> => {
   const stateDbPath = join(codexHome, "state_5.sqlite");
 
@@ -239,6 +275,59 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
         parameters.cwd = filter.cwd;
       }
 
+      if (filter.threadSource) {
+        conditions.push("t.thread_source = :threadSource");
+        parameters.threadSource = filter.threadSource;
+      }
+
+      if (filter.agentRole) {
+        conditions.push("t.agent_role = :agentRole");
+        parameters.agentRole = filter.agentRole;
+      }
+
+      if (filter.model) {
+        conditions.push("t.model = :model");
+        parameters.model = filter.model;
+      }
+
+      if (filter.minTokens !== undefined) {
+        conditions.push("t.tokens_used >= :minTokens");
+        parameters.minTokens = filter.minTokens;
+      }
+
+      if (filter.maxTokens !== undefined) {
+        conditions.push("t.tokens_used <= :maxTokens");
+        parameters.maxTokens = filter.maxTokens;
+      }
+
+      if (filter.warningCountStatus && filter.warningCountStatus !== "not_requested") {
+        conditions.push("1 = 0");
+      }
+
+      if (filter.failedToolCountStatus && filter.failedToolCountStatus !== "unknown") {
+        conditions.push("1 = 0");
+      }
+
+      if (filter.updatedAfterMs !== undefined) {
+        conditions.push("COALESCE(t.updated_at_ms, t.updated_at * 1000) >= :updatedAfterMs");
+        parameters.updatedAfterMs = filter.updatedAfterMs;
+      }
+
+      if (filter.updatedBeforeMs !== undefined) {
+        conditions.push("COALESCE(t.updated_at_ms, t.updated_at * 1000) <= :updatedBeforeMs");
+        parameters.updatedBeforeMs = filter.updatedBeforeMs;
+      }
+
+      if (filter.createdAfterMs !== undefined) {
+        conditions.push("COALESCE(t.created_at_ms, t.created_at * 1000) >= :createdAfterMs");
+        parameters.createdAfterMs = filter.createdAfterMs;
+      }
+
+      if (filter.createdBeforeMs !== undefined) {
+        conditions.push("COALESCE(t.created_at_ms, t.created_at * 1000) <= :createdBeforeMs");
+        parameters.createdBeforeMs = filter.createdBeforeMs;
+      }
+
       if (filter.search?.trim()) {
         conditions.push(
           "(t.title LIKE :search OR t.first_user_message LIKE :search OR t.preview LIKE :search OR t.id LIKE :search)",
@@ -249,38 +338,7 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
       const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
       const rows = db
         .prepare(`
-          SELECT
-            t.id,
-            t.rollout_path,
-            t.created_at,
-            t.updated_at,
-            t.cwd,
-            t.title,
-            t.tokens_used,
-            t.archived,
-            t.git_sha,
-            t.git_branch,
-            t.git_origin_url,
-            t.first_user_message,
-            t.agent_nickname,
-            t.agent_role,
-            t.model,
-            t.reasoning_effort,
-            t.created_at_ms,
-            t.updated_at_ms,
-            t.thread_source,
-            t.preview,
-            COALESCE(edge_counts.child_count, 0) AS child_count,
-            COALESCE(edge_counts.open_child_count, 0) AS open_child_count
-          FROM threads t
-          LEFT JOIN (
-            SELECT
-              parent_thread_id,
-              COUNT(*) AS child_count,
-              SUM(CASE WHEN status = 'open' THEN 1 ELSE 0 END) AS open_child_count
-            FROM thread_spawn_edges
-            GROUP BY parent_thread_id
-          ) edge_counts ON edge_counts.parent_thread_id = t.id
+          ${selectThreadSql}
           ${where}
           ORDER BY COALESCE(t.updated_at_ms, t.updated_at * 1000) DESC, t.id DESC
           LIMIT :limit OFFSET :offset
@@ -288,6 +346,16 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
         .all(parameters) as unknown as ThreadRow[];
 
       return rows.map(normalizeThread);
+    },
+    async getThread(threadId) {
+      const row = db
+        .prepare(`
+          ${selectThreadSql}
+          WHERE t.id = :threadId
+        `)
+        .get({ threadId }) as unknown as ThreadRow | undefined;
+
+      return row ? normalizeThread(row) : null;
     },
     async close() {
       db.close();

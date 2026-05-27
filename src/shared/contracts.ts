@@ -23,19 +23,36 @@ export interface ApiError {
 export type SessionStatus = "running" | "complete" | "failed" | "paused";
 
 export interface HealthStatus {
-  status: "ok";
+  status: "ok" | "unavailable";
   mode: "fixture" | "real";
   checkedAt: string;
+  stateDb?: {
+    readOnly: boolean;
+    supported: boolean;
+    tables: string[];
+  };
 }
 
 export type ThreadSource = "user" | "subagent";
 export type CountStatus = "not_requested" | "loading" | "ready" | "unavailable";
 export type FailedToolCountStatus = CountStatus | "unknown";
+export type ArchivedFilter = "include" | "exclude" | "only";
 
 export interface SessionFilter {
   search?: string;
   cwd?: string;
-  archived?: "include" | "exclude" | "only";
+  archived?: ArchivedFilter;
+  threadSource?: ThreadSource;
+  agentRole?: string;
+  model?: string;
+  minTokens?: number;
+  maxTokens?: number;
+  warningCountStatus?: CountStatus;
+  failedToolCountStatus?: FailedToolCountStatus;
+  updatedAfterMs?: number;
+  updatedBeforeMs?: number;
+  createdAfterMs?: number;
+  createdBeforeMs?: number;
 }
 
 export interface PageOptions {
@@ -191,7 +208,8 @@ export interface RuntimeLog {
 
 export interface ObservatoryApi {
   getHealth(): Promise<ApiResult<HealthStatus>>;
-  listSessions(): Promise<ApiResult<SessionSummary[]>>;
+  listSessions(filter?: SessionFilter, page?: PageOptions): Promise<ApiResult<SessionSummary[]>>;
+  getThread?(threadId: string): Promise<ApiResult<SessionSummary>>;
   getTimeline(threadId: string): Promise<ApiResult<TimelineEvent[]>>;
   getAgentGraph(rootThreadId: string): Promise<ApiResult<AgentGraph>>;
   getTokenSeries(threadId: string): Promise<ApiResult<TokenSeries>>;
