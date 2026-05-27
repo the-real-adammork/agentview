@@ -1,0 +1,725 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/unit/graphTokenComponents.test.tsx
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-phase-4-graph-tokens
+
+ ❯ tests/unit/graphTokenComponents.test.tsx (2 tests | 2 failed) 49ms
+   × graph and token views > renders graph nodes with inspector controls and navigates selected nodes to Timeline 43ms
+     → Unable to find an accessible element with the role "list" and name `/agent graph nodes/i`
+
+Here are the accessible roles:
+
+  region:
+
+  Name "Agent Graph":
+  [36m<section[39m
+    [33maria-labelledby[39m=[32m"agent-graph-title"[39m
+    [33mclass[39m=[32m"panel"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  paragraph:
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"panel__eyebrow"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  heading:
+
+  Name "Agent Graph":
+  [36m<h1[39m
+    [33mid[39m=[32m"agent-graph-title"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  strong:
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  --------------------------------------------------
+  list:
+
+  Name "Agent nodes":
+  [36m<ul[39m
+    [33maria-label[39m=[32m"Agent nodes"[39m
+    [33mclass[39m=[32m"node-list"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  listitem:
+
+  Name "":
+  [36m<li[39m
+    [33mclass[39m=[32m"node-list__item"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<li[39m
+    [33mclass[39m=[32m"node-list__item"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<li[39m
+    [33mclass[39m=[32m"node-list__item"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<li[39m
+    [33mclass[39m=[32m"node-list__item"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-labelledby[39m=[32m"agent-graph-title"[39m
+      [33mclass[39m=[32m"panel"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"panel__header"[39m
+      [36m>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"panel__eyebrow"[39m
+        [36m>[39m
+          [0mFixture hierarchy[0m
+        [36m</p>[39m
+        [36m<h1[39m
+          [33mid[39m=[32m"agent-graph-title"[39m
+        [36m>[39m
+          [0mAgent Graph[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"panel__body"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"metric-row"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"metric"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mOpen children [0m
+              [0m1[0m
+            [36m</span>[39m
+            [36m<strong>[39m
+              [0m1[0m
+            [36m</strong>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"metric"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mMax depth[0m
+            [36m</span>[39m
+            [36m<strong>[39m
+              [0m2[0m
+            [36m</strong>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<ul[39m
+          [33maria-label[39m=[32m"Agent nodes"[39m
+          [33mclass[39m=[32m"node-list"[39m
+        [36m>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"node-list__item"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"node-list__depth"[39m
+            [36m>[39m
+              [0mdepth [0m
+              [0m0[0m
+            [36m</span>[39m
+            [36m<strong>[39m
+              [0mBuild observatory dashboard for ~/.codex with agent graph[0m
+            [36m</strong>[39m
+            [36m<span>[39m
+              [0mrunning[0m
+              [0m / [0m
+              [0m184,312[0m
+              [0m tokens[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"node-list__item"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"node-list__depth"[39m
+            [36m>[39m
+              [0mdepth [0m
+              [0m1[0m
+            [36m</span>[39m
+            [36m<strong>[39m
+              [0mAudit logs_2 noisy targets[0m
+            [36m</strong>[39m
+            [36m<span>[39m
+              [0mcomplete[0m
+              [0m / [0m
+              [0m24,680[0m
+              [0m tokens[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"node-list__item"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"node-list__depth"[39m
+            [36m>[39m
+              [0mdepth [0m
+              [0m1[0m
+            [36m</span>[39m
+            [36m<strong>[39m
+              [0mDraft the session timeline view[0m
+            [36m</strong>[39m
+            [36m<span>[39m
+              [0mrunning[0m
+              [0m / [0m
+              [0m41,820[0m
+              [0m tokens[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"node-list__item"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"node-list__depth"[39m
+            [36m>[39m
+              [0mdepth [0m
+              [0m2[0m
+            [36m</span>[39m
+            [36m<strong>[39m
+              [0mRank warning targets for diagnostics[0m
+            [36m</strong>[39m
+            [36m<span>[39m
+              [0mcomplete[0m
+              [0m / [0m
+              [0m9,900[0m
+              [0m tokens[0m
+            [36m</span>[39m
+          [36m</li>[39m
+        [36m</ul>[39m
+      [36m</div>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+   × graph and token views > renders token aggregates, rate meters, empty-state reasons, and top-session drill-down 6ms
+     → Unable to find a label with the text of: /cached input ratio/i
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-labelledby[39m=[32m"tokens-title"[39m
+      [33mclass[39m=[32m"panel"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"panel__header"[39m
+      [36m>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"panel__eyebrow"[39m
+        [36m>[39m
+          [0mFixture token series[0m
+        [36m</p>[39m
+        [36m<h1[39m
+          [33mid[39m=[32m"tokens-title"[39m
+        [36m>[39m
+          [0mTokens[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"panel__body"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"metric-row"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"metric"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mTotal[0m
+            [36m</span>[39m
+            [36m<strong>[39m
+              [0m84,200[0m
+            [36m</strong>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"metric"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mCached input [0m
+              [0m5,400[0m
+            [36m</span>[39m
+            [36m<strong>[39m
+              [0m5,400[0m
+            [36m</strong>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"metric"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mOutput[0m
+            [36m</span>[39m
+            [36m<strong>[39m
+              [0m11,000[0m
+            [36m</strong>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<ol[39m
+          [33maria-label[39m=[32m"Token snapshots"[39m
+          [33mclass[39m=[32m"snapshot-list"[39m
+        [36m>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"snapshot-list__item"[39m
+          [36m>[39m
+            [36m<time[39m
+              [33mdatetime[39m=[32m"2026-05-26T18:00:13.200Z"[39m
+            [36m>[39m
+              [0m1:00:13 PM[0m
+            [36m</time>[39m
+            [36m<span>[39m
+              [0m8,420[0m
+              [0m total[0m
+            [36m</span>[39m
+            [36m<span>[39m
+              [0m4.1[0m
+              [0m% context[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"snapshot-list__item"[39m
+          [36m>[39m
+            [36m<time[39m
+              [33mdatetime[39m=[32m"2026-05-26T18:01:15.200Z"[39m
+            [36m>[39m
+              [0m1:01:15 PM[0m
+            [36m</time>[39m
+            [36m<span>[39m
+              [0m31,200[0m
+              [0m total[0m
+            [36m</span>[39m
+            [36m<span>[39m
+              [0m15.2[0m
+              [0m% context[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"snapshot-list__item"[39m
+          [36m>[39m
+            [36m<time[39m
+              [33mdatetime[39m=[32m"2026-05-26T18:02:30.000Z"[39m
+            [36m>[39m
+              [0m1:02:30 PM[0m
+            [36m</time>[39m
+            [36m<span>[39m
+              [0m84,200[0m
+              [0m total[0m
+            [36m</span>[39m
+            [36m<span>[39m
+              [0m38.1[0m
+              [0m% context[0m
+            [36m</span>[39m
+          [36m</li>[39m
+        [36m</ol>[39m
+      [36m</div>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/graphTokenComponents.test.tsx > graph and token views > renders graph nodes with inspector controls and navigates selected nodes to Timeline
+TestingLibraryElementError: Unable to find an accessible element with the role "list" and name `/agent graph nodes/i`
+
+Here are the accessible roles:
+
+  region:
+
+  Name "Agent Graph":
+  [36m<section[39m
+    [33maria-labelledby[39m=[32m"agent-graph-title"[39m
+    [33mclass[39m=[32m"panel"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  paragraph:
+
+  Name "":
+  [36m<p[39m
+    [33mclass[39m=[32m"panel__eyebrow"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  heading:
+
+  Name "Agent Graph":
+  [36m<h1[39m
+    [33mid[39m=[32m"agent-graph-title"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  strong:
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  Name "":
+  [36m<strong />[39m
+
+  --------------------------------------------------
+  list:
+
+  Name "Agent nodes":
+  [36m<ul[39m
+    [33maria-label[39m=[32m"Agent nodes"[39m
+    [33mclass[39m=[32m"node-list"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+  listitem:
+
+  Name "":
+  [36m<li[39m
+    [33mclass[39m=[32m"node-list__item"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<li[39m
+    [33mclass[39m=[32m"node-list__item"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<li[39m
+    [33mclass[39m=[32m"node-list__item"[39m
+  [36m/>[39m
+
+  Name "":
+  [36m<li[39m
+    [33mclass[39m=[32m"node-list__item"[39m
+  [36m/>[39m
+
+  --------------------------------------------------
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-labelledby[39m=[32m"agent-graph-title"[39m
+      [33mclass[39m=[32m"panel"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"panel__header"[39m
+      [36m>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"panel__eyebrow"[39m
+        [36m>[39m
+          [0mFixture hierarchy[0m
+        [36m</p>[39m
+        [36m<h1[39m
+          [33mid[39m=[32m"agent-graph-title"[39m
+        [36m>[39m
+          [0mAgent Graph[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"panel__body"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"metric-row"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"metric"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mOpen children [0m
+              [0m1[0m
+            [36m</span>[39m
+            [36m<strong>[39m
+              [0m1[0m
+            [36m</strong>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"metric"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mMax depth[0m
+            [36m</span>[39m
+            [36m<strong>[39m
+              [0m2[0m
+            [36m</strong>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<ul[39m
+          [33maria-label[39m=[32m"Agent nodes"[39m
+          [33mclass[39m=[32m"node-list"[39m
+        [36m>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"node-list__item"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"node-list__depth"[39m
+            [36m>[39m
+              [0mdepth [0m
+              [0m0[0m
+            [36m</span>[39m
+            [36m<strong>[39m
+              [0mBuild observatory dashboard for ~/.codex with agent graph[0m
+            [36m</strong>[39m
+            [36m<span>[39m
+              [0mrunning[0m
+              [0m / [0m
+              [0m184,312[0m
+              [0m tokens[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"node-list__item"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"node-list__depth"[39m
+            [36m>[39m
+              [0mdepth [0m
+              [0m1[0m
+            [36m</span>[39m
+            [36m<strong>[39m
+              [0mAudit logs_2 noisy targets[0m
+            [36m</strong>[39m
+            [36m<span>[39m
+              [0mcomplete[0m
+              [0m / [0m
+              [0m24,680[0m
+              [0m tokens[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"node-list__item"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"node-list__depth"[39m
+            [36m>[39m
+              [0mdepth [0m
+              [0m1[0m
+            [36m</span>[39m
+            [36m<strong>[39m
+              [0mDraft the session timeline view[0m
+            [36m</strong>[39m
+            [36m<span>[39m
+              [0mrunning[0m
+              [0m / [0m
+              [0m41,820[0m
+              [0m tokens[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"node-list__item"[39m
+          [36m>[39m
+            [36m<span[39m
+              [33mclass[39m=[32m"node-list__depth"[39m
+            [36m>[39m
+              [0mdepth [0m
+              [0m2[0m
+            [36m</span>[39m
+            [36m<strong>[39m
+              [0mRank warning targets for diagnostics[0m
+            [36m</strong>[39m
+            [36m<span>[39m
+              [0mcomplete[0m
+              [0m / [0m
+              [0m9,900[0m
+              [0m tokens[0m
+            [36m</span>[39m
+          [36m</li>[39m
+        [36m</ul>[39m
+      [36m</div>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ tests/unit/graphTokenComponents.test.tsx:28:32
+     26|     );
+     27| 
+     28|     const graphRegion = screen.getByRole("list", { name: /agent graph …
+       |                                ^
+     29|     expect(within(graphRegion).getByRole("button", { name: /audit logs…
+     30| 
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/unit/graphTokenComponents.test.tsx > graph and token views > renders token aggregates, rate meters, empty-state reasons, and top-session drill-down
+TestingLibraryElementError: Unable to find a label with the text of: /cached input ratio/i
+
+Ignored nodes: comments, script, style
+[36m<body>[39m
+  [36m<div>[39m
+    [36m<section[39m
+      [33maria-labelledby[39m=[32m"tokens-title"[39m
+      [33mclass[39m=[32m"panel"[39m
+    [36m>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"panel__header"[39m
+      [36m>[39m
+        [36m<p[39m
+          [33mclass[39m=[32m"panel__eyebrow"[39m
+        [36m>[39m
+          [0mFixture token series[0m
+        [36m</p>[39m
+        [36m<h1[39m
+          [33mid[39m=[32m"tokens-title"[39m
+        [36m>[39m
+          [0mTokens[0m
+        [36m</h1>[39m
+      [36m</div>[39m
+      [36m<div[39m
+        [33mclass[39m=[32m"panel__body"[39m
+      [36m>[39m
+        [36m<div[39m
+          [33mclass[39m=[32m"metric-row"[39m
+        [36m>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"metric"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mTotal[0m
+            [36m</span>[39m
+            [36m<strong>[39m
+              [0m84,200[0m
+            [36m</strong>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"metric"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mCached input [0m
+              [0m5,400[0m
+            [36m</span>[39m
+            [36m<strong>[39m
+              [0m5,400[0m
+            [36m</strong>[39m
+          [36m</div>[39m
+          [36m<div[39m
+            [33mclass[39m=[32m"metric"[39m
+          [36m>[39m
+            [36m<span>[39m
+              [0mOutput[0m
+            [36m</span>[39m
+            [36m<strong>[39m
+              [0m11,000[0m
+            [36m</strong>[39m
+          [36m</div>[39m
+        [36m</div>[39m
+        [36m<ol[39m
+          [33maria-label[39m=[32m"Token snapshots"[39m
+          [33mclass[39m=[32m"snapshot-list"[39m
+        [36m>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"snapshot-list__item"[39m
+          [36m>[39m
+            [36m<time[39m
+              [33mdatetime[39m=[32m"2026-05-26T18:00:13.200Z"[39m
+            [36m>[39m
+              [0m1:00:13 PM[0m
+            [36m</time>[39m
+            [36m<span>[39m
+              [0m8,420[0m
+              [0m total[0m
+            [36m</span>[39m
+            [36m<span>[39m
+              [0m4.1[0m
+              [0m% context[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"snapshot-list__item"[39m
+          [36m>[39m
+            [36m<time[39m
+              [33mdatetime[39m=[32m"2026-05-26T18:01:15.200Z"[39m
+            [36m>[39m
+              [0m1:01:15 PM[0m
+            [36m</time>[39m
+            [36m<span>[39m
+              [0m31,200[0m
+              [0m total[0m
+            [36m</span>[39m
+            [36m<span>[39m
+              [0m15.2[0m
+              [0m% context[0m
+            [36m</span>[39m
+          [36m</li>[39m
+          [36m<li[39m
+            [33mclass[39m=[32m"snapshot-list__item"[39m
+          [36m>[39m
+            [36m<time[39m
+              [33mdatetime[39m=[32m"2026-05-26T18:02:30.000Z"[39m
+            [36m>[39m
+              [0m1:02:30 PM[0m
+            [36m</time>[39m
+            [36m<span>[39m
+              [0m84,200[0m
+              [0m total[0m
+            [36m</span>[39m
+            [36m<span>[39m
+              [0m38.1[0m
+              [0m% context[0m
+            [36m</span>[39m
+          [36m</li>[39m
+        [36m</ol>[39m
+      [36m</div>[39m
+    [36m</section>[39m
+  [36m</div>[39m
+[36m</body>[39m
+ ❯ Object.getElementError node_modules/@testing-library/dom/dist/config.js:37:19
+ ❯ getAllByLabelText node_modules/@testing-library/dom/dist/queries/label-text.js:111:38
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+ ❯ node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+ ❯ tests/unit/graphTokenComponents.test.tsx:57:19
+     55| 
+     56|     expect(screen.getByRole("heading", { name: /tokens/i })).toBeVisib…
+     57|     expect(screen.getByLabelText(/cached input ratio/i)).toHaveTextCon…
+       |                   ^
+     58|     expect(screen.getByRole("meter", { name: /primary rate limit/i }))…
+     59|     expect(screen.getByRole("table", { name: /top token sessions/i }))…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  00:57:51
+   Duration  374ms (transform 25ms, setup 0ms, collect 70ms, tests 49ms, environment 109ms, prepare 26ms)
+

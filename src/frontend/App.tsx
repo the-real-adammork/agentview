@@ -8,7 +8,15 @@ import { DiagnosticsView } from "./views/DiagnosticsView";
 import { SessionsView } from "./views/SessionsView";
 import { TimelineView } from "./views/TimelineView";
 import { TokensView } from "./views/TokensView";
-import type { ApiError, HealthStatus, SessionFilter, SessionSummary, TimelinePayload } from "../shared/contracts";
+import type {
+  AgentGraph,
+  ApiError,
+  HealthStatus,
+  SessionFilter,
+  SessionSummary,
+  TimelinePayload,
+  TokenSeries,
+} from "../shared/contracts";
 
 const stylesheetHref = new URL("./styles/app.css", import.meta.url).href;
 
@@ -29,6 +37,13 @@ export function App() {
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineError, setTimelineError] = useState<ApiError | null>(null);
   const [timelineKind, setTimelineKind] = useState("all");
+  const [agentGraph, setAgentGraph] = useState<AgentGraph | undefined>(fixture.agentGraph);
+  const [agentGraphLoading, setAgentGraphLoading] = useState(false);
+  const [agentGraphError, setAgentGraphError] = useState<ApiError | null>(null);
+  const [graphMaxDepth, setGraphMaxDepth] = useState(1);
+  const [tokenSeries, setTokenSeries] = useState<TokenSeries | undefined>(fixture.tokenSeries);
+  const [tokenSeriesLoading, setTokenSeriesLoading] = useState(false);
+  const [tokenSeriesError, setTokenSeriesError] = useState<ApiError | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,6 +98,17 @@ export function App() {
   }, [sessionFilter]);
 
   const activeSession = sessions.find((session) => session.id === activeSessionId) ?? sessions[0] ?? fixture.sessions[0];
+  const topTokenSessions = useMemo(
+    () => [...sessions].sort((left, right) => (right.tokensUsed ?? right.tokenTotal) - (left.tokensUsed ?? left.tokenTotal)),
+    [sessions],
+  );
+
+  const selectSession = useCallback((sessionId: string, view?: ObservatoryView) => {
+    setActiveSessionId(sessionId);
+    if (view) {
+      setActiveView(view);
+    }
+  }, []);
 
   const loadTimeline = useCallback((fromByte?: number) => {
     if (!activeSession?.id) return;
@@ -119,6 +145,62 @@ export function App() {
     loadTimeline();
   }, [activeView, activeSession?.id, loadTimeline]);
 
+  const loadAgentGraph = useCallback(() => {
+    if (!activeSession?.id) return;
+
+    setAgentGraphLoading(true);
+    setAgentGraphError(null);
+    realApiClient
+      .getAgentGraph(activeSession.id, { maxDepth: graphMaxDepth })
+      .then((result) => {
+        if (result.ok) {
+          setAgentGraph(result.data);
+        } else {
+          setAgentGraphError(result.error);
+        }
+      })
+      .catch((error: unknown) => {
+        setAgentGraphError({
+          code: "NETWORK_ERROR",
+          message: error instanceof Error ? error.message : "Unable to load agent graph.",
+        });
+      })
+      .finally(() => setAgentGraphLoading(false));
+  }, [activeSession?.id, graphMaxDepth]);
+
+  useEffect(() => {
+    if (activeView !== "Agent Graph") return;
+    loadAgentGraph();
+  }, [activeView, activeSession?.id, graphMaxDepth, loadAgentGraph]);
+
+  const loadTokenSeries = useCallback(() => {
+    if (!activeSession?.id) return;
+
+    setTokenSeriesLoading(true);
+    setTokenSeriesError(null);
+    realApiClient
+      .getTokenSeries(activeSession.id)
+      .then((result) => {
+        if (result.ok) {
+          setTokenSeries(result.data);
+        } else {
+          setTokenSeriesError(result.error);
+        }
+      })
+      .catch((error: unknown) => {
+        setTokenSeriesError({
+          code: "NETWORK_ERROR",
+          message: error instanceof Error ? error.message : "Unable to load token series.",
+        });
+      })
+      .finally(() => setTokenSeriesLoading(false));
+  }, [activeSession?.id]);
+
+  useEffect(() => {
+    if (activeView !== "Tokens") return;
+    loadTokenSeries();
+  }, [activeView, activeSession?.id, loadTokenSeries]);
+
   const fallbackTimeline: TimelinePayload = {
     threadId: activeSession?.id ?? "",
     events: fixture.timelineEvents.filter((event) => event.threadId === activeSession?.id),
@@ -152,7 +234,7 @@ export function App() {
               error={sessionsError}
               activeSessionId={activeSessionId}
               onFilterChange={setSessionFilter}
-              onSelectSession={setActiveSessionId}
+              onSelectSession={selectSession}
             />
           ) : null}
           {activeView === "Timeline" ? (
@@ -167,8 +249,29 @@ export function App() {
               onTail={() => loadTimeline(timelinePayload?.nextByteOffset ?? 0)}
             />
           ) : null}
-          {activeView === "Agent Graph" ? <AgentGraphView graph={fixture.agentGraph} /> : null}
-          {activeView === "Tokens" ? <TokensView series={fixture.tokenSeries} /> : null}
+          {activeView === "Agent Graph" ? (
+            <AgentGraphView
+              activeSession={activeSession}
+              error={agentGraphError}
+              graph={agentGraph}
+              isLoading={agentGraphLoading}
+              maxDepth={graphMaxDepth}
+              onMaxDepthChange={setGraphMaxDepth}
+              onRefresh={loadAgentGraph}
+              onSelectSession={selectSession}
+            />
+          ) : null}
+          {activeView === "Tokens" ? (
+            <TokensView
+              activeSession={activeSession}
+              error={tokenSeriesError}
+              isLoading={tokenSeriesLoading}
+              onRefresh={loadTokenSeries}
+              onSelectSession={selectSession}
+              series={tokenSeries}
+              topSessions={topTokenSessions}
+            />
+          ) : null}
           {activeView === "Diagnostics" ? <DiagnosticsView logs={fixture.diagnosticsLogs} /> : null}
         </main>
       </Chrome>

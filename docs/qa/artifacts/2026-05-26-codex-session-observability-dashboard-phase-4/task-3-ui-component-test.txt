@@ -1,0 +1,14 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/unit/graphTokenComponents.test.tsx
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-phase-4-graph-tokens
+
+ ✓ tests/unit/graphTokenComponents.test.tsx (2 tests) 67ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  01:02:00
+   Duration  445ms (transform 40ms, setup 0ms, collect 93ms, tests 67ms, environment 122ms, prepare 36ms)
+

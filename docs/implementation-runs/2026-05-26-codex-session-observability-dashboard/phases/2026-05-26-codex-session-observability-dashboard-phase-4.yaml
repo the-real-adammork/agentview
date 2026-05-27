@@ -42,7 +42,22 @@ tasks:
         artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-4/tasks-1-2-integration-typecheck.txt"
   "3":
     title: "Build Graph And Tokens Views"
-    status: not_started
+    status: done
+    lane: "graph-token-ui"
+    commit: "pending-commit"
+    verification:
+      - command: "npm run test -- --run tests/unit/graphTokenComponents.test.tsx"
+        result: fail_expected
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-4/task-3-ui-test-proposal.txt"
+      - command: "npm run test -- --run tests/unit/graphTokenComponents.test.tsx"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-4/task-3-ui-component-test.txt"
+      - command: "npm run e2e -- --grep @graph-tokens"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-4/task-3-e2e-graph-tokens.txt"
+      - command: "npm run typecheck"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-4/task-3-ui-typecheck.txt"
   "4":
     title: "Integrate Phase 4 Acceptance Packet"
     status: not_started
@@ -54,8 +69,8 @@ service_wiring:
     status: covered
     evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-4/tasks-1-2-integration-focused-test.txt"
   cross_view_navigation:
-    status: pending
-    evidence: null
+    status: covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-4/task-3-e2e-graph-tokens.txt"
 mock_fixture_ledger:
   - id: "mf-phase4-graph-sqlite"
     name: "graph temp SQLite fixture"
@@ -86,10 +101,11 @@ mock_fixture_ledger:
     conversion_task: null
     evidence:
       - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-4/tasks-1-2-integration-focused-test.txt"
+      - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-4/task-3-e2e-graph-tokens.txt"
 acceptance:
   status: pending
   packet: "docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-4.md"
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T05:55:48Z"
+updated_at: "2026-05-27T06:02:11Z"

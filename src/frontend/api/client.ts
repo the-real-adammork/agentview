@@ -169,8 +169,12 @@ export const realApiClient: ObservatoryApi = {
     }
     return getJson<TimelinePayload>(`/api/timeline?${params.toString()}`);
   },
-  getAgentGraph(rootThreadId) {
-    return getJson<AgentGraph>(`/api/agent-graph?rootThreadId=${encodeURIComponent(rootThreadId)}`);
+  getAgentGraph(rootThreadId, options) {
+    const params = new URLSearchParams({ rootThreadId });
+    if (options?.maxDepth !== undefined) {
+      params.set("maxDepth", String(options.maxDepth));
+    }
+    return getJson<AgentGraph>(`/api/agent-graph?${params.toString()}`);
   },
   getTokenSeries(threadId) {
     return getJson<TokenSeries>(`/api/tokens?threadId=${encodeURIComponent(threadId)}`);

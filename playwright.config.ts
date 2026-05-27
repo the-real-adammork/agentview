@@ -128,8 +128,9 @@ const createE2eCodexHome = () => {
   );
 
   const insertEdge = db.prepare("INSERT INTO thread_spawn_edges (parent_thread_id, child_thread_id, status) VALUES (?, ?, ?)");
+  insertEdge.run("thread-parent-real", "thread-subagent-implementation", "open");
+  insertEdge.run("thread-subagent-implementation", "thread-archived-ui", "closed");
   insertEdge.run("thread-subagent-implementation", "child-open", "open");
-  insertEdge.run("thread-subagent-implementation", "child-closed", "closed");
   db.close();
 
   const largeOutput = "x".repeat(4600);
@@ -153,8 +154,13 @@ const createE2eCodexHome = () => {
     .map((line) => (typeof line === "string" ? line : JSON.stringify(line)))
     .join("\n");
 
+  const invalidRatioLines = timelineLines.replace(
+    JSON.stringify({ input_tokens: 1000, output_tokens: 200, cached_input_tokens: 50, reasoning_output_tokens: 25 }),
+    JSON.stringify({ input_tokens: 0, output_tokens: 200, cached_input_tokens: 50, reasoning_output_tokens: 25 }),
+  );
+
   writeFileSync(join(sessionsDir, "parent.jsonl"), `${timelineLines}\n`);
-  writeFileSync(join(sessionsDir, "subagent.jsonl"), `${timelineLines}\n`);
+  writeFileSync(join(sessionsDir, "subagent.jsonl"), `${invalidRatioLines}\n`);
   writeFileSync(join(sessionsDir, "archived.jsonl"), `${timelineLines}\n`);
 
   return codexHome;
