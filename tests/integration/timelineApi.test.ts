@@ -7,6 +7,8 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   createCodexHomeFixture,
+  observedEventMsg,
+  observedResponseItem,
   type CodexHomeFixture,
 } from "../fixtures/codexHome";
 
@@ -225,6 +227,160 @@ describe("timeline API", () => {
           data: {
             threadId: "thread-timeline",
             cacheStatus: "warm",
+          },
+        });
+      },
+      { AGENTVIEW_CACHE_ROOT: cacheRoot },
+    );
+  });
+
+  it("serves observed envelope events with joined tool, token, turn, and agent facts", async () => {
+    const fixture = await createCodexHomeFixture({
+      threads: [
+        {
+          id: "thread-observed-api",
+          rolloutPath: "sessions/2026/thread-observed-api.jsonl",
+          createdAtMs: 1_000,
+          updatedAtMs: 2_000,
+          cwd: "/repo/agentview",
+          title: "Observed timeline source",
+          model: "gpt-5-codex",
+        },
+      ],
+    });
+    const cacheRoot = await mkdtemp(join(tmpdir(), "agentview-observed-api-cache-"));
+    tempRoots.push(cacheRoot);
+    await createRolloutFile(fixture, "sessions/2026/thread-observed-api.jsonl", [
+      observedEventMsg({
+        timestamp: "2026-05-27T14:20:00.000Z",
+        turnId: "turn-api-1",
+        payload: { type: "task_started", task: "Serve observed timeline" },
+      }),
+      observedEventMsg({
+        timestamp: "2026-05-27T14:20:01.000Z",
+        turnId: "turn-api-1",
+        payload: {
+          type: "message",
+          message: {
+            role: "user",
+            content: [{ type: "input_text", text: "Open the observed timeline." }],
+          },
+        },
+      }),
+      observedResponseItem({
+        timestamp: "2026-05-27T14:20:02.000Z",
+        turnId: "turn-api-1",
+        payload: {
+          type: "function_call",
+          call_id: "call-api-1",
+          name: "shell",
+          arguments: JSON.stringify({ cmd: "npm run observed" }),
+        },
+      }),
+      observedEventMsg({
+        timestamp: "2026-05-27T14:20:06.000Z",
+        turnId: "turn-api-1",
+        payload: {
+          type: "function_call_output",
+          call_id: "call-api-1",
+          output: JSON.stringify({ exit_code: 2, duration_ms: 4000, output: "observed failed output" }),
+        },
+      }),
+      observedEventMsg({
+        timestamp: "2026-05-27T14:20:07.000Z",
+        turnId: "turn-api-1",
+        payload: {
+          type: "token_count",
+          last_token_usage: { input_tokens: 8, output_tokens: 5 },
+          total_token_usage: { input_tokens: 80, cached_input_tokens: 20, output_tokens: 30, total_tokens: 110 },
+          model_context_window: 200000,
+          plan_type: "pro",
+        },
+      }),
+      observedResponseItem({
+        timestamp: "2026-05-27T14:20:08.000Z",
+        turnId: "turn-api-1",
+        payload: {
+          type: "spawn_agent",
+          call_id: "call-api-spawn",
+          child_thread_id: "thread-api-child",
+          agent_nickname: "api-child",
+          agent_role: "test worker",
+          task: "Verify API payload.",
+        },
+      }),
+      observedEventMsg({
+        timestamp: "2026-05-27T14:20:09.000Z",
+        turnId: "turn-api-1",
+        payload: {
+          type: "wait_agent",
+          call_id: "call-api-spawn",
+          child_thread_id: "thread-api-child",
+          status: "closed",
+          last_agent_message: "API payload checked.",
+        },
+      }),
+      observedEventMsg({
+        timestamp: "2026-05-27T14:20:10.000Z",
+        turnId: "turn-api-1",
+        payload: { type: "task_complete", last_agent_message: "Observed timeline served." },
+      }),
+    ]);
+
+    await withApi(
+      fixture,
+      async ({ baseUrl }) => {
+        const response = await requestJson(baseUrl, "/api/timeline?threadId=thread-observed-api");
+
+        expect(response.status).toBe(200);
+        expect(response.body).toMatchObject({
+          ok: true,
+          source: "rollout-cache",
+          warnings: [],
+          data: {
+            threadId: "thread-observed-api",
+            events: expect.arrayContaining([
+              expect.objectContaining({ kind: "task_started", previewText: "Serve observed timeline" }),
+              expect.objectContaining({ kind: "user_message", previewText: "Open the observed timeline." }),
+              expect.objectContaining({
+                kind: "tool_call",
+                callId: "call-api-1",
+                commandPreview: "npm run observed",
+                joinedExitCode: 2,
+                joinedDurationMs: 4000,
+                joinedOutputPreview: expect.stringContaining("observed failed output"),
+              }),
+              expect.objectContaining({
+                kind: "token_snapshot",
+                tokenSnapshot: expect.objectContaining({
+                  lastInput: 8,
+                  lastOutput: 5,
+                  modelContextWindow: 200000,
+                  planType: "pro",
+                }),
+              }),
+              expect.objectContaining({
+                kind: "agent_launch",
+                childThreadId: "thread-api-child",
+                agentNickname: "api-child",
+                agentRole: "test worker",
+                agentTaskPreview: "Verify API payload.",
+              }),
+            ]),
+            facts: expect.objectContaining({
+              turns: [
+                expect.objectContaining({
+                  turnId: "turn-api-1",
+                  lastAgentMessagePreview: "Observed timeline served.",
+                }),
+              ],
+              summary: expect.objectContaining({
+                failedToolCallCount: 1,
+                tokenSnapshotCount: 1,
+                agentLaunchCount: 1,
+                agentWaitCount: 1,
+              }),
+            }),
           },
         });
       },

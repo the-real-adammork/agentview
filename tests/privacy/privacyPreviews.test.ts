@@ -55,4 +55,76 @@ describe("privacy preview hardening", () => {
     expect(serialized).not.toContain("user:token");
     expect(serialized).toContain("[REDACTED]");
   });
+
+  it("redacts observed envelope message arrays, tool commands, and output wrappers before deriving previews", () => {
+    const facts = parseRolloutLines(
+      [
+        JSON.stringify({
+          timestamp: "2026-05-27T14:40:00.000Z",
+          type: "event_msg",
+          payload: {
+            type: "message",
+            message: {
+              role: "user",
+              content: [
+                { type: "input_text", text: "BASE_INSTRUCTIONS=never expose this" },
+                { type: "input_text", text: "Use OPENAI_API_KEY=sk-proj-observed-secret" },
+              ],
+            },
+          },
+        }),
+        JSON.stringify({
+          timestamp: "2026-05-27T14:40:01.000Z",
+          type: "response_item",
+          payload: {
+            type: "function_call",
+            call_id: "call-private-1",
+            name: "shell",
+            arguments: JSON.stringify({
+              cmd: "curl https://user:token@example.test -H 'Authorization: Bearer sk-live-observed'",
+            }),
+          },
+        }),
+        JSON.stringify({
+          timestamp: "2026-05-27T14:40:02.000Z",
+          type: "event_msg",
+          payload: {
+            type: "function_call_output",
+            call_id: "call-private-1",
+            output: JSON.stringify({
+              exit_code: 1,
+              output: "password=hunter2\nGITHUB_TOKEN=ghp_observedsecretvalue",
+            }),
+          },
+        }),
+      ],
+      {
+        threadId: "thread-observed-privacy",
+        rolloutPath: "sessions/thread-observed-privacy.jsonl",
+        sourceMtimeMs: 1,
+        sourceSizeBytes: 2,
+      },
+    );
+
+    const serialized = JSON.stringify(facts);
+    expect(facts.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "user_message",
+          previewText: expect.stringContaining("[REDACTED]"),
+        }),
+        expect.objectContaining({
+          kind: "tool_call",
+          argumentsPreview: expect.stringContaining("[REDACTED]"),
+          joinedOutputPreview: expect.stringContaining("password=[REDACTED]"),
+        }),
+      ]),
+    );
+    expect(serialized).not.toContain("never expose this");
+    expect(serialized).not.toContain("sk-proj-observed-secret");
+    expect(serialized).not.toContain("user:token");
+    expect(serialized).not.toContain("sk-live-observed");
+    expect(serialized).not.toContain("hunter2");
+    expect(serialized).not.toContain("ghp_observedsecretvalue");
+  });
 });

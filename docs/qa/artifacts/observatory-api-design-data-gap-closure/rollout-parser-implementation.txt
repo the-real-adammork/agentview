@@ -1,0 +1,21 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/unit/parseRollout.test.ts tests/integration/rolloutCache.test.ts tests/integration/timelineApi.test.ts tests/integration/liveTail.test.ts tests/privacy/privacyPreviews.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-rollout-parser
+
+(node:2429) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/privacy/privacyPreviews.test.ts (3 tests) 3ms
+ ✓ tests/integration/liveTail.test.ts (4 tests) 9ms
+ ✓ tests/unit/parseRollout.test.ts (6 tests) 33ms
+ ✓ tests/integration/rolloutCache.test.ts (5 tests) 45ms
+ ✓ tests/integration/timelineApi.test.ts (4 tests) 1162ms
+   ✓ timeline API > serves selected-session timeline payloads from the rollout parser and derived cache  387ms
+
+ Test Files  5 passed (5)
+      Tests  22 passed (22)
+   Start at  09:49:35
+   Duration  1.50s (transform 109ms, setup 0ms, collect 174ms, tests 1.25s, environment 745ms, prepare 177ms)
+

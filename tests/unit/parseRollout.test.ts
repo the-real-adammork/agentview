@@ -50,6 +50,91 @@ afterEach(async () => {
 });
 
 describe("parseRolloutFile", () => {
+  it("parses observed event_msg and response_item envelopes with nested payload types and message content arrays", async () => {
+    const rolloutPath = await createTempRollout([
+      {
+        timestamp: "2026-05-27T14:00:00.000Z",
+        type: "event_msg",
+        turn_id: "turn-observed-1",
+        payload: {
+          type: "task_started",
+          task: "Close rollout parser gaps",
+        },
+      },
+      {
+        timestamp: "2026-05-27T14:00:01.000Z",
+        type: "event_msg",
+        turn_id: "turn-observed-1",
+        payload: {
+          type: "message",
+          message: {
+            role: "user",
+            content: [
+              { type: "input_text", text: "Parse the observed rollout envelope." },
+              { type: "input_text", text: "Keep previews compact." },
+            ],
+          },
+        },
+      },
+      {
+        timestamp: "2026-05-27T14:00:02.000Z",
+        type: "response_item",
+        turn_id: "turn-observed-1",
+        payload: {
+          type: "message",
+          message: {
+            role: "assistant",
+            content: [{ type: "output_text", text: "I will add parser coverage first." }],
+          },
+        },
+      },
+      {
+        timestamp: "2026-05-27T14:00:03.000Z",
+        type: "event_msg",
+        turn_id: "turn-observed-1",
+        payload: {
+          type: "task_complete",
+          last_agent_message: "Tests proposed for rollout parser.",
+        },
+      },
+    ]);
+
+    const facts = await parseFixture("thread-observed-envelope", rolloutPath);
+
+    expect(facts.warnings).toEqual([]);
+    expect(facts.events.map((event) => event.kind)).toEqual([
+      "task_started",
+      "user_message",
+      "assistant_message",
+      "task_complete",
+    ]);
+    expect(facts.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "user_message",
+          turnId: "turn-observed-1",
+          previewText: "Parse the observed rollout envelope. Keep previews compact.",
+        }),
+        expect.objectContaining({
+          kind: "assistant_message",
+          previewText: "I will add parser coverage first.",
+        }),
+        expect.objectContaining({
+          kind: "task_complete",
+          previewText: "Tests proposed for rollout parser.",
+        }),
+      ]),
+    );
+    expect(facts.turns).toEqual([
+      expect.objectContaining({
+        turnId: "turn-observed-1",
+        startedAt: "2026-05-27T14:00:00.000Z",
+        completedAt: "2026-05-27T14:00:03.000Z",
+        lastAgentMessagePreview: "Tests proposed for rollout parser.",
+      }),
+    ]);
+  });
+
   it("normalizes known Codex rollout variants into stable timeline events", async () => {
     const rolloutPath = await createTempRollout([
       {
@@ -278,5 +363,162 @@ describe("parseRolloutFile", () => {
         }),
       ]),
     );
+  });
+
+  it("derives observed token, tool, spawn, and wait facts from payload envelopes", async () => {
+    const rolloutPath = await createTempRollout([
+      {
+        timestamp: "2026-05-27T14:05:00.000Z",
+        type: "event_msg",
+        turn_id: "turn-observed-2",
+        payload: {
+          type: "token_count",
+          last_token_usage: { input_tokens: 11, output_tokens: 7 },
+          total_token_usage: {
+            input_tokens: 1000,
+            cached_input_tokens: 250,
+            output_tokens: 300,
+            reasoning_output_tokens: 25,
+            total_tokens: 1325,
+          },
+          model_context_window: 200000,
+          plan_type: "pro",
+          rate_limits: {
+            primary_percent: 12.5,
+            secondary_percent: 4,
+            reset_at: "2026-05-27T15:00:00.000Z",
+          },
+        },
+      },
+      {
+        timestamp: "2026-05-27T14:05:01.000Z",
+        type: "response_item",
+        turn_id: "turn-observed-2",
+        payload: {
+          type: "function_call",
+          call_id: "call-fail-1",
+          name: "shell",
+          arguments: JSON.stringify({ cmd: "npm run missing-script" }),
+        },
+      },
+      {
+        timestamp: "2026-05-27T14:05:04.500Z",
+        type: "event_msg",
+        turn_id: "turn-observed-2",
+        payload: {
+          type: "function_call_output",
+          call_id: "call-fail-1",
+          output: JSON.stringify({
+            exit_code: 127,
+            duration_ms: 3500,
+            output: "npm ERR! Missing script: missing-script\nOPENAI_API_KEY=sk-proj-rollout-secret",
+          }),
+        },
+      },
+      {
+        timestamp: "2026-05-27T14:05:05.000Z",
+        type: "response_item",
+        turn_id: "turn-observed-2",
+        payload: {
+          type: "spawn_agent",
+          call_id: "call-spawn-1",
+          child_thread_id: "thread-child-observed",
+          agent_nickname: "rollout-parser",
+          agent_role: "test-only worker",
+          task: "Write failing parser tests.",
+        },
+      },
+      {
+        timestamp: "2026-05-27T14:05:08.000Z",
+        type: "event_msg",
+        turn_id: "turn-observed-2",
+        payload: {
+          type: "wait_agent",
+          call_id: "call-spawn-1",
+          child_thread_id: "thread-child-observed",
+          status: "closed",
+          last_agent_message: "Parser tests are ready.",
+        },
+      },
+    ]);
+
+    const facts = await parseFixture("thread-observed-facts", rolloutPath);
+
+    expect(facts.tokenSnapshots).toEqual([
+      expect.objectContaining({
+        input: 1000,
+        cachedInput: 250,
+        output: 300,
+        reasoningOutput: 25,
+        total: 1325,
+        lastInput: 11,
+        lastOutput: 7,
+        modelContextWindow: 200000,
+        planType: "pro",
+        rateLimitPrimaryPercent: 12.5,
+        rateLimitSecondaryPercent: 4,
+        resetAt: "2026-05-27T15:00:00.000Z",
+      }),
+    ]);
+    expect(facts.toolCalls).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          callId: "call-fail-1",
+          toolName: "shell",
+          startedAt: "2026-05-27T14:05:01.000Z",
+          completedAt: "2026-05-27T14:05:04.500Z",
+          durationMs: 3500,
+          exitCode: 127,
+          resultEventId: expect.any(String),
+          commandPreview: "npm run missing-script",
+          failureReasonPreview: expect.stringContaining("Missing script"),
+          outputPreview: expect.stringContaining("OPENAI_API_KEY=[REDACTED]"),
+        }),
+      ]),
+    );
+    expect(facts.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "tool_call",
+          callId: "call-fail-1",
+          joinedOutputPreview: expect.stringContaining("Missing script"),
+          joinedExitCode: 127,
+          joinedDurationMs: 3500,
+          severity: "error",
+        }),
+        expect.objectContaining({
+          kind: "agent_launch",
+          callId: "call-spawn-1",
+          childThreadId: "thread-child-observed",
+          agentNickname: "rollout-parser",
+          agentRole: "test-only worker",
+          agentTaskPreview: "Write failing parser tests.",
+        }),
+        expect.objectContaining({
+          kind: "agent_wait",
+          callId: "call-spawn-1",
+          childThreadId: "thread-child-observed",
+          previewText: expect.stringContaining("Parser tests are ready."),
+        }),
+      ]),
+    );
+    expect(facts.agentLaunches).toEqual([
+      expect.objectContaining({
+        callId: "call-spawn-1",
+        childThreadId: "thread-child-observed",
+        nickname: "rollout-parser",
+        role: "test-only worker",
+        taskPreview: "Write failing parser tests.",
+      }),
+    ]);
+    expect(facts.agentWaits).toEqual([
+      expect.objectContaining({
+        callId: "call-spawn-1",
+        childThreadId: "thread-child-observed",
+        status: "closed",
+        reportPreview: "Parser tests are ready.",
+      }),
+    ]);
+    expect(JSON.stringify(facts)).not.toContain("sk-proj-rollout-secret");
   });
 });
