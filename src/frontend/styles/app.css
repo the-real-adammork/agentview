@@ -5,6 +5,7 @@
 }
 
 html {
+  height: 100%;
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-system);
@@ -15,9 +16,16 @@ html {
 }
 
 body {
+  height: 100%;
   margin: 0;
   min-width: 320px;
+  overflow: hidden;
   background: var(--bg-0);
+}
+
+#root {
+  height: 100%;
+  min-height: 0;
 }
 
 button,
@@ -33,9 +41,10 @@ button {
 
 .app-shell {
   position: relative;
-  min-height: 100vh;
+  height: 100dvh;
+  min-height: 0;
   display: grid;
-  grid-template-rows: auto auto 1fr auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   background: var(--color-bg);
   color: var(--color-text);
   overflow: hidden;
@@ -404,18 +413,27 @@ button {
 .field input:focus-visible,
 .field input:focus,
 .field select:focus-visible,
-.field select:focus,
-.session-row:focus-visible,
-.session-row:focus {
+.field select:focus {
   outline: none;
   box-shadow: var(--focus-ring);
 }
 
+.session-row:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.session-row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
 .app-shell__main {
-  width: min(1440px, 100%);
+  width: 100%;
+  min-height: 0;
   margin-inline: auto;
   padding: 0;
-  overflow: auto;
+  overflow: hidden;
 }
 
 .kicker {
@@ -638,6 +656,14 @@ button {
 }
 
 .ov-toolbar {
+  grid-row: 1;
+}
+
+.ov-main > .inline-alert {
+  grid-row: 2;
+}
+
+.ov-toolbar {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -680,6 +706,7 @@ button {
 }
 
 .ov-table {
+  grid-row: 3;
   min-height: 0;
   overflow: auto;
   border: 0;

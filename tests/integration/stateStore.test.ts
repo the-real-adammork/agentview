@@ -182,4 +182,51 @@ describe("read-only Codex state store", () => {
       await fixture.cleanup();
     }
   });
+
+  it("filters sessions by repository basename while preserving full cwd compatibility", async () => {
+    const { openStateStore } = await loadStateStore();
+    const fixture = await createCodexHomeFixture({
+      threads: [
+        {
+          id: "thread-agentview-main",
+          createdAtMs: 2_500,
+          cwd: "/worktrees/agentview",
+          title: "AgentView main",
+          updatedAtMs: 3_000,
+        },
+        {
+          id: "thread-agentview-sibling",
+          createdAtMs: 1_500,
+          cwd: "/tmp/sibling/agentview",
+          title: "AgentView sibling",
+          updatedAtMs: 2_000,
+        },
+        {
+          id: "thread-other",
+          createdAtMs: 500,
+          cwd: "/worktrees/agentview-fixture",
+          title: "Other repo",
+          updatedAtMs: 1_000,
+        },
+      ],
+    });
+
+    try {
+      const store = await openStateStore({ codexHome: fixture.codexHome });
+
+      try {
+        await expect(store.listSessions({ cwd: "agentview", archived: "include" }, { limit: 25 })).resolves.toEqual([
+          expect.objectContaining({ id: "thread-agentview-main", repoLabel: "agentview" }),
+          expect.objectContaining({ id: "thread-agentview-sibling", repoLabel: "agentview" }),
+        ]);
+        await expect(store.listSessions({ cwd: "/worktrees/agentview", archived: "include" }, { limit: 25 })).resolves.toEqual([
+          expect.objectContaining({ id: "thread-agentview-main", repoLabel: "agentview" }),
+        ]);
+      } finally {
+        await store.close();
+      }
+    } finally {
+      await fixture.cleanup();
+    }
+  });
 });

@@ -61,6 +61,7 @@ describe("fixture-backed five-view app shell", () => {
     expect(screen.getByRole("status", { name: /transport status/i })).toHaveTextContent(
       /\/\/ PATTERN: CODEX OPS/i,
     );
+    expect(screen.getByRole("status", { name: /transport status/i }).children).toHaveLength(5);
     expect(screen.getByRole("status", { name: /transport status/i })).toHaveTextContent(/\$CODEX_HOME = ~\/\.codex/i);
   });
 
@@ -97,7 +98,8 @@ describe("fixture-backed five-view app shell", () => {
 
     expect(activeRow).toHaveAttribute("aria-current", "true");
     expect(activeRow).toHaveTextContent(activeSession.status);
-    expect(activeRow).toHaveTextContent(activeSession.cwd);
+    expect(activeRow).toHaveTextContent("workflowkit");
+    expect(activeRow).not.toHaveTextContent(activeSession.cwd);
     expect(activeRow).toHaveTextContent(activeSession.model);
   });
 

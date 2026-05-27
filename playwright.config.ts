@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -16,8 +16,8 @@ const createE2eCodexHome = () => {
   const codexHome = join(tmpdir(), `agentview-e2e-codex-home-${appPort}-${apiPort}`);
   const stateDbPath = join(codexHome, "state_5.sqlite");
 
-  if (existsSync(stateDbPath)) {
-    return codexHome;
+  if (existsSync(codexHome)) {
+    rmSync(codexHome, { force: true, recursive: true });
   }
 
   const sessionsDir = join(codexHome, "sessions");
@@ -118,7 +118,7 @@ const createE2eCodexHome = () => {
     "sessions/archived.jsonl",
     1200,
     1200,
-    "/repo/agentview",
+    "/repo/agentview-fixture",
     "UI fixture archived",
     5_000,
     1,

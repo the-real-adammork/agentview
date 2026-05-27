@@ -25,6 +25,7 @@ const uniqueValues = (sessions: SessionSummary[], getValue: (session: SessionSum
 
 const formatTime = (value: string) => new Date(value).toLocaleTimeString("en-US");
 const shortRepo = (cwd: string) => cwd.split("/").filter(Boolean).at(-1) ?? cwd;
+const repoName = (session: SessionSummary) => session.repoLabel || shortRepo(session.cwd);
 
 function StatCell({ label, sub, tone, value }: { label: string; sub: string; tone?: "warn"; value: string | number }) {
   return (
@@ -78,7 +79,7 @@ export function SessionsView({
 }: SessionsViewProps) {
   const roleOptions = uniqueValues(sessions, (session) => session.agentRole);
   const modelOptions = uniqueValues(sessions, (session) => session.model);
-  const cwdOptions = uniqueValues(sessions, (session) => session.cwd);
+  const repoOptions = uniqueValues(sessions, repoName);
   const updateFilter = (patch: Partial<SessionFilter>) => onFilterChange({ ...filter, ...patch });
   const activeSessions = sessions.filter((session) => !session.archived).length;
   const subagentSessions = sessions.filter((session) => session.threadSource === "subagent" || session.agentRole).length;
@@ -145,12 +146,12 @@ export function SessionsView({
             </select>
           </label>
 
-          <div className="lbl">Repo · cwd</div>
+          <div className="lbl">Repo</div>
           <div className="row" role="group" aria-label="Repository quick filters">
             <button className="opt" data-on={!filter.cwd} onClick={() => updateFilter({ cwd: undefined })} type="button">All</button>
-            {cwdOptions.slice(0, 5).map((cwd) => (
-              <button className="opt" data-on={filter.cwd === cwd} key={cwd} onClick={() => updateFilter({ cwd })} type="button">
-                {shortRepo(cwd)}
+            {repoOptions.slice(0, 5).map((repo) => (
+              <button className="opt" data-on={filter.cwd === repo} key={repo} onClick={() => updateFilter({ cwd: repo })} type="button">
+                {repo}
               </button>
             ))}
           </div>
@@ -282,6 +283,7 @@ export function SessionsView({
               const diagnostics = diagnosticsByThreadId[session.id];
               const tokenValue = session.tokensUsed ?? session.tokenTotal;
               const branch = session.branch || session.gitBranch || "-";
+              const repo = repoName(session);
               const source = session.threadSource ?? (session.agentRole ? "subagent" : "user");
               return (
                 <tr
@@ -309,7 +311,7 @@ export function SessionsView({
                     <ShortId value={session.id} />
                   </th>
                   <td>
-                    <div>{session.cwd}</div>
+                    <div>{repo}</div>
                     <div className="muted"><span className="num">{session.gitSha ?? "—"}</span> · {branch}</div>
                   </td>
                   <td>{session.model || "-"}</td>

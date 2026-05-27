@@ -41,10 +41,7 @@ export function Chrome({
   const source = health.mode === "real" ? "state-db" : "fixture";
   const clock = formatClock(health.checkedAt);
   const tickerItems = [
-    "PATTERN: CODEX OPS - NORMAL",
-    `SOURCE: ${source}`,
-    `SESSIONS: ${sessionCount}`,
-    `WARN: ${warningSessionCount}`,
+    `PATTERN: CODEX OPS - NORMAL · SOURCE: ${source} · SESSIONS: ${sessionCount} · WARN: ${warningSessionCount}`,
     "logs_2 ingest queue - 0 / capacity 1024",
     "rate_limit - primary 31% - secondary 18%",
     "MEMORY MODE - enabled",
@@ -105,15 +102,12 @@ export function Chrome({
 
       <footer className="status" role="status" aria-label="Transport status">
         <span className="seq">▸ {activeView.toUpperCase()}</span>
-        <span className="ticker-wrap" aria-hidden="true">
+        <span className="ticker-wrap">
           <span className="ticker">
             {tickerItems.concat(tickerItems).map((item, index) => (
               <span key={`${item}-${index}`}>// {item} </span>
             ))}
           </span>
-        </span>
-        <span className="status-bar__source">
-          // PATTERN: CODEX OPS - NORMAL · source: {source} · {sessionCount} sessions
         </span>
         <span>$CODEX_HOME = ~/.codex</span>
         <span><span className="live">●</span> LINK {health.status === "ok" ? "OK" : "DOWN"}</span>

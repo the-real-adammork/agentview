@@ -294,8 +294,19 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
       }
 
       if (filter.cwd) {
-        conditions.push("t.cwd = :cwd");
-        parameters.cwd = filter.cwd;
+        const cwdFilter = filter.cwd.trim();
+
+        if (cwdFilter.includes("/") || cwdFilter.includes("\\")) {
+          conditions.push("t.cwd = :cwd");
+          parameters.cwd = cwdFilter;
+        } else {
+          conditions.push(
+            "(rtrim(t.cwd, '/\\') = :repo OR rtrim(t.cwd, '/\\') LIKE :repoSuffixUnix OR rtrim(t.cwd, '/\\') LIKE :repoSuffixWindows)",
+          );
+          parameters.repo = cwdFilter;
+          parameters.repoSuffixUnix = `%/${cwdFilter}`;
+          parameters.repoSuffixWindows = `%\\${cwdFilter}`;
+        }
       }
 
       if (filter.threadSource) {
