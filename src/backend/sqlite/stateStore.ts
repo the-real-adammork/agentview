@@ -2,7 +2,13 @@ import { access } from "node:fs/promises";
 import { basename, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-import type { PageOptions, SessionFilter, SessionSummary, ThreadSource } from "../../shared/contracts";
+import type {
+  AgentEdgeStatus,
+  PageOptions,
+  SessionFilter,
+  SessionSummary,
+  ThreadSource,
+} from "../../shared/contracts";
 
 export class StateStoreError extends Error {
   code: string;
@@ -30,7 +36,21 @@ export interface StateStore {
   getHealth(): Promise<StateStoreHealth>;
   listSessions(filter?: SessionFilter, page?: PageOptions): Promise<SessionSummary[]>;
   getThread(threadId: string): Promise<SessionSummary | null>;
+  getAgentGraphRows(rootThreadId: string, scanDepth: number): Promise<AgentGraphRow[]>;
   close(): Promise<void>;
+}
+
+export interface AgentGraphRow {
+  id: string | null;
+  title: string | null;
+  firstUserMessage: string | null;
+  preview: string | null;
+  tokensUsed: number | null;
+  agentNickname: string | null;
+  agentRole: string | null;
+  parentThreadId: string | null;
+  childThreadId: string | null;
+  edgeStatus: AgentEdgeStatus | null;
 }
 
 interface ThreadRow {
@@ -356,6 +376,71 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
         .get({ threadId }) as unknown as ThreadRow | undefined;
 
       return row ? normalizeThread(row) : null;
+    },
+    async getAgentGraphRows(rootThreadId, scanDepth) {
+      return db
+        .prepare(`
+          WITH RECURSIVE graph_edges(parent_thread_id, child_thread_id, status, depth, path, edge_order) AS (
+            SELECT
+              parent_thread_id,
+              child_thread_id,
+              status,
+              1 AS depth,
+              '|' || parent_thread_id || '|' || child_thread_id || '|' AS path,
+              rowid AS edge_order
+            FROM thread_spawn_edges
+            WHERE parent_thread_id = :rootThreadId
+
+            UNION ALL
+
+            SELECT
+              edge.parent_thread_id,
+              edge.child_thread_id,
+              edge.status,
+              graph_edges.depth + 1 AS depth,
+              graph_edges.path || edge.child_thread_id || '|' AS path,
+              edge.rowid AS edge_order
+            FROM thread_spawn_edges edge
+            INNER JOIN graph_edges ON graph_edges.child_thread_id = edge.parent_thread_id
+            WHERE graph_edges.depth < :scanDepth
+              AND instr(graph_edges.path, '|' || edge.child_thread_id || '|') = 0
+          )
+          SELECT
+            root.id AS id,
+            root.title AS title,
+            root.first_user_message AS firstUserMessage,
+            root.preview AS preview,
+            root.tokens_used AS tokensUsed,
+            root.agent_nickname AS agentNickname,
+            root.agent_role AS agentRole,
+            NULL AS parentThreadId,
+            NULL AS childThreadId,
+            NULL AS edgeStatus,
+            0 AS sortDepth,
+            0 AS sortOrder
+          FROM threads root
+          WHERE root.id = :rootThreadId
+
+          UNION ALL
+
+          SELECT
+            child.id AS id,
+            child.title AS title,
+            child.first_user_message AS firstUserMessage,
+            child.preview AS preview,
+            child.tokens_used AS tokensUsed,
+            child.agent_nickname AS agentNickname,
+            child.agent_role AS agentRole,
+            graph_edges.parent_thread_id AS parentThreadId,
+            graph_edges.child_thread_id AS childThreadId,
+            graph_edges.status AS edgeStatus,
+            graph_edges.depth AS sortDepth,
+            graph_edges.edge_order AS sortOrder
+          FROM graph_edges
+          LEFT JOIN threads child ON child.id = graph_edges.child_thread_id
+          ORDER BY sortDepth, sortOrder
+        `)
+        .all({ rootThreadId, scanDepth }) as unknown as AgentGraphRow[];
     },
     async close() {
       db.close();

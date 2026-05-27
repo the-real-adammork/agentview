@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 
+import { handleAgentGraphApiRequest } from "./api/agentGraph";
 import { handleFixtureApiRequest } from "./api/fixtures";
 import { corsHeadersForOrigin } from "./api/http";
 import { handleHealthApiRequest } from "./api/health";
@@ -26,6 +27,10 @@ const server = createServer(async (request, response) => {
     }
 
     if (await handleTimelineApiRequest(request, response)) {
+      return;
+    }
+
+    if (await handleAgentGraphApiRequest(request, response)) {
       return;
     }
 
