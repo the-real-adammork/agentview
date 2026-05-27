@@ -1,6 +1,6 @@
 import { ShortId } from "../components/ShortId";
 import { deriveRepoName } from "../../shared/repoName";
-import { countActiveSessions } from "./sessionStats";
+import { countActiveSessions, tokensByHour } from "./sessionStats";
 import { TOKEN_BAR_CELLS, tokenBarFill } from "./tokenBar";
 import type { ApiError, ArchivedFilter, DiagnosticsSummary, SessionFilter, SessionSummary, ThreadSource } from "../../shared/contracts";
 
@@ -88,16 +88,7 @@ export function SessionsView({
   const subagentSessions = sessions.filter((session) => session.threadSource === "subagent" || session.agentRole).length;
   const openChildren = sessions.reduce((total, session) => total + session.openChildCount, 0);
   const tokenTotal = sessions.reduce((total, session) => total + (session.tokensUsed ?? session.tokenTotal), 0);
-  const latestUpdateMs = Math.max(...sessions.map((session) => Date.parse(session.updatedAt)).filter(Number.isFinite), Date.now());
-  const tokensByHour = sessions.reduce(
-    (buckets, session) => {
-      const updatedAtMs = Date.parse(session.updatedAt);
-      const hour = Number.isFinite(updatedAtMs) ? Math.min(11, Math.max(0, Math.floor((latestUpdateMs - updatedAtMs) / 3_600_000))) : 11;
-      buckets[11 - hour] += session.tokensUsed ?? session.tokenTotal;
-      return buckets;
-    },
-    Array.from({ length: 12 }, () => 0),
-  );
+  const hourlyTokens = tokensByHour(sessions, Date.now());
   const selectSource = (source?: ThreadSource) => updateFilter({ threadSource: source });
   const selectArchive = (archived: ArchivedFilter) => updateFilter({ archived });
 
@@ -119,7 +110,7 @@ export function SessionsView({
 
         <div className="filter-grp">
           <div className="lbl">Token usage · last 12h</div>
-          <VBars data={tokensByHour} />
+          <VBars data={hourlyTokens} />
           <div className="filter-grp__range">
             <span>-12H</span>
             <span>NOW</span>
