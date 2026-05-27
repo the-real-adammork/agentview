@@ -6,6 +6,7 @@ import { handleFixtureApiRequest } from "./api/fixtures";
 import { corsHeadersForOrigin } from "./api/http";
 import { handleHealthApiRequest } from "./api/health";
 import { handleSessionsApiRequest } from "./api/sessions";
+import { handleStreamApiRequest } from "./api/stream";
 import { handleTimelineApiRequest } from "./api/timeline";
 import { handleTokensApiRequest } from "./api/tokens";
 
@@ -41,6 +42,10 @@ const server = createServer(async (request, response) => {
     }
 
     if (await handleDiagnosticsApiRequest(request, response)) {
+      return;
+    }
+
+    if (await handleStreamApiRequest(request, response)) {
       return;
     }
 
