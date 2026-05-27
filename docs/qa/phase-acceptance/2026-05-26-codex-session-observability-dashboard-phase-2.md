@@ -20,7 +20,7 @@ Timeline, Agent Graph, Tokens, and Diagnostics remain fixture-backed placeholder
 | Task 2 | `cb59ad5` | Integrate health, sessions, and thread API routes |
 | Task 3 | `c566f27` | Wire Sessions view to state DB API |
 | Task 4 | `fdad1dc` | Add sessions first-paint guard |
-| Task 5 | pending | Acceptance packet and final state update |
+| Task 5 | `6758a23` | Acceptance packet and final evidence |
 
 ## Service Wiring
 
