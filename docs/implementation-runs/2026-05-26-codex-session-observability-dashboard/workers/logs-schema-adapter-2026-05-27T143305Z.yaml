@@ -1,0 +1,58 @@
+status: complete
+result: pass
+worker_id: logs-schema-adapter-2026-05-27T143305Z
+run_id: 2026-05-26-codex-session-observability-dashboard
+task: "Task 3"
+lane: logs-schema-adapter
+base_commit: d9477218e908faf7c51afbfabe9bbc401b78b5d9
+head_commit: "pending: final commit hash is reported by the worker after commit creation"
+changed_files:
+  - src/backend/sqlite/logStore.ts
+  - src/backend/api/diagnostics.ts
+  - tests/integration/logStore.test.ts
+  - tests/integration/diagnosticsApi.test.ts
+  - docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/logs-schema-adapter-2026-05-27T143305Z.yaml
+  - docs/qa/artifacts/observatory-api-design-data-gap-closure/logs-schema-adapter-test-proposal.txt
+  - docs/qa/artifacts/observatory-api-design-data-gap-closure/logs-schema-adapter-implementation.txt
+commands:
+  - run: "npm run test -- --run tests/integration/logStore.test.ts tests/integration/diagnosticsApi.test.ts tests/integration/sourceErrors.test.ts"
+    artifact: docs/qa/artifacts/observatory-api-design-data-gap-closure/logs-schema-adapter-test-proposal.txt
+    exit_code: 1
+    result: fail_expected
+    summary: "Approved tests failed before implementation because observed logs_2.sqlite columns were rejected as SCHEMA_UNSUPPORTED."
+  - run: "npm run test -- --run tests/integration/logStore.test.ts tests/integration/diagnosticsApi.test.ts tests/integration/sourceErrors.test.ts"
+    artifact: docs/qa/artifacts/observatory-api-design-data-gap-closure/logs-schema-adapter-implementation.txt
+    exit_code: 0
+    result: pass
+    summary: "3 test files passed; 17 tests passed."
+  - run: "npm run typecheck"
+    exit_code: 0
+    result: pass
+    summary: "TypeScript project checks passed."
+service_wiring_rows:
+  - "Observed diagnostics logs"
+  - "Failed command summaries"
+real_dependencies:
+  - "Node/npm"
+  - "Vitest"
+  - "node:sqlite DatabaseSync"
+  - "Local temp filesystem"
+mocks_or_fixtures:
+  - name: "Observed logs_2.sqlite fixture"
+    path: tests/fixtures/diagnostics.ts
+    type: "real temp SQLite database"
+    covers: "ts, ts_nanos, feedback_log_body, estimated_bytes, level/target/thread filters, cursor ordering, warning summaries, redacted previews"
+  - name: "Warm rollout cache fixture"
+    path: tests/fixtures/diagnostics.ts
+    type: "real temp JSON cache file"
+    covers: "failed-command facts when observed logs have no derived command columns"
+  - name: "Unsupported logs schema fixture"
+    path: tests/fixtures/diagnostics.ts
+    type: "real temp SQLite malformed schema"
+    covers: "typed SCHEMA_UNSUPPORTED behavior"
+residual_risks:
+  - "node:sqlite still emits an ExperimentalWarning in test output on Node 24."
+  - "Observed fixture coverage follows the documented columns; additional real Codex target/body formats may need future tuning."
+  - "Diagnostics reads warm rollout cache facts first for failed-command summaries and falls back to parser-backed cache generation only when no cache entry exists."
+review_status: "test proposal approved; focused implementation verification passed"
+blockers: []

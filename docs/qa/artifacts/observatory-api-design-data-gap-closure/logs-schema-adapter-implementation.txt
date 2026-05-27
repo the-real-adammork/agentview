@@ -1,0 +1,21 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/integration/logStore.test.ts tests/integration/diagnosticsApi.test.ts tests/integration/sourceErrors.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-logs-schema-adapter
+
+(node:99616) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:99615) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:99617) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/integration/logStore.test.ts (8 tests) 42ms
+ ✓ tests/integration/sourceErrors.test.ts (3 tests) 523ms
+ ✓ tests/integration/diagnosticsApi.test.ts (6 tests) 1554ms
+
+ Test Files  3 passed (3)
+      Tests  17 passed (17)
+   Start at  09:48:35
+   Duration  1.87s (transform 61ms, setup 0ms, collect 88ms, tests 2.12s, environment 405ms, prepare 93ms)
