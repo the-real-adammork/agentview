@@ -183,13 +183,6 @@ const toolNameFromRecord = (record: JsonRecord) => {
   return stringValue(record.tool_name, record.toolName, record.name, payload.tool_name, payload.toolName, payload.name, tool?.name);
 };
 
-const outputFromRecord = (record: JsonRecord) => {
-  const payload = nestedPayload(record);
-  const raw = stringValue(record.output, record.result, record.stderr, record.stdout, payload.output, payload.result, payload.stderr, payload.stdout);
-  const wrapper = parseJsonObject(raw);
-  return stringValue(wrapper?.output, wrapper?.stdout, wrapper?.stderr, wrapper?.result, raw);
-};
-
 const argsFromRecord = (record: JsonRecord) => {
   const payload = nestedPayload(record);
   return record.arguments ?? record.args ?? record.params ?? payload.arguments ?? payload.args ?? payload.params;

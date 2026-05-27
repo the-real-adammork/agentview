@@ -8,15 +8,16 @@ interface SegBarProps {
 
 export function SegBar({ activeView, onChange, views }: SegBarProps) {
   return (
-    <nav className="segbar" aria-label="Primary views">
-      {views.map((view) => (
+    <nav className="nav" aria-label="Primary views">
+      {views.map((view, index) => (
         <button
           aria-current={view === activeView ? "page" : undefined}
-          className="segbar__button"
+          data-active={view === activeView ? "true" : "false"}
           key={view}
           onClick={() => onChange(view)}
           type="button"
         >
+          <span className="idx" aria-hidden="true">{String(index).padStart(2, "0")}</span>
           {view}
         </button>
       ))}

@@ -16,7 +16,7 @@ test.describe("real Sessions index @sessions", () => {
   }, testInfo) => {
     await page.goto(appBaseUrl(testInfo));
 
-    await expect(page.getByText("AgentView Observatory")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "WORKFLOWKIT" })).toBeVisible();
     await expect(page.getByLabel(/observatory status/i)).toContainText(/real mode/i);
     await expect(page.getByRole("status", { name: /transport status/i })).toContainText(/source: state-db/i);
     await expect(page.getByRole("status", { name: /transport status/i })).toContainText(/3 sessions/i);

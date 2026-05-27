@@ -129,7 +129,7 @@ test.describe("observatory local fixture shell", () => {
       source: "state-db",
     });
 
-    await expect(page.getByText("AgentView Observatory")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "WORKFLOWKIT" })).toBeVisible();
 
     for (const viewName of primaryViews) {
       await page

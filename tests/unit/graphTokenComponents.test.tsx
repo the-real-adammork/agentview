@@ -25,11 +25,16 @@ describe("graph and token views", () => {
       />,
     );
 
-    const graphRegion = screen.getByRole("list", { name: /agent graph nodes/i });
-    expect(within(graphRegion).getByRole("button", { name: /audit logs_2 noisy targets/i })).toBeVisible();
+    expect(screen.getByTestId("agent-graph-canvas")).toBeVisible();
+    expect(screen.getByTestId("agent-graph-edges")).toBeVisible();
+    expect(screen.getByText(/agent tree · thread_spawn_edges/i)).toBeVisible();
 
-    fireEvent.click(within(graphRegion).getByRole("button", { name: /audit logs_2 noisy targets/i }));
+    const graphRegion = screen.getByRole("list", { name: /agent graph nodes/i });
+    expect(within(graphRegion).getByRole("button", { name: /archimedes audit logs_2 noisy targets/i })).toBeVisible();
+
+    fireEvent.click(within(graphRegion).getByRole("button", { name: /archimedes audit logs_2 noisy targets/i }));
     expect(screen.getByRole("complementary", { name: /selected graph node/i })).toHaveTextContent("ARCHIMEDES");
+    expect(screen.getByRole("complementary", { name: /selected graph node/i })).toHaveTextContent("Node · Inspector");
 
     fireEvent.click(screen.getByRole("button", { name: /open selected in timeline/i }));
     expect(onSelectSession).toHaveBeenCalledWith("019e67b1-300d-7711-901f-00005bee6c5b", "Timeline");
@@ -54,6 +59,10 @@ describe("graph and token views", () => {
     );
 
     expect(screen.getByRole("heading", { name: /tokens/i })).toBeVisible();
+    expect(screen.getByText(/aggregate token flow/i)).toBeVisible();
+    expect(screen.getByText(/token curve · token_count snapshots/i)).toBeVisible();
+    expect(screen.getByText(/top sessions · tokens used/i)).toBeVisible();
+    expect(screen.getByText(/cache hit ratio · last snapshots/i)).toBeVisible();
     expect(screen.getByLabelText(/cached input ratio/i)).toHaveTextContent("7.6%");
     expect(screen.getByRole("meter", { name: /primary rate limit/i })).toHaveAttribute("aria-valuenow", "54");
     expect(screen.getByRole("table", { name: /top token sessions/i })).toHaveTextContent("184,312");

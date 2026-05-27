@@ -49,14 +49,13 @@ export function App() {
 
   useEffect(() => {
     let cancelled = false;
-    let timeout: ReturnType<typeof setTimeout> | undefined;
 
     if (!realApiClient.getDiagnosticsSummary || sessions.length === 0) {
       setSessionDiagnostics({});
       return () => undefined;
     }
 
-    timeout = setTimeout(() => {
+    const timeout = setTimeout(() => {
       void realApiClient
         .getDiagnosticsSummary?.({ threadIds: sessions.map((session) => session.id), targetLimit: 1 })
         .then((result) => {
@@ -73,9 +72,7 @@ export function App() {
 
     return () => {
       cancelled = true;
-      if (timeout) {
-        clearTimeout(timeout);
-      }
+      clearTimeout(timeout);
     };
   }, [sessions]);
 
@@ -132,6 +129,10 @@ export function App() {
   }, [sessionFilter]);
 
   const activeSession = sessions.find((session) => session.id === activeSessionId) ?? sessions[0] ?? fixture.sessions[0];
+  const warningSessionCount = sessions.filter(
+    (session) => (session.warningCount ?? 0) > 0 || (session.failedToolCount ?? 0) > 0 || session.openChildCount > 0,
+  ).length;
+  const tokenTotal = sessions.reduce((total, session) => total + (session.tokensUsed ?? session.tokenTotal), 0);
   const topTokenSessions = useMemo(
     () => [...sessions].sort((left, right) => (right.tokensUsed ?? right.tokenTotal) - (left.tokensUsed ?? left.tokenTotal)),
     [sessions],
@@ -282,8 +283,14 @@ export function App() {
   return (
     <>
       <link rel="stylesheet" href={stylesheetHref} />
-      <Chrome health={health} sessionCount={sessions.length}>
-        <SegBar views={views} activeView={activeView} onChange={setActiveView} />
+      <Chrome
+        activeView={activeView}
+        health={health}
+        navigation={<SegBar views={views} activeView={activeView} onChange={setActiveView} />}
+        sessionCount={sessions.length}
+        tokenTotal={tokenTotal}
+        warningSessionCount={warningSessionCount}
+      >
         <main className="app-shell__main" aria-label="Observatory workspace">
           {activeView === "Sessions" ? (
             <SessionsView

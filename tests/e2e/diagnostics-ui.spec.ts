@@ -1,24 +1,10 @@
 import { appendFile, mkdir, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
 
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
-import type { CachedRolloutFacts, CachedToolCall, RuntimeLogLevel } from "../../src/shared/contracts";
+import type { CachedRolloutFacts, CachedToolCall } from "../../src/shared/contracts";
 import { writeObservedLogsDb, writeObservedRolloutFixtures } from "./observedSourceFixture";
-
-interface DiagnosticLogSeed {
-  timestampMs: number;
-  level: RuntimeLogLevel;
-  target: string;
-  body: string;
-  threadId?: string | null;
-  scope?: string | null;
-  toolName?: string | null;
-  command?: string | null;
-  exitCode?: number | null;
-  outputPreview?: string | null;
-}
 
 function appBaseUrl(testInfo: TestInfo) {
   const configuredBaseUrl = testInfo.project.use.baseURL;
@@ -39,61 +25,6 @@ async function resetDiagnosticsSources() {
   await rm(join(codexHome, "logs_2.sqlite"), { force: true });
   await rm(join(codexHome, "log", "codex-tui.log"), { force: true });
   await rm(join(codexHome, ".observatory", "cache", "v1", "rollouts"), { recursive: true, force: true });
-}
-
-async function writeLogsDb(logs: DiagnosticLogSeed[]) {
-  const logsDbPath = join(e2eCodexHome(), "logs_2.sqlite");
-  await rm(logsDbPath, { force: true });
-
-  const db = new DatabaseSync(logsDbPath);
-  db.exec(`
-    CREATE TABLE logs (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      timestamp_ms INTEGER NOT NULL,
-      level TEXT NOT NULL,
-      target TEXT NOT NULL,
-      body TEXT NOT NULL,
-      module_path TEXT,
-      file TEXT,
-      line INTEGER,
-      thread_id TEXT,
-      scope TEXT,
-      process_uuid TEXT,
-      tool_name TEXT,
-      command TEXT,
-      exit_code INTEGER,
-      output_preview TEXT
-    );
-
-    CREATE INDEX idx_logs_timestamp ON logs(timestamp_ms DESC, id DESC);
-    CREATE INDEX idx_logs_filters ON logs(level, target, thread_id, scope);
-  `);
-
-  const insert = db.prepare(`
-    INSERT INTO logs (
-      timestamp_ms, level, target, body, module_path, file, line, thread_id, scope,
-      process_uuid, tool_name, command, exit_code, output_preview
-    ) VALUES (
-      ?, ?, ?, ?, NULL, NULL, NULL, ?, ?, NULL, ?, ?, ?, ?
-    )
-  `);
-
-  for (const log of logs) {
-    insert.run(
-      log.timestampMs,
-      log.level,
-      log.target,
-      log.body,
-      log.threadId ?? null,
-      log.scope ?? null,
-      log.toolName ?? null,
-      log.command ?? null,
-      log.exitCode ?? null,
-      log.outputPreview ?? null,
-    );
-  }
-
-  db.close();
 }
 
 async function writeRawTuiLog(text: string) {

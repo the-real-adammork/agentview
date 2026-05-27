@@ -1,7 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { realApiClient } from "../api/client";
-import { Panel } from "../components/Panel";
 import type {
   ApiError,
   DiagnosticsSummary,
@@ -20,6 +19,14 @@ interface DiagnosticsViewProps {
 const levels: Array<RuntimeLogLevel | ""> = ["", "TRACE", "DEBUG", "INFO", "WARN", "ERROR"];
 
 const formatLevelLabel = (level: RuntimeLogLevel | "") => (level ? level : "Any");
+const formatLogTime = (timestampMs: number) =>
+  new Date(timestampMs).toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+const shortThreadId = (threadId?: string) => (threadId ? `${threadId.slice(0, 8)}...` : "-");
 
 export function DiagnosticsView({ logs: fallbackLogs, sessions }: DiagnosticsViewProps) {
   const [logs, setLogs] = useState<RuntimeLog[]>(fallbackLogs);
@@ -87,6 +94,30 @@ export function DiagnosticsView({ logs: fallbackLogs, sessions }: DiagnosticsVie
     }
   }, [threadIds]);
 
+  const targetCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const log of logs) {
+      counts.set(log.target, (counts.get(log.target) ?? 0) + 1);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  }, [logs]);
+
+  const warningCountsByThread = useMemo(() => {
+    const counts = new Map<string, number>();
+    const source = summary?.warningCounts.byThreadId ?? {};
+    for (const [threadId, count] of Object.entries(source)) {
+      counts.set(threadId, count);
+    }
+    if (counts.size === 0) {
+      for (const log of logs) {
+        if (log.level === "WARN" && log.threadId) {
+          counts.set(log.threadId, (counts.get(log.threadId) ?? 0) + 1);
+        }
+      }
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  }, [logs, summary]);
+
   useEffect(() => {
     void loadLogs(activeFilter);
   }, [activeFilter, loadLogs]);
@@ -152,157 +183,218 @@ export function DiagnosticsView({ logs: fallbackLogs, sessions }: DiagnosticsVie
   const warnings = [...summaryWarnings, ...(logsError ? [logsError.message] : []), ...(summaryError ? [summaryError.message] : [])];
 
   return (
-    <section className="view-stack" aria-labelledby="diagnostics-title">
-      <div className="view-heading">
-        <p className="view-heading__eyebrow">Local runtime logs</p>
-        <h1 id="diagnostics-title">Diagnostics</h1>
-      </div>
-
+    <section className="diag-view" aria-labelledby="diagnostics-title">
       {warnings.length > 0 ? (
-        <div className="inline-alert" role="alert">
+        <div className="inline-alert diag-alert" role="alert">
           {warnings.join(" ")}
         </div>
       ) : null}
 
-      <Panel eyebrow="Structured diagnostics" title="Log filters">
-        <form className="diagnostics-toolbar" aria-label="Diagnostics filters" onSubmit={applyFilters}>
-          <label className="field">
-            <span>Level</span>
-            <select
-              aria-label="Level"
-              value={filterDraft.level}
-              onChange={(event) =>
-                setFilterDraft((current) => ({ ...current, level: event.target.value as RuntimeLogLevel | "" }))
-              }
-            >
-              {levels.map((level) => (
-                <option key={level || "any"} value={level}>
-                  {formatLevelLabel(level)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
-            <span>Target</span>
-            <input
-              aria-label="Target"
-              value={filterDraft.target}
-              onChange={(event) => setFilterDraft((current) => ({ ...current, target: event.target.value }))}
-            />
-          </label>
-          <label className="field">
-            <span>Scope</span>
-            <input
-              aria-label="Scope"
-              value={filterDraft.scope}
-              onChange={(event) => setFilterDraft((current) => ({ ...current, scope: event.target.value }))}
-            />
-          </label>
-          <button type="submit">Apply filters</button>
-        </form>
-
-        {summary ? (
-          <div className="metric-row" aria-label="Diagnostics summary">
-            <div className="metric">
-              <span>Warnings</span>
-              <strong>{summary.warningCounts.total}</strong>
-            </div>
-            <div className="metric">
-              <span>Failed commands</span>
-              <strong>{summary.failedCommands.reduce((total, command) => total + command.count, 0)}</strong>
-            </div>
+      <div className="diag">
+        <aside className="diag-side">
+          <div className="diag-side__head">
+            <div className="kicker">Filter</div>
+            <h1 id="diagnostics-title" className="display">
+              Diagnostics
+            </h1>
+            <strong>LOG STREAM</strong>
+            <span>logs_2.sqlite · {logs.length.toLocaleString("en-US")} rows</span>
           </div>
-        ) : null}
 
-        {summary?.loudestTargets.length ? (
-          <section className="diagnostics-targets" aria-label="Loudest targets">
-            {summary.loudestTargets.map((target) => (
-              <a
-                href="#diagnostics-logs"
-                key={target.target}
-                onClick={(event) => {
-                  event.preventDefault();
-                  applyTargetFilter(target.target);
-                }}
+          <form className="diag-filter" aria-label="Diagnostics filters" onSubmit={applyFilters}>
+            <label className="field">
+              <span>Level</span>
+              <select
+                aria-label="Level"
+                value={filterDraft.level}
+                onChange={(event) =>
+                  setFilterDraft((current) => ({ ...current, level: event.target.value as RuntimeLogLevel | "" }))
+                }
               >
-                {target.target} {target.warningCount} warnings {target.errorCount} errors
-              </a>
+                {levels.map((level) => (
+                  <option key={level || "any"} value={level}>
+                    {formatLevelLabel(level)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Target</span>
+              <input
+                aria-label="Target"
+                value={filterDraft.target}
+                onChange={(event) => setFilterDraft((current) => ({ ...current, target: event.target.value }))}
+              />
+            </label>
+            <label className="field">
+              <span>Scope</span>
+              <input
+                aria-label="Scope"
+                value={filterDraft.scope}
+                onChange={(event) => setFilterDraft((current) => ({ ...current, scope: event.target.value }))}
+              />
+            </label>
+            <button type="submit">Apply filters</button>
+          </form>
+
+          <section className="diag-filter" aria-label="Loudest targets">
+            <div className="lbl">Target · top 10</div>
+            {summary?.loudestTargets.length ? (
+              summary.loudestTargets.map((target) => (
+                <a
+                  href="#diagnostics-logs"
+                  key={target.target}
+                  onClick={(event) => {
+                    event.preventDefault();
+                    applyTargetFilter(target.target);
+                  }}
+                >
+                  <span>{target.target}</span>
+                  <b>{target.warningCount} warnings {target.errorCount} errors</b>
+                </a>
+              ))
+            ) : (
+              <>
+                <button type="button" onClick={() => applyTargetFilter("")}>
+                  all targets
+                </button>
+                {targetCounts.slice(0, 10).map(([target, count]) => (
+                  <button key={target} type="button" onClick={() => applyTargetFilter(target)}>
+                    <span>{target}</span>
+                    <b>{count}</b>
+                  </button>
+                ))}
+              </>
+            )}
+          </section>
+
+          <section className="diag-filter">
+            <div className="lbl">Mode</div>
+            <button type="button" className="diag-mode">
+              <span className="warn-c blink">●</span> Tail · live
+            </button>
+          </section>
+        </aside>
+
+        <main className="diag-main">
+          <div className="diag-stream-head">
+            <span className="kicker">
+              {activeFilter.level ?? "Any"} · {activeFilter.target ?? "all targets"}
+            </span>
+            <span className="spacer" />
+            <span>{logs.length} rows</span>
+            <span className="warn-c blink">● LIVE</span>
+          </div>
+
+          <div className="diag-log-frame" id="diagnostics-logs">
+            <table aria-label="Diagnostics logs" className="diag-table">
+              <thead>
+                <tr>
+                  <th scope="col">Time</th>
+                  <th scope="col">Level</th>
+                  <th scope="col">Target</th>
+                  <th scope="col">Thread</th>
+                  <th scope="col">Scope</th>
+                  <th scope="col">Preview</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map((log) => (
+                  <tr className={`log-row ${log.level}`} key={log.id}>
+                    <td className="ts">{formatLogTime(log.timestampMs)}</td>
+                    <td>
+                      <span className={`lvl ${log.level}`} /> {log.level}
+                    </td>
+                    <td className="tgt">{log.target}</td>
+                    <td>
+                      <span>{log.threadId ?? "-"}</span>
+                      <span className="diagnostics-source">observed logs</span>
+                    </td>
+                    <td>{log.scope ?? "-"}</td>
+                    <td className="msg">
+                      {log.bodyPreview}
+                      {log.threadId ? <span className="muted"> · {shortThreadId(log.threadId)}</span> : null}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {logs.length === 0 ? <div className="diag-empty">-- no rows match filter --</div> : null}
+          </div>
+        </main>
+
+        <aside className="diag-side right">
+          <div className="diag-side__head">
+            <div className="kicker">Health</div>
+            <strong className="display">RUNTIME</strong>
+          </div>
+
+          <section className="diag-card" aria-label="Runtime summary">
+            <div className="kicker">Warn count · current query</div>
+            <div className="diag-mini-bars" aria-hidden="true">
+              {["WARN", "ERROR", "INFO", "DEBUG", "TRACE"].map((level) => {
+                const count = logs.filter((log) => log.level === level).length;
+                const max = Math.max(1, logs.length);
+                return <i key={level} style={{ blockSize: `${Math.max(6, (count / max) * 100)}%` }} />;
+              })}
+            </div>
+          </section>
+
+          <section className="diag-card" aria-label="Loudest threads">
+            <div className="kicker">Loudest threads</div>
+            {warningCountsByThread.slice(0, 5).map(([threadId, count]) => (
+              <div className="diag-thread" key={threadId}>
+                <span>{shortThreadId(threadId)}</span>
+                <b>▲ {count}</b>
+              </div>
             ))}
           </section>
-        ) : null}
 
-        <div className="table-frame" id="diagnostics-logs">
-          <table aria-label="Diagnostics logs">
-            <thead>
-              <tr>
-                <th scope="col">Level</th>
-                <th scope="col">Target</th>
-                <th scope="col">Thread</th>
-                <th scope="col">Scope</th>
-                <th scope="col">Preview</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map((log) => (
-                <tr key={log.id}>
-                  <td>{log.level}</td>
-                  <td>{log.target}</td>
-                  <td>
-                    <span>{log.threadId ?? "-"}</span>
-                    <span className="diagnostics-source">observed logs</span>
-                  </td>
-                  <td>{log.scope ?? "-"}</td>
-                  <td>{log.bodyPreview}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Panel>
-
-      <Panel eyebrow="Command failures" title="Failed commands">
-        <section className="failed-command-list">
-          {summary?.failedCommands.length ? (
-            summary.failedCommands.map((command) => (
-              <article className="failed-command" key={`${command.threadId}-${command.toolName}-${command.command}`}>
-                <div>
-                  <strong>{command.command}</strong>
-                  <span>
-                    {command.toolName} exit {command.exitCode} count {command.count} source{" "}
-                    {command.source === "rollout-cache" ? "rollout cache" : "logs db"}
-                  </span>
-                </div>
-                <p>{command.lastOutputPreview}</p>
-              </article>
-            ))
-          ) : (
-            <p className="empty-state">No failed commands found.</p>
-          )}
-        </section>
-      </Panel>
-
-      <Panel eyebrow="Advanced" title="Raw log access">
-        {!rawVisible ? (
-          <button className="diagnostics-action" type="button" onClick={revealRawTail}>
-            Show advanced raw TUI log
-          </button>
-        ) : (
-          <section className="raw-tail" aria-label="Raw TUI log">
-            {rawError ? (
-              <div className="inline-alert" role="alert">
-                {rawError.message}
-              </div>
-            ) : null}
-            <pre>{rawTail?.textPreview ?? ""}</pre>
-            <div className="raw-tail__actions">
-              <span>Next offset {rawTail?.nextByteOffset ?? 0}</span>
-              <button type="button" onClick={() => void loadRawTail()}>
-                Load raw tail
-              </button>
-            </div>
+          <section className="diag-card failed-command-list" aria-label="Failed commands">
+            <div className="kicker">Failed commands</div>
+            {summary?.failedCommands.length ? (
+              summary.failedCommands.map((command) => (
+                <article className="failed-command" key={`${command.threadId}-${command.toolName}-${command.command}`}>
+                  <div>
+                    <strong>{command.command}</strong>
+                    <span>
+                      {command.toolName} exit {command.exitCode} count {command.count} source{" "}
+                      {command.source === "rollout-cache" ? "rollout cache" : "logs db"}
+                    </span>
+                  </div>
+                  <p>{command.lastOutputPreview}</p>
+                </article>
+              ))
+            ) : (
+              <p className="empty-state">No failed commands found.</p>
+            )}
           </section>
-        )}
-      </Panel>
+
+          <section className="diag-card">
+            <div className="kicker">Raw fallback</div>
+            {!rawVisible ? (
+              <button className="diagnostics-action" type="button" onClick={revealRawTail}>
+                Show advanced raw TUI log
+              </button>
+            ) : (
+              <section className="raw-tail" aria-label="Raw TUI log">
+                {rawError ? (
+                  <div className="inline-alert" role="alert">
+                    {rawError.message}
+                  </div>
+                ) : null}
+                <pre>{rawTail?.textPreview ?? ""}</pre>
+                <div className="raw-tail__actions">
+                  <span>Next offset {rawTail?.nextByteOffset ?? 0}</span>
+                  <button type="button" onClick={() => void loadRawTail()}>
+                    Load raw tail
+                  </button>
+                </div>
+              </section>
+            )}
+          </section>
+        </aside>
+      </div>
     </section>
   );
 }
