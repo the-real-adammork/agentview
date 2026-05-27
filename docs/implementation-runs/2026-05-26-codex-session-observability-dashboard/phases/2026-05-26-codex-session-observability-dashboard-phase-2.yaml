@@ -3,13 +3,7 @@ status: running
 plan: "docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md"
 branch: "impl/phase-2-sessions-index"
 worktree: ".worktrees/impl-phase-2-sessions-index"
-active_lanes:
-  - lane: "backend-state-source-tests"
-    status: implementation
-    worker: "019e678a-8e7f-7821-9951-a748a7f2b310"
-    branch: "impl/phase-2-backend-state-source-tests"
-    worktree: ".worktrees/impl-phase-2-backend-state-source-tests"
-    result: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/backend-state-source-tests-20260527T034605Z.yaml"
+active_lanes: []
 role_separation:
   supervisor: "supervisor"
   phase_owner: "019e6788-7213-7f21-acac-1394f306a55a"
@@ -21,12 +15,19 @@ role_separation:
 tasks:
   "1":
     title: "Add Codex Path Guard And Read-Only State Store"
-    status: implementation
+    status: done
     lane: "backend-state-source-tests"
+    commit: "2d2ea03"
     verification:
       - command: "npm run test -- --run tests/unit/codexPaths.test.ts tests/integration/stateStore.test.ts"
         result: fail_expected
         artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-1-test-proposal.txt"
+      - command: "npm run test -- --run tests/unit/codexPaths.test.ts tests/integration/stateStore.test.ts"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-1-integration-focused-test.txt"
+      - command: "npm run typecheck"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-1-integration-typecheck.txt"
   "2":
     title: "Wire Health, Sessions, And Thread API Routes"
     status: not_started
@@ -41,22 +42,37 @@ tasks:
     status: not_started
 service_wiring:
   health_and_source_availability:
-    status: pending
-    evidence: null
+    status: source_layer_covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-1-integration-focused-test.txt"
   sessions_first_paint:
-    status: pending
-    evidence: null
+    status: source_layer_covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-1-integration-focused-test.txt"
   session_lookup:
     status: pending
     evidence: null
   filter_composition:
     status: pending
     evidence: null
-mock_fixture_ledger: []
+mock_fixture_ledger:
+  - id: "mf-phase2-001"
+    name: "temp Codex home SQLite fixture"
+    kind: fixture
+    introduced_by: "Task 1"
+    scope: test-only
+    affected_paths:
+      - "tests/fixtures/codexHome.ts"
+    service_wiring_rows:
+      - "Health and source availability"
+      - "Sessions first paint"
+    disposition: test-only
+    acceptable_because: "Fixture builds real temporary state_5.sqlite files for tests; production/dev state store opens the configured CODEX_HOME read-only."
+    conversion_task: null
+    evidence:
+      - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-1-integration-focused-test.txt"
 acceptance:
   status: pending
   packet: "docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-2.md"
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T03:58:10Z"
+updated_at: "2026-05-27T04:05:00Z"
