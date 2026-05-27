@@ -3,7 +3,13 @@ status: running
 plan: "docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md"
 branch: "impl/phase-2-sessions-index"
 worktree: ".worktrees/impl-phase-2-sessions-index"
-active_lanes: []
+active_lanes:
+  - lane: "sessions-api-tests"
+    status: test_proposed
+    worker: null
+    branch: "impl/phase-2-sessions-api-tests"
+    worktree: ".worktrees/impl-phase-2-sessions-api-tests"
+    result: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/sessions-api-tests-20260527T040143Z.yaml"
 role_separation:
   supervisor: "supervisor"
   phase_owner: "019e6788-7213-7f21-acac-1394f306a55a"
@@ -30,7 +36,8 @@ tasks:
         artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-1-integration-typecheck.txt"
   "2":
     title: "Wire Health, Sessions, And Thread API Routes"
-    status: not_started
+    status: test_proposed
+    lane: "sessions-api-tests"
   "3":
     title: "Replace Sessions UI With Real API Data"
     status: not_started
@@ -75,4 +82,4 @@ acceptance:
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T04:05:00Z"
+updated_at: "2026-05-27T04:01:57Z"
