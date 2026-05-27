@@ -3,7 +3,14 @@ status: running
 plan: "docs/plans/2026-05-27-observatory-api-design-data-gap-closure.md"
 branch: "impl/observatory-api-design-data-gap-closure"
 worktree: ".worktrees/impl-observatory-api-design-data-gap-closure"
-active_lanes: []
+active_lanes:
+  - lane: "ui-consumption"
+    task: "Task 5"
+    status: "test_proposed"
+    worker: "worker-ui-consumption-1"
+    branch: "impl/observatory-api-design-data-gap-closure-ui-consumption"
+    worktree: ".worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption"
+    result: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/ui-consumption-2026-05-27T150806Z.yaml"
 orchestrator:
   supervisor_inbox: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/supervisor-inbox/observatory-api-design-data-gap-closure.yaml"
   spawn_method: tmux-pane
@@ -51,7 +58,8 @@ tasks:
         artifact: "docs/qa/artifacts/observatory-api-design-data-gap-closure/graph-tokens-api-integration.txt"
   "5":
     title: "Prove The Frontend Can Consume The Enriched API Data"
-    status: not_started
+    status: in_progress
+    lane: "ui-consumption"
   "6":
     title: "Complete Integration, Regression, And Acceptance Packet"
     status: not_started
@@ -165,4 +173,4 @@ acceptance:
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T15:07:18Z"
+updated_at: "2026-05-27T15:08:06Z"
