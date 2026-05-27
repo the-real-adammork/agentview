@@ -1,5 +1,6 @@
 import { ShortId } from "../components/ShortId";
 import { deriveRepoName } from "../../shared/repoName";
+import { countActiveSessions } from "./sessionStats";
 import { TOKEN_BAR_CELLS, tokenBarFill } from "./tokenBar";
 import type { ApiError, ArchivedFilter, DiagnosticsSummary, SessionFilter, SessionSummary, ThreadSource } from "../../shared/contracts";
 
@@ -83,7 +84,7 @@ export function SessionsView({
   const modelOptions = uniqueValues(sessions, (session) => session.model);
   const repoOptions = uniqueValues(sessions, repoName);
   const updateFilter = (patch: Partial<SessionFilter>) => onFilterChange({ ...filter, ...patch });
-  const activeSessions = sessions.filter((session) => !session.archived).length;
+  const activeSessions = countActiveSessions(sessions, Date.now());
   const subagentSessions = sessions.filter((session) => session.threadSource === "subagent" || session.agentRole).length;
   const openChildren = sessions.reduce((total, session) => total + session.openChildCount, 0);
   const tokenTotal = sessions.reduce((total, session) => total + (session.tokensUsed ?? session.tokenTotal), 0);
@@ -110,7 +111,7 @@ export function SessionsView({
         </div>
 
         <div className="side-stat">
-          <StatCell label="Active" value={activeSessions} sub="not archived" />
+          <StatCell label="Active" value={activeSessions} sub="updated < 1h" />
           <StatCell label="Sub-agents" value={subagentSessions} sub="subagent threads" />
           <StatCell label="Open child" value={openChildren} tone="warn" sub="awaiting" />
           <StatCell label="Σ Tokens" value={compactNumberFormatter.format(tokenTotal)} sub="all sessions" />
