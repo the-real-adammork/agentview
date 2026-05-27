@@ -1,0 +1,46 @@
+phase: "2026-05-26-codex-session-observability-dashboard-phase-4"
+status: not_started
+plan: "docs/plans/2026-05-26-codex-session-observability-dashboard-phase-4-graph-tokens.md"
+branch: "impl/phase-4-graph-tokens"
+worktree: ".worktrees/impl-phase-4-graph-tokens"
+active_lanes: []
+orchestrator:
+  supervisor_inbox: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/supervisor-inbox/2026-05-26-codex-session-observability-dashboard-phase-4.yaml"
+  spawn_method: tmux-pane
+  tmux_pane: null
+  fallback_reason: null
+  validation:
+    checked_at: "2026-05-27T05:40:10Z"
+    status: unknown
+    reason: "Phase 4 state initialized; orchestrator not launched yet."
+tasks:
+  "1":
+    title: "Add Agent Graph API And Derivation"
+    status: not_started
+  "2":
+    title: "Add Token Series API And Derivation"
+    status: not_started
+  "3":
+    title: "Build Graph And Tokens Views"
+    status: not_started
+  "4":
+    title: "Integrate Phase 4 Acceptance Packet"
+    status: not_started
+service_wiring:
+  agent_graph_render:
+    status: pending
+    evidence: null
+  token_series_render:
+    status: pending
+    evidence: null
+  cross_view_navigation:
+    status: pending
+    evidence: null
+mock_fixture_ledger: []
+acceptance:
+  status: pending
+  packet: "docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-4.md"
+  commands: []
+lessons: []
+blockers: []
+updated_at: "2026-05-27T05:40:10Z"
