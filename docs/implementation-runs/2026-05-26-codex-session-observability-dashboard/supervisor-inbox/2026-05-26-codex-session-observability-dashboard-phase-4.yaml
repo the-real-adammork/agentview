@@ -11,4 +11,4 @@ request:
 phase_completion:
   phase_yaml: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/phases/2026-05-26-codex-session-observability-dashboard-phase-4.yaml"
   acceptance_packet: "docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-4.md"
-  commit: "pending-final-commit"
+  commit: "2d4f1e8"

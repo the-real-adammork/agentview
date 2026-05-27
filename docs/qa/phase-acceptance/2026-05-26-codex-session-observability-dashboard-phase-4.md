@@ -16,7 +16,7 @@ A selected session now loads real Agent Graph and Tokens views through local API
 | Task 1 | `70dcac7`, merged by `59727cd` | Added graph derivation, state-store edge traversal, `/api/agent-graph`, and unit/integration coverage. |
 | Task 2 | `15910b6`, merged by `541bb19` | Added token series derivation, `/api/tokens`, and rollout-cache integration coverage. |
 | Task 3 | `524b251` | Added real graph/token React views, components, app API wiring, unit component tests, and `@graph-tokens` E2E. |
-| Task 4 | pending final commit | Acceptance evidence, mock/fixture reconciliation, and packet. |
+| Task 4 | `2d4f1e8` | Acceptance evidence, mock/fixture reconciliation, and packet. |
 
 ## Service Wiring Matrix
 
