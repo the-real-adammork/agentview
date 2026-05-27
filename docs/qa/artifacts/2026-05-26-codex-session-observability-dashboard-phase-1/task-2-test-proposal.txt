@@ -1,0 +1,20 @@
+Command:
+npm run test -- --run tests/unit/contracts.test.ts tests/unit/redaction.test.ts
+
+Result:
+exit 1, fail_expected
+
+Concise output:
+RUN v3.2.4 /Users/adam/Projects/agentview/.worktrees/phase-1-contract-fixture-data
+
+FAIL tests/unit/contracts.test.ts
+Error: Failed to resolve import "../../src/fixtures/observatoryFixtures" from "tests/unit/contracts.test.ts". Does the file exist?
+
+FAIL tests/unit/redaction.test.ts
+Error: Failed to resolve import "../../src/shared/redaction" from "tests/unit/redaction.test.ts". Does the file exist?
+
+Test Files 2 failed (2)
+Tests no tests
+
+Expected failure:
+Task 2 production exports are not implemented yet: src/fixtures/observatoryFixtures and src/shared/redaction are missing. This is not a Vitest setup failure.
