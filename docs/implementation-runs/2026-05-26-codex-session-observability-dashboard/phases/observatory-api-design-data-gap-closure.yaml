@@ -3,14 +3,7 @@ status: running
 plan: "docs/plans/2026-05-27-observatory-api-design-data-gap-closure.md"
 branch: "impl/observatory-api-design-data-gap-closure"
 worktree: ".worktrees/impl-observatory-api-design-data-gap-closure"
-active_lanes:
-  - lane: "ui-consumption"
-    task: "Task 5"
-    status: "implementation"
-    worker: "worker-ui-consumption-1"
-    branch: "impl/observatory-api-design-data-gap-closure-ui-consumption"
-    worktree: ".worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption"
-    result: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/ui-consumption-2026-05-27T150806Z.yaml"
+active_lanes: []
 orchestrator:
   supervisor_inbox: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/supervisor-inbox/observatory-api-design-data-gap-closure.yaml"
   spawn_method: tmux-pane
@@ -58,15 +51,20 @@ tasks:
         artifact: "docs/qa/artifacts/observatory-api-design-data-gap-closure/graph-tokens-api-integration.txt"
   "5":
     title: "Prove The Frontend Can Consume The Enriched API Data"
-    status: in_progress
+    status: done
     lane: "ui-consumption"
+    commit: "7005a2d09032ff252273f7c91c3d87065f988831"
+    verification:
+      - command: "npm run e2e -- timeline-detail.spec.ts graph-tokens.spec.ts diagnostics-ui.spec.ts"
+        result: pass
+        artifact: "docs/qa/artifacts/observatory-api-design-data-gap-closure/ui-consumption-integration.txt"
   "6":
     title: "Complete Integration, Regression, And Acceptance Packet"
     status: not_started
 service_wiring:
   observed_rollout_timeline:
-    status: backend_covered
-    evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/rollout-parser-integration.txt"
+    status: covered
+    evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/ui-consumption-integration.txt"
   spawn_child_navigation_data:
     status: covered
     evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/graph-tokens-api-integration.txt"
@@ -75,12 +73,12 @@ service_wiring:
     evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/graph-tokens-api-integration.txt"
   observed_diagnostics_logs:
     status: covered
-    evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/logs-schema-adapter-integration.txt"
+    evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/ui-consumption-integration.txt"
   failed_command_summaries:
     status: covered
     evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/graph-tokens-api-integration.txt"
   cache_and_live_tail_facts:
-    status: backend_covered
+    status: covered
     evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/rollout-parser-integration.txt"
 mock_fixture_ledger:
   - id: "mf-task3-observed-logs-sqlite"
@@ -167,10 +165,31 @@ mock_fixture_ledger:
     conversion_task: null
     evidence:
       - "docs/qa/artifacts/observatory-api-design-data-gap-closure/graph-tokens-api-integration.txt"
+  - id: "mf-task5-playwright-observed-codex-home"
+    name: "Playwright temp CODEX_HOME observed source fixture"
+    kind: fixture
+    introduced_by: "Task 5"
+    scope: test-only
+    affected_paths:
+      - "tests/e2e/observedSourceFixture.ts"
+      - "tests/e2e/timeline-detail.spec.ts"
+      - "tests/e2e/graph-tokens.spec.ts"
+      - "tests/e2e/diagnostics-ui.spec.ts"
+    service_wiring_rows:
+      - "observed_rollout_timeline"
+      - "spawn_child_navigation_data"
+      - "full_token_metadata"
+      - "observed_diagnostics_logs"
+      - "failed_command_summaries"
+    disposition: test-only
+    acceptable_because: "Generated observed source fixtures exercise browser -> real local API -> filesystem and SQLite code paths under the Playwright E2E harness."
+    conversion_task: null
+    evidence:
+      - "docs/qa/artifacts/observatory-api-design-data-gap-closure/ui-consumption-integration.txt"
 acceptance:
   status: pending
   packet: "docs/qa/phase-acceptance/2026-05-27-observatory-api-design-data-gap-closure.md"
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T15:18:32Z"
+updated_at: "2026-05-27T15:24:24Z"
