@@ -162,7 +162,7 @@ describe("graph/tokens API routes", () => {
         },
         {
           id: "child-open",
-          createdAtMs: 1_100,
+          createdAtMs: 1_300,
           updatedAtMs: 2_100,
           cwd: "/repo/agentview",
           title: "Open graph worker",
@@ -172,7 +172,7 @@ describe("graph/tokens API routes", () => {
         },
         {
           id: "child-closed",
-          createdAtMs: 1_200,
+          createdAtMs: 1_100,
           updatedAtMs: 2_200,
           cwd: "/repo/agentview",
           firstUserMessage: "Closed worker prompt",
@@ -207,13 +207,33 @@ describe("graph/tokens API routes", () => {
         data: {
           root: { id: "root-thread", depth: 0, status: "complete" },
           nodes: [
-            expect.objectContaining({ id: "root-thread", depth: 0 }),
-            expect.objectContaining({ id: "child-open", depth: 1, status: "running", nickname: "graph-api" }),
-            expect.objectContaining({ id: "child-closed", depth: 1, status: "complete" }),
+            expect.objectContaining({
+              id: "root-thread",
+              depth: 0,
+              createdAt: "1970-01-01T00:00:01.000Z",
+              updatedAt: "1970-01-01T00:00:02.000Z",
+            }),
+            expect.objectContaining({
+              id: "child-closed",
+              depth: 1,
+              status: "complete",
+              createdAt: "1970-01-01T00:00:01.100Z",
+              updatedAt: "1970-01-01T00:00:02.200Z",
+              sourceEdgeStatus: "closed",
+            }),
+            expect.objectContaining({
+              id: "child-open",
+              depth: 1,
+              status: "running",
+              nickname: "graph-api",
+              createdAt: "1970-01-01T00:00:01.300Z",
+              updatedAt: "1970-01-01T00:00:02.100Z",
+              sourceEdgeStatus: "open",
+            }),
           ],
           edges: [
-            { parentId: "root-thread", childId: "child-open", status: "open" },
             { parentId: "root-thread", childId: "child-closed", status: "closed" },
+            { parentId: "root-thread", childId: "child-open", status: "open" },
           ],
           maxDepth: 1,
           truncatedDepth: true,
@@ -229,12 +249,20 @@ describe("graph/tokens API routes", () => {
         source: "state-db",
         data: {
           nodes: expect.arrayContaining([
-            expect.objectContaining({ id: "grandchild-failed", depth: 2, status: "failed" }),
+            expect.objectContaining({
+              id: "grandchild-failed",
+              depth: 2,
+              status: "failed",
+              createdAt: "1970-01-01T00:00:01.300Z",
+              updatedAt: "1970-01-01T00:00:02.300Z",
+              sourceEdgeStatus: "failed",
+            }),
             expect.objectContaining({
               id: "missing-child",
               title: "missing-child",
               depth: 2,
               status: "running",
+              sourceEdgeStatus: "open",
               metadataMissing: true,
             }),
           ]),
@@ -327,7 +355,12 @@ describe("graph/tokens API routes", () => {
           reasoning_output_tokens: 25,
           total_tokens: 590,
         },
+        last_token_usage: {
+          input_tokens: 400,
+          output_tokens: 60,
+        },
         context_window: 1200,
+        plan_type: "pro",
         rate_limits: {
           primary_percent: 57,
           secondary_percent: 9,
@@ -351,6 +384,10 @@ describe("graph/tokens API routes", () => {
               expect.objectContaining({ total: 130, contextUtilization: 0.13, rateLimitPrimaryPercent: 12 }),
               expect.objectContaining({
                 total: 590,
+                lastInput: 400,
+                lastOutput: 60,
+                modelContextWindow: 1200,
+                planType: "pro",
                 contextUtilization: 590 / 1200,
                 rateLimitPrimaryPercent: 57,
                 rateLimitSecondaryPercent: 9,

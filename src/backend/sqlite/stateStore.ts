@@ -46,11 +46,14 @@ export interface AgentGraphRow {
   firstUserMessage: string | null;
   preview: string | null;
   tokensUsed: number | null;
+  createdAtMs?: number | null;
+  updatedAtMs?: number | null;
   agentNickname: string | null;
   agentRole: string | null;
   parentThreadId: string | null;
   childThreadId: string | null;
   edgeStatus: AgentEdgeStatus | null;
+  edgeOrder?: number | bigint | null;
 }
 
 interface ThreadRow {
@@ -411,13 +414,18 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
             root.first_user_message AS firstUserMessage,
             root.preview AS preview,
             root.tokens_used AS tokensUsed,
+            COALESCE(root.created_at_ms, root.created_at * 1000) AS createdAtMs,
+            COALESCE(root.updated_at_ms, root.updated_at * 1000) AS updatedAtMs,
             root.agent_nickname AS agentNickname,
             root.agent_role AS agentRole,
             NULL AS parentThreadId,
             NULL AS childThreadId,
             NULL AS edgeStatus,
+            NULL AS edgeOrder,
             0 AS sortDepth,
-            0 AS sortOrder
+            0 AS sortCreatedAtMs,
+            0 AS sortOrder,
+            root.id AS sortChildId
           FROM threads root
           WHERE root.id = :rootThreadId
 
@@ -429,16 +437,21 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
             child.first_user_message AS firstUserMessage,
             child.preview AS preview,
             child.tokens_used AS tokensUsed,
+            COALESCE(child.created_at_ms, child.created_at * 1000) AS createdAtMs,
+            COALESCE(child.updated_at_ms, child.updated_at * 1000) AS updatedAtMs,
             child.agent_nickname AS agentNickname,
             child.agent_role AS agentRole,
             graph_edges.parent_thread_id AS parentThreadId,
             graph_edges.child_thread_id AS childThreadId,
             graph_edges.status AS edgeStatus,
+            graph_edges.edge_order AS edgeOrder,
             graph_edges.depth AS sortDepth,
-            graph_edges.edge_order AS sortOrder
+            COALESCE(child.created_at_ms, child.created_at * 1000) AS sortCreatedAtMs,
+            graph_edges.edge_order AS sortOrder,
+            graph_edges.child_thread_id AS sortChildId
           FROM graph_edges
           LEFT JOIN threads child ON child.id = graph_edges.child_thread_id
-          ORDER BY sortDepth, sortOrder
+          ORDER BY sortDepth, sortCreatedAtMs, sortOrder, sortChildId
         `)
         .all({ rootThreadId, scanDepth }) as unknown as AgentGraphRow[];
     },

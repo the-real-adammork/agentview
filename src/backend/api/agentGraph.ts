@@ -33,6 +33,9 @@ const edgeStatusToSessionStatus = (status: AgentEdgeStatus | null): SessionStatu
 const titleFromRow = (row: AgentGraphRow, fallbackId: string) =>
   (row.title ?? "").trim() || (row.firstUserMessage ?? "").trim() || (row.preview ?? "").trim() || fallbackId;
 
+const timestampFromMs = (value: number | null | undefined) =>
+  value !== null && value !== undefined && Number.isFinite(value) ? new Date(value).toISOString() : undefined;
+
 const createNode = ({
   id,
   row,
@@ -53,6 +56,20 @@ const createNode = ({
     depth,
     tokenTotal: Number(row?.tokensUsed ?? 0),
   };
+
+  const createdAt = timestampFromMs(row?.createdAtMs);
+  if (createdAt) {
+    node.createdAt = createdAt;
+  }
+
+  const updatedAt = timestampFromMs(row?.updatedAtMs);
+  if (updatedAt) {
+    node.updatedAt = updatedAt;
+  }
+
+  if (edgeStatus) {
+    node.sourceEdgeStatus = edgeStatus;
+  }
 
   if (row?.agentNickname) {
     node.nickname = row.agentNickname;
@@ -80,7 +97,10 @@ export const deriveAgentGraph = (
 ): AgentGraph => {
   const maxDepth = options.maxDepth ?? defaultMaxDepth;
   const metadataById = new Map<string, AgentGraphRow>();
-  const childrenByParent = new Map<string, Array<{ childId: string; status: AgentEdgeStatus; row?: AgentGraphRow }>>();
+  const childrenByParent = new Map<
+    string,
+    Array<{ childId: string; status: AgentEdgeStatus; row?: AgentGraphRow; edgeOrder: number; sortCreatedAtMs: number }>
+  >();
 
   for (const row of rows) {
     if (row.id) {
@@ -93,9 +113,20 @@ export const deriveAgentGraph = (
         childId: row.childThreadId,
         status: row.edgeStatus,
         row: row.id ? row : undefined,
+        edgeOrder: Number(row.edgeOrder ?? children.length),
+        sortCreatedAtMs: row.createdAtMs ?? Number.MAX_SAFE_INTEGER,
       });
       childrenByParent.set(row.parentThreadId, children);
     }
+  }
+
+  for (const children of childrenByParent.values()) {
+    children.sort(
+      (left, right) =>
+        left.sortCreatedAtMs - right.sortCreatedAtMs ||
+        left.edgeOrder - right.edgeOrder ||
+        left.childId.localeCompare(right.childId),
+    );
   }
 
   const rootRow = metadataById.get(rootThreadId);

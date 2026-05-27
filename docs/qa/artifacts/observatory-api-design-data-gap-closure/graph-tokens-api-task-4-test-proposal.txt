@@ -1,0 +1,205 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/unit/tokenSeries.test.ts tests/unit/agentGraph.test.ts tests/integration/graphTokensApi.test.ts tests/integration/diagnosticsApi.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-graph-tokens-api
+
+(node:15967) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15966) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15969) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15968) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ tests/unit/agentGraph.test.ts (2 tests | 2 failed) 6ms
+   × deriveAgentGraph > returns the root and direct children at depth 1 with status summary 5ms
+     → expected { id: 'root-thread', …(5) } to match object { id: 'root-thread', …(5) }
+(2 matching properties omitted from actual)
+   × deriveAgentGraph > returns depth 2 descendants and preserves missing child metadata as placeholder nodes 1ms
+     → expected [ [ 'root-thread', +0, …(2) ], …(4) ] to deeply equal [ [ 'root-thread', +0, …(2) ], …(4) ]
+ ✓ tests/unit/tokenSeries.test.ts (3 tests) 42ms
+ ❯ tests/integration/graphTokensApi.test.ts (5 tests | 1 failed) 1299ms
+   × graph/tokens API routes > serves a depth-limited graph from real temp SQLite edges and thread metadata 274ms
+     → expected { ok: true, …(3) } to match object { ok: true, source: 'state-db', …(2) }
+(18 matching properties omitted from actual)
+   ✓ graph/tokens API routes > returns a typed 404 when the graph root thread is absent 255ms
+   ✓ graph/tokens API routes > reports missing state_5.sqlite as source unavailable for graph requests 249ms
+   ✓ graph/tokens API routes > serves selected-session token series from Phase 3 rollout cache facts 265ms
+   ✓ graph/tokens API routes > returns token empty-state reasons from real rollout cache facts when token data is absent 256ms
+ ✓ tests/integration/diagnosticsApi.test.ts (6 tests) 1549ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/graphTokensApi.test.ts > graph/tokens API routes > serves a depth-limited graph from real temp SQLite edges and thread metadata
+AssertionError: expected { ok: true, …(3) } to match object { ok: true, source: 'state-db', …(2) }
+(18 matching properties omitted from actual)
+
+- Expected
++ Received
+
+@@ -1,43 +1,44 @@
+  {
+    "data": {
+      "edges": [
+        {
+-         "childId": "child-closed",
++         "childId": "child-open",
+          "parentId": "root-thread",
+-         "status": "closed",
++         "status": "open",
+        },
+        {
+-         "childId": "child-open",
++         "childId": "child-closed",
+          "parentId": "root-thread",
+-         "status": "open",
++         "status": "closed",
+        },
+      ],
+      "maxDepth": 1,
+      "nodes": [
+-       ObjectContaining {
+-         "createdAt": "1970-01-01T00:00:01.000Z",
++       {
+          "depth": 0,
+          "id": "root-thread",
+-         "updatedAt": "1970-01-01T00:00:02.000Z",
+-       },
+-       ObjectContaining {
+-         "createdAt": "1970-01-01T00:00:01.100Z",
+-         "depth": 1,
+-         "id": "child-closed",
+-         "sourceEdgeStatus": "closed",
+          "status": "complete",
+-         "updatedAt": "1970-01-01T00:00:02.200Z",
++         "title": "Root graph task",
++         "tokenTotal": 1000,
+        },
+-       ObjectContaining {
+-         "createdAt": "1970-01-01T00:00:01.300Z",
++       {
+          "depth": 1,
+          "id": "child-open",
+          "nickname": "graph-api",
+-         "sourceEdgeStatus": "open",
++         "role": "implementation",
+          "status": "running",
+-         "updatedAt": "1970-01-01T00:00:02.100Z",
++         "title": "Open graph worker",
++         "tokenTotal": 200,
++       },
++       {
++         "depth": 1,
++         "finalReportPreview": "Closed worker preview",
++         "id": "child-closed",
++         "status": "complete",
++         "title": "Closed worker prompt",
++         "tokenTotal": 300,
+        },
+      ],
+      "openCount": 1,
+      "root": {
+        "depth": 0,
+
+ ❯ tests/integration/graphTokensApi.test.ts:204:29
+    202| 
+    203|       expect(depthOne.status).toBe(200);
+    204|       expect(depthOne.body).toMatchObject({
+       |                             ^
+    205|         ok: true,
+    206|         source: "state-db",
+ ❯ withApi tests/integration/graphTokensApi.test.ts:128:12
+ ❯ tests/integration/graphTokensApi.test.ts:199:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/unit/agentGraph.test.ts > deriveAgentGraph > returns the root and direct children at depth 1 with status summary
+AssertionError: expected { id: 'root-thread', …(5) } to match object { id: 'root-thread', …(5) }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "createdAt": "1970-01-01T00:00:01.000Z",
+    "depth": 0,
+    "id": "root-thread",
+    "status": "complete",
+    "title": "Root orchestration",
+-   "updatedAt": "1970-01-01T00:00:02.000Z",
+  }
+
+ ❯ tests/unit/agentGraph.test.ts:88:24
+     86|     const graph = deriveAgentGraph("root-thread", rows, { maxDepth: 1 …
+     87| 
+     88|     expect(graph.root).toMatchObject({
+       |                        ^
+     89|       id: "root-thread",
+     90|       title: "Root orchestration",
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/unit/agentGraph.test.ts > deriveAgentGraph > returns depth 2 descendants and preserves missing child metadata as placeholder nodes
+AssertionError: expected [ [ 'root-thread', +0, …(2) ], …(4) ] to deeply equal [ [ 'root-thread', +0, …(2) ], …(4) ]
+
+- Expected
++ Received
+
+@@ -4,29 +4,29 @@
+      0,
+      "complete",
+      false,
+    ],
+    [
++     "child-open",
++     1,
++     "running",
++     false,
++   ],
++   [
+      "child-closed",
+      1,
+      "complete",
+      false,
+    ],
+    [
+-     "child-open",
+-     1,
+-     "running",
++     "grandchild-failed",
++     2,
++     "failed",
+      false,
+    ],
+    [
+      "missing-child",
+      2,
+      "running",
+      true,
+-   ],
+-   [
+-     "grandchild-failed",
+-     2,
+-     "failed",
+-     false,
+    ],
+  ]
+
+ ❯ tests/unit/agentGraph.test.ts:114:106
+    112| 
+    113|     expect(graph.truncatedDepth).toBe(false);
+    114|     expect(graph.nodes.map((node) => [node.id, node.depth, node.status…
+       |                                                                                                          ^
+    115|       ["root-thread", 0, "complete", false],
+    116|       ["child-closed", 1, "complete", false],
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  2 failed | 2 passed (4)
+      Tests  3 failed | 13 passed (16)
+   Start at  10:00:48
+   Duration  1.88s (transform 123ms, setup 0ms, collect 151ms, tests 2.90s, environment 555ms, prepare 140ms)
+
