@@ -1,0 +1,51 @@
+phase: "2026-05-26-codex-session-observability-dashboard-phase-2"
+status: running
+plan: "docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md"
+branch: "impl/phase-2-sessions-index"
+worktree: ".worktrees/impl-phase-2-sessions-index"
+active_lanes: []
+role_separation:
+  supervisor: "supervisor"
+  phase_owner: null
+  phase_owner_dispatch_available: true
+  phase_owner_spawned: false
+  phase_owner_inline_reason: null
+  worker_dispatch_available: true
+  worker_dispatch_fallback_reason: null
+tasks:
+  "1":
+    title: "Add Codex Path Guard And Read-Only State Store"
+    status: not_started
+  "2":
+    title: "Wire Health, Sessions, And Thread API Routes"
+    status: not_started
+  "3":
+    title: "Replace Sessions UI With Real API Data"
+    status: not_started
+  "4":
+    title: "Add First-Paint Performance Guard"
+    status: not_started
+  "5":
+    title: "Integrate Phase 2 Acceptance Packet"
+    status: not_started
+service_wiring:
+  health_and_source_availability:
+    status: pending
+    evidence: null
+  sessions_first_paint:
+    status: pending
+    evidence: null
+  session_lookup:
+    status: pending
+    evidence: null
+  filter_composition:
+    status: pending
+    evidence: null
+mock_fixture_ledger: []
+acceptance:
+  status: pending
+  packet: "docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-2.md"
+  commands: []
+lessons: []
+blockers: []
+updated_at: "2026-05-27T03:43:33Z"

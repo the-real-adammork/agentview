@@ -10,10 +10,10 @@ phase_order:
   - "2026-05-26-codex-session-observability-dashboard-phase-5"
 branches:
   base: "main"
-  current: "impl/phase-1-fixture-shell"
+  current: "impl/phase-2-sessions-index"
 paths:
   run_dir: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard"
   qa_artifacts: "docs/qa/artifacts"
   acceptance_packets: "docs/qa/phase-acceptance"
 escalations: []
-updated_at: "2026-05-27T03:20:15Z"
+updated_at: "2026-05-27T03:43:33Z"
