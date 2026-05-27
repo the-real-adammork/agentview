@@ -12,6 +12,7 @@ interface TimelineViewProps {
   onKindChange(kind: string): void;
   onRefresh(): void;
   onTail(): void;
+  onSelectSession(sessionId: string, view: "Timeline"): void;
 }
 
 const filters = ["all", "user_message", "assistant_message", "tool_call", "tool_result", "token_snapshot", "warning"] as const;
@@ -24,6 +25,7 @@ export function TimelineView({
   activeKind,
   onKindChange,
   onRefresh,
+  onSelectSession,
   onTail,
 }: TimelineViewProps) {
   const events = payload?.events ?? [];
@@ -68,7 +70,7 @@ export function TimelineView({
 
       <ol className="timeline-list" aria-label="Timeline events">
         {visibleEvents.map((event) => (
-          <TimelineEventRow event={event} key={event.id} />
+          <TimelineEventRow event={event} key={event.id} onOpenThread={(threadId) => onSelectSession(threadId, "Timeline")} />
         ))}
       </ol>
     </Panel>

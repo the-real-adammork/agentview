@@ -1,0 +1,31 @@
+
+> agentview@0.1.0 e2e
+> playwright test timeline-detail.spec.ts graph-tokens.spec.ts diagnostics-ui.spec.ts
+
+(node:39354) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m(node:39382) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m(node:39393) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m(node:39393) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+[2m[WebServer] [22m(node:39424) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 8 tests using 1 worker
+
+(node:39426) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:39426) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:39426) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+  ✓  1 tests/e2e/diagnostics-ui.spec.ts:152:3 › Diagnostics UI @diagnostics › filters structured diagnostics by level, target, and scope against local API logs (256ms)
+  ✓  2 tests/e2e/diagnostics-ui.spec.ts:202:3 › Diagnostics UI @diagnostics › renders failed-command summaries and uses loudest-target links to filter logs (214ms)
+  ✓  3 tests/e2e/diagnostics-ui.spec.ts:241:3 › Diagnostics UI @diagnostics › shows rollout-cache failed-command fallback when logs_2.sqlite is missing (178ms)
+  ✓  4 tests/e2e/diagnostics-ui.spec.ts:264:3 › Diagnostics UI @diagnostics › hydrates Sessions warning badges after first paint without blocking rows (174ms)
+  ✓  5 tests/e2e/diagnostics-ui.spec.ts:310:3 › Diagnostics UI @diagnostics › keeps raw TUI tail hidden until advanced reveal, redacts previews, and appends from next offset (278ms)
+  ✓  6 tests/e2e/graph-tokens.spec.ts:12:3 › real Graph and Tokens views @graph-tokens › renders graph and token service wiring with Timeline navigation (421ms)
+  ✓  7 tests/e2e/timeline-detail.spec.ts:13:3 › real Timeline detail @timeline › renders parsed rollout rows, redacted previews, collapsed output, scrubber ticks, filters, and tail updates (296ms)
+  ✓  8 tests/e2e/timeline-detail.spec.ts:57:3 › real Timeline detail @timeline › surfaces enriched observed rollout facts in event groups and spawn actions (212ms)
+
+  8 passed (3.2s)
