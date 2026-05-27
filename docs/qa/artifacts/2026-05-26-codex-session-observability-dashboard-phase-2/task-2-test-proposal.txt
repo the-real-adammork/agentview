@@ -1,0 +1,310 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/integration/sessionsApi.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-phase-2-sessions-api-tests
+
+(node:28069) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ tests/integration/sessionsApi.test.ts (8 tests | 7 failed) 2045ms
+   × sessions API routes > reports real state-db health and schema availability through an ApiResult envelope 271ms
+     → expected { ok: true, …(3) } to match object { ok: true, source: 'state-db', …(2) }
+(1 matching property omitted from actual)
+   × sessions API routes > lists sessions from state_5.sqlite sorted by updated_at_ms without reading rollout JSONL on first paint 257ms
+     → expected { ok: true, …(3) } to match object { ok: true, source: 'state-db', …(2) }
+   × sessions API routes > composes list filters for search, cwd, source, role, model, archive state, token floor, and badge status 254ms
+     → expected { ok: true, …(3) } to match object { ok: true, source: 'state-db', …(1) }
+(1 matching property omitted from actual)
+   × sessions API routes > returns one session by thread id and 404 for unknown thread ids 254ms
+     → expected 404 to be 200 // Object.is equality
+   × sessions API routes > rejects unsupported state_5.sqlite schemas with a typed error envelope 254ms
+     → expected 200 to be 503 // Object.is equality
+   × sessions API routes > reports missing state_5.sqlite as source unavailable instead of falling back to fixture sessions 250ms
+     → expected 200 to be 503 // Object.is equality
+   × sessions API routes > rejects invalid list filters before querying the state store 251ms
+     → expected 200 to be 400 // Object.is equality
+   ✓ sessions API routes > keeps API access local-only through loopback CORS allowlisting 253ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/sessionsApi.test.ts > sessions API routes > reports real state-db health and schema availability through an ApiResult envelope
+AssertionError: expected { ok: true, …(3) } to match object { ok: true, source: 'state-db', …(2) }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "data": {
+-     "mode": "real",
+-     "stateDb": {
+-       "readOnly": true,
+-       "supported": true,
+-       "tables": ArrayContaining [
+-         "threads",
+-         "thread_spawn_edges",
+-       ],
+-     },
++     "mode": "fixture",
+      "status": "ok",
+    },
+    "ok": true,
+-   "source": "state-db",
++   "source": "fixture",
+    "warnings": [],
+  }
+
+ ❯ tests/integration/sessionsApi.test.ts:223:29
+    221| 
+    222|       expect(response.status).toBe(200);
+    223|       expect(response.body).toMatchObject({
+       |                             ^
+    224|         ok: true,
+    225|         source: "state-db",
+ ❯ withApi tests/integration/sessionsApi.test.ts:204:12
+ ❯ tests/integration/sessionsApi.test.ts:219:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  tests/integration/sessionsApi.test.ts > sessions API routes > lists sessions from state_5.sqlite sorted by updated_at_ms without reading rollout JSONL on first paint
+AssertionError: expected { ok: true, …(3) } to match object { ok: true, source: 'state-db', …(2) }
+
+- Expected
++ Received
+
+  {
+    "data": [
+-     ObjectContaining {
+-       "childCount": 0,
+-       "failedToolCountStatus": "unknown",
+-       "id": "thread-child-open",
+-       "openChildCount": 0,
+-       "titlePreview": "Investigate backend state store",
+-       "warningCountStatus": "not_requested",
+-     },
+-     ObjectContaining {
++     {
++       "branch": "feat/observatory",
+        "childCount": 2,
+-       "gitOriginUrlPreview": "github.com/example/agentview.git",
+-       "id": "thread-parent",
++       "cwd": "~/code/workflowkit",
++       "id": "019e67b0-3000-7700-9000-00005bee6c00",
++       "lastMessage": "Dashboard scaffolded; awaiting timeline worker.",
++       "model": "gpt-codex-5",
+        "openChildCount": 1,
+-       "titlePreview": "Parent title",
++       "status": "running",
++       "title": "Build observatory dashboard for ~/.codex with agent graph",
++       "tokenTotal": 184312,
++       "updatedAt": "2026-05-26T18:04:00.000Z",
++     },
++     {
++       "branch": "feat/observatory",
++       "childCount": 1,
++       "cwd": "~/code/workflowkit",
++       "id": "019e67b1-300d-7711-901f-00005bee6c5b",
++       "lastMessage": "Top noisy targets identified; suppression list ready.",
++       "model": "claude-sonnet-4.5",
++       "openChildCount": 0,
++       "status": "complete",
++       "title": "Audit logs_2 noisy targets",
++       "tokenTotal": 24680,
++       "updatedAt": "2026-05-26T18:02:20.000Z",
++     },
++     {
++       "branch": "feat/observatory",
++       "childCount": 0,
++       "cwd": "~/code/workflowkit",
++       "id": "019e67b2-301a-7722-903e-00005bee6cb6",
++       "lastMessage": "Timeline rows drafted; waiting on tool output states.",
++       "model": "claude-sonnet-4.5",
++       "openChildCount": 0,
++       "status": "running",
++       "title": "Draft the session timeline view",
++       "tokenTotal": 41820,
++       "updatedAt": "2026-05-26T18:03:10.000Z",
+      },
+    ],
+    "ok": true,
+-   "source": "state-db",
++   "source": "fixture",
+    "warnings": [],
+  }
+
+ ❯ withApi.AGENTVIEW_JSONL_READ_TRAP_LOG tests/integration/sessionsApi.test.ts:314:33
+    312| 
+    313|           expect(response.status).toBe(200);
+    314|           expect(response.body).toMatchObject({
+       |                                 ^
+    315|             ok: true,
+    316|             source: "state-db",
+ ❯ withApi tests/integration/sessionsApi.test.ts:204:12
+ ❯ tests/integration/sessionsApi.test.ts:308:7
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+
+ FAIL  tests/integration/sessionsApi.test.ts > sessions API routes > composes list filters for search, cwd, source, role, model, archive state, token floor, and badge status
+AssertionError: expected { ok: true, …(3) } to match object { ok: true, source: 'state-db', …(1) }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "data": [
+-     ObjectContaining {
+-       "agentRole": "implementation",
+-       "archived": false,
+-       "id": "thread-target-subagent",
+-       "model": "gpt-5-codex",
+-       "threadSource": "subagent",
+-       "tokensUsed": 25000,
++     {
++       "branch": "feat/observatory",
++       "childCount": 2,
++       "cwd": "~/code/workflowkit",
++       "id": "019e67b0-3000-7700-9000-00005bee6c00",
++       "lastMessage": "Dashboard scaffolded; awaiting timeline worker.",
++       "model": "gpt-codex-5",
++       "openChildCount": 1,
++       "status": "running",
++       "title": "Build observatory dashboard for ~/.codex with agent graph",
++       "tokenTotal": 184312,
++       "updatedAt": "2026-05-26T18:04:00.000Z",
++     },
++     {
++       "branch": "feat/observatory",
++       "childCount": 1,
++       "cwd": "~/code/workflowkit",
++       "id": "019e67b1-300d-7711-901f-00005bee6c5b",
++       "lastMessage": "Top noisy targets identified; suppression list ready.",
++       "model": "claude-sonnet-4.5",
++       "openChildCount": 0,
++       "status": "complete",
++       "title": "Audit logs_2 noisy targets",
++       "tokenTotal": 24680,
++       "updatedAt": "2026-05-26T18:02:20.000Z",
++     },
++     {
++       "branch": "feat/observatory",
++       "childCount": 0,
++       "cwd": "~/code/workflowkit",
++       "id": "019e67b2-301a-7722-903e-00005bee6cb6",
++       "lastMessage": "Timeline rows drafted; waiting on tool output states.",
++       "model": "claude-sonnet-4.5",
++       "openChildCount": 0,
++       "status": "running",
++       "title": "Draft the session timeline view",
++       "tokenTotal": 41820,
++       "updatedAt": "2026-05-26T18:03:10.000Z",
+      },
+    ],
+    "ok": true,
+-   "source": "state-db",
++   "source": "fixture",
+  }
+
+ ❯ tests/integration/sessionsApi.test.ts:412:29
+    410| 
+    411|       expect(response.status).toBe(200);
+    412|       expect(response.body).toMatchObject({
+       |                             ^
+    413|         ok: true,
+    414|         source: "state-db",
+ ❯ withApi tests/integration/sessionsApi.test.ts:204:12
+ ❯ tests/integration/sessionsApi.test.ts:405:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯
+
+ FAIL  tests/integration/sessionsApi.test.ts > sessions API routes > returns one session by thread id and 404 for unknown thread ids
+AssertionError: expected 404 to be 200 // Object.is equality
+
+- Expected
++ Received
+
+- 200
++ 404
+
+ ❯ tests/integration/sessionsApi.test.ts:450:28
+    448|       const missing = await requestJson(baseUrl, "/api/sessions/not-pr…
+    449| 
+    450|       expect(found.status).toBe(200);
+       |                            ^
+    451|       expect(found.body).toMatchObject({
+    452|         ok: true,
+ ❯ withApi tests/integration/sessionsApi.test.ts:204:12
+ ❯ tests/integration/sessionsApi.test.ts:446:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯
+
+ FAIL  tests/integration/sessionsApi.test.ts > sessions API routes > rejects unsupported state_5.sqlite schemas with a typed error envelope
+AssertionError: expected 200 to be 503 // Object.is equality
+
+- Expected
++ Received
+
+- 503
++ 200
+
+ ❯ tests/integration/sessionsApi.test.ts:478:31
+    476|       const response = await requestJson(baseUrl, "/api/sessions");
+    477| 
+    478|       expect(response.status).toBe(503);
+       |                               ^
+    479|       expect(response.body).toMatchObject({
+    480|         ok: false,
+ ❯ withApi tests/integration/sessionsApi.test.ts:204:12
+ ❯ tests/integration/sessionsApi.test.ts:475:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/7]⎯
+
+ FAIL  tests/integration/sessionsApi.test.ts > sessions API routes > reports missing state_5.sqlite as source unavailable instead of falling back to fixture sessions
+AssertionError: expected 200 to be 503 // Object.is equality
+
+- Expected
++ Received
+
+- 503
++ 200
+
+ ❯ tests/integration/sessionsApi.test.ts:501:31
+    499|       const response = await requestJson(baseUrl, "/api/sessions");
+    500| 
+    501|       expect(response.status).toBe(503);
+       |                               ^
+    502|       expect(response.body).toMatchObject({
+    503|         ok: false,
+ ❯ withApi tests/integration/sessionsApi.test.ts:204:12
+ ❯ tests/integration/sessionsApi.test.ts:498:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/7]⎯
+
+ FAIL  tests/integration/sessionsApi.test.ts > sessions API routes > rejects invalid list filters before querying the state store
+AssertionError: expected 200 to be 400 // Object.is equality
+
+- Expected
++ Received
+
+- 400
++ 200
+
+ ❯ tests/integration/sessionsApi.test.ts:527:33
+    525|         const response = await requestJson(baseUrl, path);
+    526| 
+    527|         expect(response.status).toBe(400);
+       |                                 ^
+    528|         expect(response.body).toMatchObject({
+    529|           ok: false,
+ ❯ withApi tests/integration/sessionsApi.test.ts:204:12
+ ❯ tests/integration/sessionsApi.test.ts:515:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/7]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  7 failed | 1 passed (8)
+   Start at  23:06:15
+   Duration  2.32s (transform 21ms, setup 0ms, collect 22ms, tests 2.04s, environment 108ms, prepare 25ms)
+
