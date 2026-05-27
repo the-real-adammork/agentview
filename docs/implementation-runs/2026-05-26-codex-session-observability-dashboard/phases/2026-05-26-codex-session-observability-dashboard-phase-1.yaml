@@ -72,6 +72,7 @@ tasks:
     title: "Integrate Phase 1 Acceptance Packet"
     status: done
     lane: "phase-owner"
+    commit: "0b1ac6b"
     verification:
       - command: "npm run typecheck"
         result: pass

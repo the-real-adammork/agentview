@@ -18,7 +18,7 @@ Phase 1 delivers the fixture-backed AgentView Observatory shell: Vite/React fron
 | Task 2 | `8eb64aa` | Define shared contracts and fixture data |
 | Task 3 | `5a8d9d4` | Port fixture-backed five-view shell |
 | Task 4 | `4cd0292` | Add local API fixture server and Playwright harness |
-| Task 5 | Branch head containing this packet | Fix ESLint 9 config gap, run acceptance, and record evidence |
+| Task 5 | `0b1ac6b` | Fix ESLint 9 config gap, run acceptance, and record evidence |
 | Phase-owner state | `8c5521c` | Record integrated Phase 1 state before acceptance |
 
 ## Service Wiring
