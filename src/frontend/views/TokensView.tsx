@@ -6,6 +6,13 @@ import type { ApiError, SessionSummary, TokenSeries } from "../../shared/contrac
 
 const numberFormatter = new Intl.NumberFormat("en-US");
 const percentFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 1, style: "percent" });
+const resetFormatter = new Intl.DateTimeFormat("en-US", {
+  hour: "numeric",
+  minute: "2-digit",
+  hour12: true,
+  timeZone: "UTC",
+  timeZoneName: "short",
+});
 
 interface TokensViewProps {
   activeSession?: SessionSummary;
@@ -31,6 +38,13 @@ export function TokensView({
   const primaryRate = series?.rateLimitPrimaryPercent ?? latestSnapshot?.rateLimitPrimaryPercent;
   const secondaryRate = series?.rateLimitSecondaryPercent ?? latestSnapshot?.rateLimitSecondaryPercent;
   const contextUtilization = series?.latestContextUtilization ?? latestSnapshot?.contextUtilization;
+  const resetAt = series?.resetAt ?? latestSnapshot?.resetAt;
+  const lastInputLabel = latestSnapshot?.lastInput === undefined ? "n/a" : numberFormatter.format(latestSnapshot.lastInput);
+  const lastOutputLabel = latestSnapshot?.lastOutput === undefined ? "n/a" : numberFormatter.format(latestSnapshot.lastOutput);
+  const contextWindowLabel =
+    latestSnapshot?.modelContextWindow === undefined ? "n/a" : numberFormatter.format(latestSnapshot.modelContextWindow);
+  const planTypeLabel = latestSnapshot?.planType ?? "n/a";
+  const resetLabel = resetAt ? resetFormatter.format(new Date(resetAt)) : "n/a";
 
   return (
     <Panel eyebrow={activeSession?.title ?? "Selected session"} title="Tokens">
@@ -60,6 +74,26 @@ export function TokensView({
         <div className="metric" aria-label="Cached input ratio">
           <span>Cached ratio</span>
           <strong>{series.cachedInputRatio === undefined ? "n/a" : percentFormatter.format(series.cachedInputRatio)}</strong>
+        </div>
+        <div className="metric">
+          <span>Last input {lastInputLabel}</span>
+          <strong>{lastInputLabel}</strong>
+        </div>
+        <div className="metric">
+          <span>Last output {lastOutputLabel}</span>
+          <strong>{lastOutputLabel}</strong>
+        </div>
+        <div className="metric">
+          <span>Context window {contextWindowLabel}</span>
+          <strong>{contextWindowLabel}</strong>
+        </div>
+        <div className="metric">
+          <span>Plan type {planTypeLabel}</span>
+          <strong>{planTypeLabel}</strong>
+        </div>
+        <div className="metric">
+          <span>Reset {resetLabel}</span>
+          <strong>{resetLabel}</strong>
         </div>
       </div>
       <div className="token-grid">

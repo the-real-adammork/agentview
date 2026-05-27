@@ -306,6 +306,7 @@ export function App() {
               activeKind={timelineKind}
               onKindChange={setTimelineKind}
               onRefresh={() => loadTimeline()}
+              onSelectSession={selectSession}
               onTail={() => loadTimeline(timelinePayload?.nextByteOffset ?? 0)}
             />
           ) : null}

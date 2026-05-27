@@ -237,6 +237,7 @@ export function DiagnosticsView({ logs: fallbackLogs, sessions }: DiagnosticsVie
               <tr>
                 <th scope="col">Level</th>
                 <th scope="col">Target</th>
+                <th scope="col">Thread</th>
                 <th scope="col">Scope</th>
                 <th scope="col">Preview</th>
               </tr>
@@ -246,6 +247,10 @@ export function DiagnosticsView({ logs: fallbackLogs, sessions }: DiagnosticsVie
                 <tr key={log.id}>
                   <td>{log.level}</td>
                   <td>{log.target}</td>
+                  <td>
+                    <span>{log.threadId ?? "-"}</span>
+                    <span className="diagnostics-source">observed logs</span>
+                  </td>
                   <td>{log.scope ?? "-"}</td>
                   <td>{log.bodyPreview}</td>
                 </tr>

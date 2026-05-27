@@ -20,6 +20,8 @@ interface AgentGraphViewProps {
 const statusSummaryText = (graph: AgentGraph) =>
   `${graph.statusSummary.open} open / ${graph.statusSummary.closed} closed / ${graph.statusSummary.failed ?? 0} failed`;
 
+const formatTimestamp = (value?: string) => (value ? new Date(value).toLocaleString("en-US") : "n/a");
+
 export function AgentGraphView({
   activeSession,
   error,
@@ -95,8 +97,12 @@ export function AgentGraphView({
                 <>
                   <span className="node-list__depth">depth {selectedNode.depth}</span>
                   <strong>{selectedNode.title}</strong>
-                  <span>{selectedNode.status}</span>
+                  <span>status {selectedNode.status}</span>
+                  {selectedNode.sourceEdgeStatus ? <span>edge {selectedNode.sourceEdgeStatus}</span> : null}
                   <span>{numberFormatter.format(selectedNode.tokenTotal)} tokens</span>
+                  <span>Thread ID {selectedNode.id}</span>
+                  <span>Created {formatTimestamp(selectedNode.createdAt)}</span>
+                  <span>Updated {formatTimestamp(selectedNode.updatedAt)}</span>
                   {selectedNode.nickname ? <span>{selectedNode.nickname}</span> : null}
                   {selectedNode.role ? <span>{selectedNode.role}</span> : null}
                   {selectedNode.finalReportPreview ? <p>{selectedNode.finalReportPreview}</p> : null}

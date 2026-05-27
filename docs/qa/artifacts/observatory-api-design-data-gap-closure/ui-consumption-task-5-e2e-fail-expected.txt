@@ -1,0 +1,543 @@
+
+> agentview@0.1.0 e2e
+> playwright test timeline-detail.spec.ts graph-tokens.spec.ts diagnostics-ui.spec.ts
+
+(node:33979) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m(node:34006) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m(node:34007) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m(node:34007) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+[2m[WebServer] [22m(node:34050) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 8 tests using 1 worker
+
+(node:34052) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:34052) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:34052) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+  ✘  1 tests/e2e/diagnostics-ui.spec.ts:152:3 › Diagnostics UI @diagnostics › filters structured diagnostics by level, target, and scope against local API logs (5.3s)
+(node:34142) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:34142) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:34142) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+  ✘  2 tests/e2e/diagnostics-ui.spec.ts:202:3 › Diagnostics UI @diagnostics › renders failed-command summaries and uses loudest-target links to filter logs (5.3s)
+(node:34227) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:34227) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:34227) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+  ✓  3 tests/e2e/diagnostics-ui.spec.ts:241:3 › Diagnostics UI @diagnostics › shows rollout-cache failed-command fallback when logs_2.sqlite is missing (195ms)
+  ✘  4 tests/e2e/diagnostics-ui.spec.ts:264:3 › Diagnostics UI @diagnostics › hydrates Sessions warning badges after first paint without blocking rows (5.2s)
+(node:34325) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:34325) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:34325) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+  ✓  5 tests/e2e/diagnostics-ui.spec.ts:310:3 › Diagnostics UI @diagnostics › keeps raw TUI tail hidden until advanced reveal, redacts previews, and appends from next offset (303ms)
+  ✘  6 tests/e2e/graph-tokens.spec.ts:12:3 › real Graph and Tokens views @graph-tokens › renders graph and token service wiring with Timeline navigation (11.5s)
+(node:34512) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:34512) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:34512) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+  ✓  7 tests/e2e/timeline-detail.spec.ts:13:3 › real Timeline detail @timeline › renders parsed rollout rows, redacted previews, collapsed output, scrubber ticks, filters, and tail updates (317ms)
+  ✘  8 tests/e2e/timeline-detail.spec.ts:57:3 › real Timeline detail @timeline › surfaces enriched observed rollout facts in event groups and spawn actions (5.3s)
+
+
+  1) tests/e2e/diagnostics-ui.spec.ts:152:3 › Diagnostics UI @diagnostics › filters structured diagnostics by level, target, and scope against local API logs 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByRole('table', { name: /diagnostics logs/i })
+    Expected substring: [32m"thread-subagent-implementation"[39m
+    Received string:    [31m"LevelTargetScopePreviewWARNcodex_core::exec-matching observed schema warning"[39m
+    Timeout: 5000ms
+
+    Call log:
+    [2m  - Expect "soft toContainText" with timeout 5000ms[22m
+    [2m  - waiting for getByRole('table', { name: /diagnostics logs/i })[22m
+    [2m    14 × locator resolved to <table aria-label="Diagnostics logs">…</table>[22m
+    [2m       - unexpected value "LevelTargetScopePreviewWARNcodex_core::exec-matching observed schema warning"[22m
+
+
+      196 |     await expect(logsTable).not.toContainText("wrong level error");
+      197 |     await expect(logsTable).not.toContainText("wrong target warning");
+    > 198 |     await expect.soft(logsTable).toContainText("thread-subagent-implementation");
+          |                                  ^
+      199 |     await expect.soft(logsTable).toContainText("observed");
+      200 |   });
+      201 |
+        at /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption/tests/e2e/diagnostics-ui.spec.ts:198:34
+
+    Error Context: test-results/diagnostics-ui-Diagnostics-17060-cope-against-local-API-logs/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/diagnostics-ui-Diagnostics-17060-cope-against-local-API-logs/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/diagnostics-ui-Diagnostics-17060-cope-against-local-API-logs/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  2) tests/e2e/diagnostics-ui.spec.ts:202:3 › Diagnostics UI @diagnostics › renders failed-command summaries and uses loudest-target links to filter logs 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByRole('table', { name: /diagnostics logs/i })
+    Expected substring: [32m"thread-subagent-implementation"[39m
+    Received string:    [31m"LevelTargetScopePreviewERRORcodex_core::exec-observed shell command failed without derived command columns"[39m
+    Timeout: 5000ms
+
+    Call log:
+    [2m  - Expect "soft toContainText" with timeout 5000ms[22m
+    [2m  - waiting for getByRole('table', { name: /diagnostics logs/i })[22m
+    [2m    14 × locator resolved to <table aria-label="Diagnostics logs">…</table>[22m
+    [2m       - unexpected value "LevelTargetScopePreviewERRORcodex_core::exec-observed shell command failed without derived command columns"[22m
+
+
+      234 |       "observed shell command failed without derived command columns",
+      235 |     );
+    > 236 |     await expect.soft(page.getByRole("table", { name: /diagnostics logs/i })).toContainText(
+          |                                                                               ^
+      237 |       "thread-subagent-implementation",
+      238 |     );
+      239 |   });
+        at /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption/tests/e2e/diagnostics-ui.spec.ts:236:79
+
+    Error Context: test-results/diagnostics-ui-Diagnostics-e1b82-target-links-to-filter-logs/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/diagnostics-ui-Diagnostics-e1b82-target-links-to-filter-logs/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/diagnostics-ui-Diagnostics-e1b82-target-links-to-filter-logs/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3) tests/e2e/diagnostics-ui.spec.ts:264:3 › Diagnostics UI @diagnostics › hydrates Sessions warning badges after first paint without blocking rows 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByRole('table', { name: /sessions/i }).locator('tbody tr').filter({ hasText: 'Subagent implementation lane' })
+    Expected substring: [32m"observed schema"[39m
+    Received string:    [31m"Subagent implementation lanethread-scompleteimpl/phase-2gpt-5-codex25,0001/22 warnings / 1 failed command6:18:20 PM"[39m
+    Timeout: 5000ms
+
+    Call log:
+    [2m  - Expect "soft toContainText" with timeout 5000ms[22m
+    [2m  - waiting for getByRole('table', { name: /sessions/i }).locator('tbody tr').filter({ hasText: 'Subagent implementation lane' })[22m
+    [2m    14 × locator resolved to <tr tabindex="0" class="session-row">…</tr>[22m
+    [2m       - unexpected value "Subagent implementation lanethread-scompleteimpl/phase-2gpt-5-codex25,0001/22 warnings / 1 failed command6:18:20 PM"[22m
+
+
+      305 |     await expect(subagentRow).toContainText("2 warnings");
+      306 |     await expect(subagentRow).toContainText("1 failed command");
+    > 307 |     await expect.soft(subagentRow).toContainText("observed schema");
+          |                                    ^
+      308 |   });
+      309 |
+      310 |   test("keeps raw TUI tail hidden until advanced reveal, redacts previews, and appends from next offset", async ({
+        at /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption/tests/e2e/diagnostics-ui.spec.ts:307:36
+
+    Error Context: test-results/diagnostics-ui-Diagnostics-de8d7-paint-without-blocking-rows/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/diagnostics-ui-Diagnostics-de8d7-paint-without-blocking-rows/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/diagnostics-ui-Diagnostics-de8d7-paint-without-blocking-rows/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  4) tests/e2e/graph-tokens.spec.ts:12:3 › real Graph and Tokens views @graph-tokens › renders graph and token service wiring with Timeline navigation 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByLabel('Selected graph node')
+    Expected substring: [32m"open"[39m
+    Received string:    [31m"depth 1Subagent implementation lanerunning25,000 tokensui-workerimplementationImplementation previewOpen selected in Timeline"[39m
+    Timeout: 1000ms
+
+    Call log:
+    [2m  - Expect "soft toContainText" with timeout 1000ms[22m
+    [2m  - waiting for getByLabel('Selected graph node')[22m
+    [2m    11 × locator resolved to <aside class="graph-inspector" aria-label="Selected graph node">…</aside>[22m
+    [2m       - unexpected value "depth 1Subagent implementation lanerunning25,000 tokensui-workerimplementationImplementation previewOpen selected in Timeline"[22m
+
+
+      58 |     await expect(inspector).toContainText("ui-worker");
+      59 |     await expect(inspector).toContainText("implementation");
+    > 60 |     await expect.soft(inspector).toContainText("open", { timeout: 1_000 });
+         |                                  ^
+      61 |     await expect.soft(inspector).toContainText("Created", { timeout: 1_000 });
+      62 |     await expect.soft(inspector).toContainText("Updated", { timeout: 1_000 });
+      63 |     await expect.soft(inspector).toContainText("thread-subagent-implementation", { timeout: 1_000 });
+        at /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption/tests/e2e/graph-tokens.spec.ts:60:34
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByLabel('Selected graph node')
+    Expected substring: [32m"Created"[39m
+    Received string:    [31m"depth 1Subagent implementation lanerunning25,000 tokensui-workerimplementationImplementation previewOpen selected in Timeline"[39m
+    Timeout: 1000ms
+
+    Call log:
+    [2m  - Expect "soft toContainText" with timeout 1000ms[22m
+    [2m  - waiting for getByLabel('Selected graph node')[22m
+    [2m    11 × locator resolved to <aside class="graph-inspector" aria-label="Selected graph node">…</aside>[22m
+    [2m       - unexpected value "depth 1Subagent implementation lanerunning25,000 tokensui-workerimplementationImplementation previewOpen selected in Timeline"[22m
+
+
+      59 |     await expect(inspector).toContainText("implementation");
+      60 |     await expect.soft(inspector).toContainText("open", { timeout: 1_000 });
+    > 61 |     await expect.soft(inspector).toContainText("Created", { timeout: 1_000 });
+         |                                  ^
+      62 |     await expect.soft(inspector).toContainText("Updated", { timeout: 1_000 });
+      63 |     await expect.soft(inspector).toContainText("thread-subagent-implementation", { timeout: 1_000 });
+      64 |
+        at /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption/tests/e2e/graph-tokens.spec.ts:61:34
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByLabel('Selected graph node')
+    Expected substring: [32m"Updated"[39m
+    Received string:    [31m"depth 1Subagent implementation lanerunning25,000 tokensui-workerimplementationImplementation previewOpen selected in Timeline"[39m
+    Timeout: 1000ms
+
+    Call log:
+    [2m  - Expect "soft toContainText" with timeout 1000ms[22m
+    [2m  - waiting for getByLabel('Selected graph node')[22m
+    [2m    11 × locator resolved to <aside class="graph-inspector" aria-label="Selected graph node">…</aside>[22m
+    [2m       - unexpected value "depth 1Subagent implementation lanerunning25,000 tokensui-workerimplementationImplementation previewOpen selected in Timeline"[22m
+
+
+      60 |     await expect.soft(inspector).toContainText("open", { timeout: 1_000 });
+      61 |     await expect.soft(inspector).toContainText("Created", { timeout: 1_000 });
+    > 62 |     await expect.soft(inspector).toContainText("Updated", { timeout: 1_000 });
+         |                                  ^
+      63 |     await expect.soft(inspector).toContainText("thread-subagent-implementation", { timeout: 1_000 });
+      64 |
+      65 |     await inspector.getByRole("button", { name: /open selected in timeline/i }).click();
+        at /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption/tests/e2e/graph-tokens.spec.ts:62:34
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByLabel('Selected graph node')
+    Expected substring: [32m"thread-subagent-implementation"[39m
+    Received string:    [31m"depth 1Subagent implementation lanerunning25,000 tokensui-workerimplementationImplementation previewOpen selected in Timeline"[39m
+    Timeout: 1000ms
+
+    Call log:
+    [2m  - Expect "soft toContainText" with timeout 1000ms[22m
+    [2m  - waiting for getByLabel('Selected graph node')[22m
+    [2m    11 × locator resolved to <aside class="graph-inspector" aria-label="Selected graph node">…</aside>[22m
+    [2m       - unexpected value "depth 1Subagent implementation lanerunning25,000 tokensui-workerimplementationImplementation previewOpen selected in Timeline"[22m
+
+
+      61 |     await expect.soft(inspector).toContainText("Created", { timeout: 1_000 });
+      62 |     await expect.soft(inspector).toContainText("Updated", { timeout: 1_000 });
+    > 63 |     await expect.soft(inspector).toContainText("thread-subagent-implementation", { timeout: 1_000 });
+         |                                  ^
+      64 |
+      65 |     await inspector.getByRole("button", { name: /open selected in timeline/i }).click();
+      66 |     await expect(page.getByRole("heading", { name: "Timeline" })).toBeVisible();
+        at /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption/tests/e2e/graph-tokens.spec.ts:63:34
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByText(/last input/i)
+    Expected substring: [32m"17"[39m
+    Timeout: 1000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "soft toContainText" with timeout 1000ms[22m
+    [2m  - waiting for getByText(/last input/i)[22m
+
+
+      100 |     await expect(page.getByRole("meter", { name: /primary rate limit/i })).toBeVisible();
+      101 |     await expect(page.getByText(/cached-input-ratio-unavailable/i)).toBeVisible();
+    > 102 |     await expect.soft(page.getByText(/last input/i)).toContainText("17", { timeout: 1_000 });
+          |                                                      ^
+      103 |     await expect.soft(page.getByText(/last output/i)).toContainText("29", { timeout: 1_000 });
+      104 |     await expect.soft(page.getByText(/context window/i)).toContainText("128,000", { timeout: 1_000 });
+      105 |     await expect.soft(page.getByText(/plan type/i)).toContainText("pro", { timeout: 1_000 });
+        at /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption/tests/e2e/graph-tokens.spec.ts:102:54
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByText(/last output/i)
+    Expected substring: [32m"29"[39m
+    Timeout: 1000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "soft toContainText" with timeout 1000ms[22m
+    [2m  - waiting for getByText(/last output/i)[22m
+
+
+      101 |     await expect(page.getByText(/cached-input-ratio-unavailable/i)).toBeVisible();
+      102 |     await expect.soft(page.getByText(/last input/i)).toContainText("17", { timeout: 1_000 });
+    > 103 |     await expect.soft(page.getByText(/last output/i)).toContainText("29", { timeout: 1_000 });
+          |                                                       ^
+      104 |     await expect.soft(page.getByText(/context window/i)).toContainText("128,000", { timeout: 1_000 });
+      105 |     await expect.soft(page.getByText(/plan type/i)).toContainText("pro", { timeout: 1_000 });
+      106 |     await expect.soft(page.getByText(/primary rate limit/i)).toContainText("64", { timeout: 1_000 });
+        at /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption/tests/e2e/graph-tokens.spec.ts:103:55
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByText(/context window/i)
+    Expected substring: [32m"128,000"[39m
+    Timeout: 1000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "soft toContainText" with timeout 1000ms[22m
+    [2m  - waiting for getByText(/context window/i)[22m
+
+
+      102 |     await expect.soft(page.getByText(/last input/i)).toContainText("17", { timeout: 1_000 });
+      103 |     await expect.soft(page.getByText(/last output/i)).toContainText("29", { timeout: 1_000 });
+    > 104 |     await expect.soft(page.getByText(/context window/i)).toContainText("128,000", { timeout: 1_000 });
+          |                                                          ^
+      105 |     await expect.soft(page.getByText(/plan type/i)).toContainText("pro", { timeout: 1_000 });
+      106 |     await expect.soft(page.getByText(/primary rate limit/i)).toContainText("64", { timeout: 1_000 });
+      107 |     await expect.soft(page.getByText(/secondary rate limit/i)).toContainText("12", { timeout: 1_000 });
+        at /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption/tests/e2e/graph-tokens.spec.ts:104:58
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByText(/plan type/i)
+    Expected substring: [32m"pro"[39m
+    Timeout: 1000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "soft toContainText" with timeout 1000ms[22m
+    [2m  - waiting for getByText(/plan type/i)[22m
+
+
+      103 |     await expect.soft(page.getByText(/last output/i)).toContainText("29", { timeout: 1_000 });
+      104 |     await expect.soft(page.getByText(/context window/i)).toContainText("128,000", { timeout: 1_000 });
+    > 105 |     await expect.soft(page.getByText(/plan type/i)).toContainText("pro", { timeout: 1_000 });
+          |                                                     ^
+      106 |     await expect.soft(page.getByText(/primary rate limit/i)).toContainText("64", { timeout: 1_000 });
+      107 |     await expect.soft(page.getByText(/secondary rate limit/i)).toContainText("12", { timeout: 1_000 });
+      108 |     await expect.soft(page.getByText(/reset/i)).toContainText("7:30", { timeout: 1_000 });
+        at /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption/tests/e2e/graph-tokens.spec.ts:105:53
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByText(/primary rate limit/i)
+    Expected substring: [32m"64"[39m
+    Received string:    [31m"Primary rate limit"[39m
+    Timeout: 1000ms
+
+    Call log:
+    [2m  - Expect "soft toContainText" with timeout 1000ms[22m
+    [2m  - waiting for getByText(/primary rate limit/i)[22m
+    [2m    11 × locator resolved to <span>Primary rate limit</span>[22m
+    [2m       - unexpected value "Primary rate limit"[22m
+
+
+      104 |     await expect.soft(page.getByText(/context window/i)).toContainText("128,000", { timeout: 1_000 });
+      105 |     await expect.soft(page.getByText(/plan type/i)).toContainText("pro", { timeout: 1_000 });
+    > 106 |     await expect.soft(page.getByText(/primary rate limit/i)).toContainText("64", { timeout: 1_000 });
+          |                                                              ^
+      107 |     await expect.soft(page.getByText(/secondary rate limit/i)).toContainText("12", { timeout: 1_000 });
+      108 |     await expect.soft(page.getByText(/reset/i)).toContainText("7:30", { timeout: 1_000 });
+      109 |     await expect(page.getByRole("table", { name: /top token sessions/i })).toContainText("Parent real sessions work");
+        at /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption/tests/e2e/graph-tokens.spec.ts:106:62
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByText(/secondary rate limit/i)
+    Expected substring: [32m"12"[39m
+    Received string:    [31m"Secondary rate limit"[39m
+    Timeout: 1000ms
+
+    Call log:
+    [2m  - Expect "soft toContainText" with timeout 1000ms[22m
+    [2m  - waiting for getByText(/secondary rate limit/i)[22m
+    [2m    11 × locator resolved to <span>Secondary rate limit</span>[22m
+    [2m       - unexpected value "Secondary rate limit"[22m
+
+
+      105 |     await expect.soft(page.getByText(/plan type/i)).toContainText("pro", { timeout: 1_000 });
+      106 |     await expect.soft(page.getByText(/primary rate limit/i)).toContainText("64", { timeout: 1_000 });
+    > 107 |     await expect.soft(page.getByText(/secondary rate limit/i)).toContainText("12", { timeout: 1_000 });
+          |                                                                ^
+      108 |     await expect.soft(page.getByText(/reset/i)).toContainText("7:30", { timeout: 1_000 });
+      109 |     await expect(page.getByRole("table", { name: /top token sessions/i })).toContainText("Parent real sessions work");
+      110 |
+        at /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption/tests/e2e/graph-tokens.spec.ts:107:64
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByText(/reset/i)
+    Expected substring: [32m"7:30"[39m
+    Timeout: 1000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "soft toContainText" with timeout 1000ms[22m
+    [2m  - waiting for getByText(/reset/i)[22m
+
+
+      106 |     await expect.soft(page.getByText(/primary rate limit/i)).toContainText("64", { timeout: 1_000 });
+      107 |     await expect.soft(page.getByText(/secondary rate limit/i)).toContainText("12", { timeout: 1_000 });
+    > 108 |     await expect.soft(page.getByText(/reset/i)).toContainText("7:30", { timeout: 1_000 });
+          |                                                 ^
+      109 |     await expect(page.getByRole("table", { name: /top token sessions/i })).toContainText("Parent real sessions work");
+      110 |
+      111 |     await page.getByRole("button", { name: /open parent real sessions work/i }).click();
+        at /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption/tests/e2e/graph-tokens.spec.ts:108:49
+
+    Error Context: test-results/graph-tokens-real-Graph-an-a7f5a-ng-with-Timeline-navigation/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/graph-tokens-real-Graph-an-a7f5a-ng-with-Timeline-navigation/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/graph-tokens-real-Graph-an-a7f5a-ng-with-Timeline-navigation/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5) tests/e2e/timeline-detail.spec.ts:57:3 › real Timeline detail @timeline › surfaces enriched observed rollout facts in event groups and spawn actions 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByLabel('Timeline events')
+    Expected substring: [32m"1.234s"[39m
+    Received string:    [31m"task started1:00:00 PMline 1Observed task started from event_msgturn context1:00:01 PMline 2{\"type\":\"turn_context\",\"model\":\"gpt-5-codex\",\"reasoning_effort\":\"high\",\"sandbox_policy\":\"workspace-write\",\"approval_mode\":\"never\"}user message1:00:02 PMline 3Observed user event groupassistant message1:00:03 PMline 4Observed assistant event grouptool call1:00:04 PMline 5shell {\"cmd\":\"npm run test -- --run observed-ui\"}{\"cmd\":\"npm run test -- --run observed-ui\"}tool result1:00:05 PMline 6shell completed with exit 7observed joined shell outputtoken snapshot1:00:06 PMline 7tokens total=8,420 input=7,200 output=1,220 cached=320agent launch1:00:07 PMline 8{\"childThreadId\":\"thread-subagent-implementation\",\"nickname\":\"ui-worker\",\"role\":\"implementation\"}agent wait1:00:08 PMline 9{\"type\":\"wait_agent\",\"call_id\":\"call-observed-spawn\",\"child_thread_id\":\"thread-subagent-implementation\",\"status\":\"open\",\"output\":\"Observed child report: UI needs enriched fields\"}Observed child report: UI needs enriched fieldstask complete1:00:09 PMline 10Observed agent report row: frontend consumed enriched data"[39m
+    Timeout: 1000ms
+
+    Call log:
+    [2m  - Expect "soft toContainText" with timeout 1000ms[22m
+    [2m  - waiting for getByLabel('Timeline events')[22m
+    [2m    11 × locator resolved to <ol class="timeline-list" aria-label="Timeline events">…</ol>[22m
+    [2m       - unexpected value "task started1:00:00 PMline 1Observed task started from event_msgturn context1:00:01 PMline 2{"type":"turn_context","model":"gpt-5-codex","reasoning_effort":"high","sandbox_policy":"workspace-write","approval_mode":"never"}user message1:00:02 PMline 3Observed user event groupassistant message1:00:03 PMline 4Observed assistant event grouptool call1:00:04 PMline 5shell {"cmd":"npm run test -- --run observed-ui"}{"cmd":"npm run test -- --run observed-ui"}tool result1:00:05 PMline 6shell completed with exit 7observed joined shell outputtoken snapshot1:00:06 PMline 7tokens total=8,420 input=7,200 output=1,220 cached=320agent launch1:00:07 PMline 8{"childThreadId":"thread-subagent-implementation","nickname":"ui-worker","role":"implementation"}agent wait1:00:08 PMline 9{"type":"wait_agent","call_id":"call-observed-spawn","child_thread_id":"thread-subagent-implementation","status":"open","output":"Observed child report: UI needs enriched fields"}Observed child report: UI needs enriched fieldstask complete1:00:09 PMline 10Observed agent report row: frontend consumed enriched data"[22m
+
+
+      135 |     await expect.soft(timeline).toContainText("observed joined shell output", { timeout: 1_000 });
+      136 |     await expect.soft(timeline).toContainText("exit 7", { timeout: 1_000 });
+    > 137 |     await expect.soft(timeline).toContainText("1.234s", { timeout: 1_000 });
+          |                                 ^
+      138 |     await expect.soft(timeline).toContainText("last input 111", { timeout: 1_000 });
+      139 |     await expect.soft(timeline).toContainText("last output 222", { timeout: 1_000 });
+      140 |     await expect.soft(timeline).toContainText("128,000 context", { timeout: 1_000 });
+        at /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption/tests/e2e/timeline-detail.spec.ts:137:33
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByLabel('Timeline events')
+    Expected substring: [32m"last input 111"[39m
+    Received string:    [31m"task started1:00:00 PMline 1Observed task started from event_msgturn context1:00:01 PMline 2{\"type\":\"turn_context\",\"model\":\"gpt-5-codex\",\"reasoning_effort\":\"high\",\"sandbox_policy\":\"workspace-write\",\"approval_mode\":\"never\"}user message1:00:02 PMline 3Observed user event groupassistant message1:00:03 PMline 4Observed assistant event grouptool call1:00:04 PMline 5shell {\"cmd\":\"npm run test -- --run observed-ui\"}{\"cmd\":\"npm run test -- --run observed-ui\"}tool result1:00:05 PMline 6shell completed with exit 7observed joined shell outputtoken snapshot1:00:06 PMline 7tokens total=8,420 input=7,200 output=1,220 cached=320agent launch1:00:07 PMline 8{\"childThreadId\":\"thread-subagent-implementation\",\"nickname\":\"ui-worker\",\"role\":\"implementation\"}agent wait1:00:08 PMline 9{\"type\":\"wait_agent\",\"call_id\":\"call-observed-spawn\",\"child_thread_id\":\"thread-subagent-implementation\",\"status\":\"open\",\"output\":\"Observed child report: UI needs enriched fields\"}Observed child report: UI needs enriched fieldstask complete1:00:09 PMline 10Observed agent report row: frontend consumed enriched data"[39m
+    Timeout: 1000ms
+
+    Call log:
+    [2m  - Expect "soft toContainText" with timeout 1000ms[22m
+    [2m  - waiting for getByLabel('Timeline events')[22m
+    [2m    11 × locator resolved to <ol class="timeline-list" aria-label="Timeline events">…</ol>[22m
+    [2m       - unexpected value "task started1:00:00 PMline 1Observed task started from event_msgturn context1:00:01 PMline 2{"type":"turn_context","model":"gpt-5-codex","reasoning_effort":"high","sandbox_policy":"workspace-write","approval_mode":"never"}user message1:00:02 PMline 3Observed user event groupassistant message1:00:03 PMline 4Observed assistant event grouptool call1:00:04 PMline 5shell {"cmd":"npm run test -- --run observed-ui"}{"cmd":"npm run test -- --run observed-ui"}tool result1:00:05 PMline 6shell completed with exit 7observed joined shell outputtoken snapshot1:00:06 PMline 7tokens total=8,420 input=7,200 output=1,220 cached=320agent launch1:00:07 PMline 8{"childThreadId":"thread-subagent-implementation","nickname":"ui-worker","role":"implementation"}agent wait1:00:08 PMline 9{"type":"wait_agent","call_id":"call-observed-spawn","child_thread_id":"thread-subagent-implementation","status":"open","output":"Observed child report: UI needs enriched fields"}Observed child report: UI needs enriched fieldstask complete1:00:09 PMline 10Observed agent report row: frontend consumed enriched data"[22m
+
+
+      136 |     await expect.soft(timeline).toContainText("exit 7", { timeout: 1_000 });
+      137 |     await expect.soft(timeline).toContainText("1.234s", { timeout: 1_000 });
+    > 138 |     await expect.soft(timeline).toContainText("last input 111", { timeout: 1_000 });
+          |                                 ^
+      139 |     await expect.soft(timeline).toContainText("last output 222", { timeout: 1_000 });
+      140 |     await expect.soft(timeline).toContainText("128,000 context", { timeout: 1_000 });
+      141 |     await expect.soft(timeline).toContainText("Observed agent report row", { timeout: 1_000 });
+        at /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption/tests/e2e/timeline-detail.spec.ts:138:33
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByLabel('Timeline events')
+    Expected substring: [32m"last output 222"[39m
+    Received string:    [31m"task started1:00:00 PMline 1Observed task started from event_msgturn context1:00:01 PMline 2{\"type\":\"turn_context\",\"model\":\"gpt-5-codex\",\"reasoning_effort\":\"high\",\"sandbox_policy\":\"workspace-write\",\"approval_mode\":\"never\"}user message1:00:02 PMline 3Observed user event groupassistant message1:00:03 PMline 4Observed assistant event grouptool call1:00:04 PMline 5shell {\"cmd\":\"npm run test -- --run observed-ui\"}{\"cmd\":\"npm run test -- --run observed-ui\"}tool result1:00:05 PMline 6shell completed with exit 7observed joined shell outputtoken snapshot1:00:06 PMline 7tokens total=8,420 input=7,200 output=1,220 cached=320agent launch1:00:07 PMline 8{\"childThreadId\":\"thread-subagent-implementation\",\"nickname\":\"ui-worker\",\"role\":\"implementation\"}agent wait1:00:08 PMline 9{\"type\":\"wait_agent\",\"call_id\":\"call-observed-spawn\",\"child_thread_id\":\"thread-subagent-implementation\",\"status\":\"open\",\"output\":\"Observed child report: UI needs enriched fields\"}Observed child report: UI needs enriched fieldstask complete1:00:09 PMline 10Observed agent report row: frontend consumed enriched data"[39m
+    Timeout: 1000ms
+
+    Call log:
+    [2m  - Expect "soft toContainText" with timeout 1000ms[22m
+    [2m  - waiting for getByLabel('Timeline events')[22m
+    [2m    11 × locator resolved to <ol class="timeline-list" aria-label="Timeline events">…</ol>[22m
+    [2m       - unexpected value "task started1:00:00 PMline 1Observed task started from event_msgturn context1:00:01 PMline 2{"type":"turn_context","model":"gpt-5-codex","reasoning_effort":"high","sandbox_policy":"workspace-write","approval_mode":"never"}user message1:00:02 PMline 3Observed user event groupassistant message1:00:03 PMline 4Observed assistant event grouptool call1:00:04 PMline 5shell {"cmd":"npm run test -- --run observed-ui"}{"cmd":"npm run test -- --run observed-ui"}tool result1:00:05 PMline 6shell completed with exit 7observed joined shell outputtoken snapshot1:00:06 PMline 7tokens total=8,420 input=7,200 output=1,220 cached=320agent launch1:00:07 PMline 8{"childThreadId":"thread-subagent-implementation","nickname":"ui-worker","role":"implementation"}agent wait1:00:08 PMline 9{"type":"wait_agent","call_id":"call-observed-spawn","child_thread_id":"thread-subagent-implementation","status":"open","output":"Observed child report: UI needs enriched fields"}Observed child report: UI needs enriched fieldstask complete1:00:09 PMline 10Observed agent report row: frontend consumed enriched data"[22m
+
+
+      137 |     await expect.soft(timeline).toContainText("1.234s", { timeout: 1_000 });
+      138 |     await expect.soft(timeline).toContainText("last input 111", { timeout: 1_000 });
+    > 139 |     await expect.soft(timeline).toContainText("last output 222", { timeout: 1_000 });
+          |                                 ^
+      140 |     await expect.soft(timeline).toContainText("128,000 context", { timeout: 1_000 });
+      141 |     await expect.soft(timeline).toContainText("Observed agent report row", { timeout: 1_000 });
+      142 |     await expect
+        at /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption/tests/e2e/timeline-detail.spec.ts:139:33
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoContainText[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator: getByLabel('Timeline events')
+    Expected substring: [32m"128,000 context"[39m
+    Received string:    [31m"task started1:00:00 PMline 1Observed task started from event_msgturn context1:00:01 PMline 2{\"type\":\"turn_context\",\"model\":\"gpt-5-codex\",\"reasoning_effort\":\"high\",\"sandbox_policy\":\"workspace-write\",\"approval_mode\":\"never\"}user message1:00:02 PMline 3Observed user event groupassistant message1:00:03 PMline 4Observed assistant event grouptool call1:00:04 PMline 5shell {\"cmd\":\"npm run test -- --run observed-ui\"}{\"cmd\":\"npm run test -- --run observed-ui\"}tool result1:00:05 PMline 6shell completed with exit 7observed joined shell outputtoken snapshot1:00:06 PMline 7tokens total=8,420 input=7,200 output=1,220 cached=320agent launch1:00:07 PMline 8{\"childThreadId\":\"thread-subagent-implementation\",\"nickname\":\"ui-worker\",\"role\":\"implementation\"}agent wait1:00:08 PMline 9{\"type\":\"wait_agent\",\"call_id\":\"call-observed-spawn\",\"child_thread_id\":\"thread-subagent-implementation\",\"status\":\"open\",\"output\":\"Observed child report: UI needs enriched fields\"}Observed child report: UI needs enriched fieldstask complete1:00:09 PMline 10Observed agent report row: frontend consumed enriched data"[39m
+    Timeout: 1000ms
+
+    Call log:
+    [2m  - Expect "soft toContainText" with timeout 1000ms[22m
+    [2m  - waiting for getByLabel('Timeline events')[22m
+    [2m    11 × locator resolved to <ol class="timeline-list" aria-label="Timeline events">…</ol>[22m
+    [2m       - unexpected value "task started1:00:00 PMline 1Observed task started from event_msgturn context1:00:01 PMline 2{"type":"turn_context","model":"gpt-5-codex","reasoning_effort":"high","sandbox_policy":"workspace-write","approval_mode":"never"}user message1:00:02 PMline 3Observed user event groupassistant message1:00:03 PMline 4Observed assistant event grouptool call1:00:04 PMline 5shell {"cmd":"npm run test -- --run observed-ui"}{"cmd":"npm run test -- --run observed-ui"}tool result1:00:05 PMline 6shell completed with exit 7observed joined shell outputtoken snapshot1:00:06 PMline 7tokens total=8,420 input=7,200 output=1,220 cached=320agent launch1:00:07 PMline 8{"childThreadId":"thread-subagent-implementation","nickname":"ui-worker","role":"implementation"}agent wait1:00:08 PMline 9{"type":"wait_agent","call_id":"call-observed-spawn","child_thread_id":"thread-subagent-implementation","status":"open","output":"Observed child report: UI needs enriched fields"}Observed child report: UI needs enriched fieldstask complete1:00:09 PMline 10Observed agent report row: frontend consumed enriched data"[22m
+
+
+      138 |     await expect.soft(timeline).toContainText("last input 111", { timeout: 1_000 });
+      139 |     await expect.soft(timeline).toContainText("last output 222", { timeout: 1_000 });
+    > 140 |     await expect.soft(timeline).toContainText("128,000 context", { timeout: 1_000 });
+          |                                 ^
+      141 |     await expect.soft(timeline).toContainText("Observed agent report row", { timeout: 1_000 });
+      142 |     await expect
+      143 |       .soft(page.getByRole("button", { name: /open thread-subagent-implementation in timeline/i }))
+        at /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption/tests/e2e/timeline-detail.spec.ts:140:33
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: getByRole('button', { name: /open thread-subagent-implementation in timeline/i })
+    Expected: visible
+    Timeout: 1000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "soft toBeVisible" with timeout 1000ms[22m
+    [2m  - waiting for getByRole('button', { name: /open thread-subagent-implementation in timeline/i })[22m
+
+
+      142 |     await expect
+      143 |       .soft(page.getByRole("button", { name: /open thread-subagent-implementation in timeline/i }))
+    > 144 |       .toBeVisible({ timeout: 1_000 });
+          |        ^
+      145 |   });
+      146 | });
+      147 |
+        at /Users/adam/Projects/agentview/.worktrees/impl-observatory-api-design-data-gap-closure-ui-consumption/tests/e2e/timeline-detail.spec.ts:144:8
+
+    Error Context: test-results/timeline-detail-real-Timel-1d906-nt-groups-and-spawn-actions/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/timeline-detail-real-Timel-1d906-nt-groups-and-spawn-actions/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/timeline-detail-real-Timel-1d906-nt-groups-and-spawn-actions/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  5 failed
+    tests/e2e/diagnostics-ui.spec.ts:152:3 › Diagnostics UI @diagnostics › filters structured diagnostics by level, target, and scope against local API logs 
+    tests/e2e/diagnostics-ui.spec.ts:202:3 › Diagnostics UI @diagnostics › renders failed-command summaries and uses loudest-target links to filter logs 
+    tests/e2e/diagnostics-ui.spec.ts:264:3 › Diagnostics UI @diagnostics › hydrates Sessions warning badges after first paint without blocking rows 
+    tests/e2e/graph-tokens.spec.ts:12:3 › real Graph and Tokens views @graph-tokens › renders graph and token service wiring with Timeline navigation 
+    tests/e2e/timeline-detail.spec.ts:57:3 › real Timeline detail @timeline › surfaces enriched observed rollout facts in event groups and spawn actions 
+  3 passed (35.9s)

@@ -7,12 +7,15 @@ const clampPercent = (value: number) => Math.max(0, Math.min(100, value));
 
 export function RateLimitMeter({ label, value }: RateLimitMeterProps) {
   const percent = value === undefined ? 0 : clampPercent(value);
+  const valueLabel = value === undefined ? "n/a" : `${Math.round(percent)}%`;
 
   return (
     <div className="rate-meter">
       <div className="rate-meter__label">
-        <span>{label}</span>
-        <strong>{value === undefined ? "n/a" : `${Math.round(percent)}%`}</strong>
+        <span>
+          {label} {valueLabel}
+        </span>
+        <strong>{valueLabel}</strong>
       </div>
       <div
         aria-label={label}

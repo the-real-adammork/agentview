@@ -5,6 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
 import type { CachedRolloutFacts, CachedToolCall, RuntimeLogLevel } from "../../src/shared/contracts";
+import { writeObservedLogsDb, writeObservedRolloutFixtures } from "./observedSourceFixture";
 
 interface DiagnosticLogSeed {
   timestampMs: number;
@@ -149,28 +150,28 @@ test.describe("Diagnostics UI @diagnostics", () => {
   });
 
   test("filters structured diagnostics by level, target, and scope against local API logs", async ({ page }, testInfo) => {
-    await writeLogsDb([
+    await writeObservedLogsDb([
       {
-        timestampMs: 10_000,
+        ts: 1_764_096_000,
+        tsNanos: 100_000_000,
         level: "WARN",
         target: "codex_core::exec",
-        scope: "phase-5-task-2",
         threadId: "thread-subagent-implementation",
-        body: "matching task warning",
+        body: "matching observed schema warning",
       },
       {
-        timestampMs: 10_100,
+        ts: 1_764_096_000,
+        tsNanos: 200_000_000,
         level: "ERROR",
         target: "codex_core::exec",
-        scope: "phase-5-task-2",
         threadId: "thread-subagent-implementation",
         body: "wrong level error",
       },
       {
-        timestampMs: 10_200,
+        ts: 1_764_096_000,
+        tsNanos: 300_000_000,
         level: "WARN",
         target: "agentview::tokens",
-        scope: "phase-5-task-4",
         threadId: "thread-parent-real",
         body: "wrong target warning",
       },
@@ -187,36 +188,33 @@ test.describe("Diagnostics UI @diagnostics", () => {
 
     await levelFilter.selectOption("WARN");
     await targetFilter.fill("codex_core::exec");
-    await scopeFilter.fill("phase-5-task-2");
     await page.getByRole("button", { name: /apply filters/i }).click();
 
     const logsTable = page.getByRole("table", { name: /diagnostics logs/i });
-    await expect(logsTable).toContainText("matching task warning");
+    await expect(logsTable).toContainText("matching observed schema warning");
     await expect(logsTable).toContainText("codex_core::exec");
-    await expect(logsTable).toContainText("phase-5-task-2");
     await expect(logsTable).not.toContainText("wrong level error");
     await expect(logsTable).not.toContainText("wrong target warning");
+    await expect.soft(logsTable).toContainText("thread-subagent-implementation");
+    await expect.soft(logsTable).toContainText("observed");
   });
 
   test("renders failed-command summaries and uses loudest-target links to filter logs", async ({ page }, testInfo) => {
-    await writeLogsDb([
+    await writeObservedRolloutFixtures();
+    await writeObservedLogsDb([
       {
-        timestampMs: 11_000,
+        ts: 1_764_096_100,
+        tsNanos: 100_000_000,
         level: "ERROR",
         target: "codex_core::exec",
-        scope: "phase-5-task-2",
         threadId: "thread-subagent-implementation",
-        body: "shell command failed",
-        toolName: "shell",
-        command: "npm run e2e -- --grep @diagnostics",
-        exitCode: 1,
-        outputPreview: "Diagnostics panel has not been implemented",
+        body: "observed shell command failed without derived command columns",
       },
       {
-        timestampMs: 11_100,
+        ts: 1_764_096_100,
+        tsNanos: 200_000_000,
         level: "WARN",
         target: "agentview::diagnostics",
-        scope: "phase-5-task-2",
         threadId: "thread-parent-real",
         body: "diagnostics warning",
       },
@@ -225,13 +223,19 @@ test.describe("Diagnostics UI @diagnostics", () => {
     await openDiagnostics(page, testInfo);
 
     const failedPanel = page.getByRole("region", { name: /failed commands/i });
-    await expect(failedPanel).toContainText("npm run e2e -- --grep @diagnostics");
-    await expect(failedPanel).toContainText("exit 1");
-    await expect(failedPanel).toContainText("Diagnostics panel has not been implemented");
+    await expect(failedPanel).toContainText("npm run e2e -- observed-schema");
+    await expect(failedPanel).toContainText("exit 2");
+    await expect(failedPanel).toContainText("observed schema failed command summary");
+    await expect(failedPanel).toContainText("rollout cache");
 
     await page.getByRole("link", { name: /codex_core::exec/i }).click();
     await expect(page.getByRole("textbox", { name: /target/i })).toHaveValue("codex_core::exec");
-    await expect(page.getByRole("table", { name: /diagnostics logs/i })).toContainText("shell command failed");
+    await expect(page.getByRole("table", { name: /diagnostics logs/i })).toContainText(
+      "observed shell command failed without derived command columns",
+    );
+    await expect.soft(page.getByRole("table", { name: /diagnostics logs/i })).toContainText(
+      "thread-subagent-implementation",
+    );
   });
 
   test("shows rollout-cache failed-command fallback when logs_2.sqlite is missing", async ({ page }, testInfo) => {
@@ -258,26 +262,23 @@ test.describe("Diagnostics UI @diagnostics", () => {
   });
 
   test("hydrates Sessions warning badges after first paint without blocking rows", async ({ page }, testInfo) => {
-    await writeLogsDb([
+    await writeObservedRolloutFixtures();
+    await writeObservedLogsDb([
       {
-        timestampMs: 12_000,
+        ts: 1_764_096_200,
+        tsNanos: 100_000_000,
         level: "WARN",
         target: "agentview::sessions",
         threadId: "thread-subagent-implementation",
-        scope: "sessions",
-        body: "badge warning one",
+        body: "observed badge warning one",
       },
       {
-        timestampMs: 12_100,
+        ts: 1_764_096_200,
+        tsNanos: 200_000_000,
         level: "ERROR",
         target: "agentview::sessions",
         threadId: "thread-subagent-implementation",
-        scope: "sessions",
-        body: "badge warning two",
-        toolName: "shell",
-        command: "npm run e2e -- --grep @diagnostics",
-        exitCode: 1,
-        outputPreview: "sessions badge command failed",
+        body: "observed badge warning two",
       },
     ]);
 
@@ -303,6 +304,7 @@ test.describe("Diagnostics UI @diagnostics", () => {
     const subagentRow = rows.filter({ hasText: "Subagent implementation lane" });
     await expect(subagentRow).toContainText("2 warnings");
     await expect(subagentRow).toContainText("1 failed command");
+    await expect.soft(subagentRow).toContainText("observed schema");
   });
 
   test("keeps raw TUI tail hidden until advanced reveal, redacts previews, and appends from next offset", async ({

@@ -179,6 +179,7 @@ export function SessionsView({
                         {" / "}
                         {diagnostics.failedToolCount}{" "}
                         {diagnostics.failedToolCount === 1 ? "failed command" : "failed commands"}
+                        {" / observed schema"}
                       </span>
                     ) : (
                       "-"

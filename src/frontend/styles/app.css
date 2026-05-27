@@ -595,6 +595,25 @@ tbody tr[aria-current="true"] {
   overflow-wrap: anywhere;
 }
 
+.timeline-event__strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.timeline-event__strip button {
+  min-height: 30px;
+  border: var(--border-width) solid var(--color-border);
+  background: var(--color-panel);
+  color: var(--color-text);
+  cursor: pointer;
+  font-weight: 700;
+}
+
 .timeline-event__body code,
 .tool-output {
   overflow: auto;
@@ -693,11 +712,16 @@ tbody tr[aria-current="true"] {
 }
 
 .failed-command span,
+.diagnostics-source,
 .raw-tail__actions,
 .diagnostics-badges {
   color: var(--color-muted);
   font-family: var(--font-mono);
   font-size: 0.75rem;
+}
+
+.diagnostics-source {
+  display: block;
 }
 
 .failed-command p,
