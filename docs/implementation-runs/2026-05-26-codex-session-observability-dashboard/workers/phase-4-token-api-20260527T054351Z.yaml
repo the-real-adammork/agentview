@@ -1,0 +1,52 @@
+worker_id: "phase-4-token-api-worker"
+lane: "token-api"
+task: "Task 2"
+status: complete
+started_at: "2026-05-27T05:43:51Z"
+completed_at: "2026-05-27T05:50:10Z"
+base_commit: "7413754d17b362eb5c59605724f0b8111ccbf372"
+head_commit: "e02c9ff"
+branch: "impl/phase-4-token-api"
+worktree: ".worktrees/impl-phase-4-token-api"
+changed_files:
+  - "src/shared/contracts.ts"
+  - "src/backend/api/timeline.ts"
+  - "src/backend/api/tokens.ts"
+  - "src/backend/server.ts"
+  - "tests/unit/tokenSeries.test.ts"
+  - "tests/integration/graphTokensApi.test.ts"
+commands:
+  - command: "npm run test -- --run tests/unit/tokenSeries.test.ts tests/integration/graphTokensApi.test.ts"
+    result: fail_expected
+    artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-4/task-2-test-proposal.txt"
+  - command: "npm run test -- --run tests/unit/tokenSeries.test.ts tests/integration/graphTokensApi.test.ts"
+    result: pass
+    artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-4/task-2-implementation-focused-test.txt"
+  - command: "npm run typecheck"
+    result: pass
+    artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-4/task-2-implementation-typecheck.txt"
+service_wiring_rows:
+  - "token_series_render"
+real_dependencies:
+  - "temp rollout JSONL fixture"
+  - "Phase 3 rollout parser/cache"
+mocks_or_fixtures:
+  - id: "mf-phase4-token-jsonl"
+    name: "token temp rollout JSONL fixture"
+    kind: fixture
+    scope: test-only
+    affected_paths:
+      - "tests/integration/graphTokensApi.test.ts"
+    service_wiring_rows:
+      - "token_series_render"
+    disposition: test-only
+    acceptable_because: "Fixture writes real JSONL under a temporary CODEX_HOME and exercises the production rollout parser/cache path."
+    conversion_task: null
+    evidence:
+      - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-4/task-2-implementation-focused-test.txt"
+residual_risks:
+  - "Private rollout variants may contain token fields not represented in the public fixture set."
+review_status: not_reviewed
+lesson_candidate: null
+plan_updates_recommended: []
+blockers: []

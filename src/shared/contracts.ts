@@ -222,6 +222,11 @@ export interface TokenSeries {
     total: number;
   };
   cachedInputRatio?: number;
+  latestContextUtilization?: number;
+  peakContextUtilization?: number;
+  rateLimitPrimaryPercent?: number;
+  rateLimitSecondaryPercent?: number;
+  resetAt?: string;
   emptyStateReasons: string[];
 }
 

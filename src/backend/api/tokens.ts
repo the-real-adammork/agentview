@@ -1,20 +1,100 @@
-import { access } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { isAbsolute, relative, resolve } from "node:path";
 
+import type { CachedRolloutFacts, TokenSeries, TokenSnapshot } from "../../shared/contracts";
 import { getRolloutFactsWithCache } from "../cache/rolloutCache";
 import { resolveCodexHome } from "../codexPaths";
 import { parseRolloutFile } from "../rollout/jsonlStream";
 import { openStateStore, StateStoreError } from "../sqlite/stateStore";
-import { tailRolloutFile } from "../tail/liveTail";
 import { fail, ok, writeJson } from "./http";
+import { resolveRolloutPath } from "./timeline";
+
+const emptyTotals = {
+  input: 0,
+  cachedInput: 0,
+  output: 0,
+  reasoningOutput: 0,
+  total: 0,
+};
+
+const lastValue = (snapshots: TokenSnapshot[], select: (snapshot: TokenSnapshot) => number | undefined) => {
+  for (let index = snapshots.length - 1; index >= 0; index -= 1) {
+    const value = select(snapshots[index]);
+    if (value !== undefined && Number.isFinite(value)) return value;
+  }
+  return undefined;
+};
+
+const lastString = (snapshots: TokenSnapshot[], select: (snapshot: TokenSnapshot) => string | undefined) => {
+  for (let index = snapshots.length - 1; index >= 0; index -= 1) {
+    const value = select(snapshots[index]);
+    if (value?.trim()) return value;
+  }
+  return undefined;
+};
+
+const cachedInputRatio = (snapshot: TokenSnapshot | undefined) => {
+  if (!snapshot) return undefined;
+  if (snapshot.input <= 0) return undefined;
+  if (snapshot.cachedInput < 0 || snapshot.cachedInput > snapshot.input) return undefined;
+  return snapshot.cachedInput / snapshot.input;
+};
+
+export const deriveTokenSeries = (facts: CachedRolloutFacts): TokenSeries => {
+  const snapshots = facts.tokenSnapshots;
+  const latest = snapshots.at(-1);
+  const ratio = cachedInputRatio(latest);
+  const latestContextUtilization = lastValue(snapshots, (snapshot) => snapshot.contextUtilization);
+  const contextValues = snapshots
+    .map((snapshot) => snapshot.contextUtilization)
+    .filter((value): value is number => value !== undefined && Number.isFinite(value));
+  const rateLimitPrimaryPercent = lastValue(snapshots, (snapshot) => snapshot.rateLimitPrimaryPercent);
+  const rateLimitSecondaryPercent = lastValue(snapshots, (snapshot) => snapshot.rateLimitSecondaryPercent);
+  const resetAt = lastString(snapshots, (snapshot) => snapshot.resetAt);
+  const emptyStateReasons: string[] = [];
+
+  if (snapshots.length === 0) {
+    emptyStateReasons.push("token-snapshots-missing");
+  }
+
+  if (ratio === undefined) {
+    emptyStateReasons.push("cached-input-ratio-unavailable");
+  }
+
+  if (contextValues.length === 0) {
+    emptyStateReasons.push("context-utilization-unavailable");
+  }
+
+  if (rateLimitPrimaryPercent === undefined && rateLimitSecondaryPercent === undefined && resetAt === undefined) {
+    emptyStateReasons.push("rate-limits-unavailable");
+  }
+
+  return {
+    snapshots,
+    totals: latest
+      ? {
+          input: latest.input,
+          cachedInput: latest.cachedInput,
+          output: latest.output,
+          reasoningOutput: latest.reasoningOutput ?? 0,
+          total: latest.total,
+        }
+      : emptyTotals,
+    cachedInputRatio: ratio,
+    latestContextUtilization,
+    peakContextUtilization: contextValues.length > 0 ? Math.max(...contextValues) : undefined,
+    rateLimitPrimaryPercent,
+    rateLimitSecondaryPercent,
+    resetAt,
+    emptyStateReasons,
+  };
+};
 
 const badRequest = (response: ServerResponse, origin: string | undefined, message: string) => {
   writeJson(
     response,
     400,
     fail("rollout-cache", {
-      code: "INVALID_TIMELINE_REQUEST",
+      code: "INVALID_TOKEN_SERIES_REQUEST",
       message,
     }),
     origin,
@@ -26,41 +106,11 @@ const stateStoreStatus = (error: unknown) =>
     ? 503
     : 500;
 
-export const resolveRolloutPath = async (codexHome: string, rolloutPath: string) => {
-  if (!rolloutPath.trim()) {
-    throw new Error("Thread has no rollout_path.");
-  }
-
-  const resolved = isAbsolute(rolloutPath) ? resolve(rolloutPath) : resolve(codexHome, rolloutPath);
-  const relativeToHome = relative(codexHome, resolved);
-  if (relativeToHome.startsWith("..") || isAbsolute(relativeToHome)) {
-    const error = new Error("Thread rollout_path resolves outside CODEX_HOME.");
-    error.name = "RolloutPathTraversalError";
-    throw error;
-  }
-
-  try {
-    await access(resolved);
-  } catch {
-    const error = new Error("Thread rollout file is not readable.");
-    error.name = "RolloutNotFoundError";
-    throw error;
-  }
-  return resolved;
-};
-
-const parseFromByte = (value: string | null) => {
-  if (value === null || value.trim() === "") return undefined;
-  if (!/^\d+$/.test(value)) return null;
-  const parsed = Number.parseInt(value, 10);
-  return Number.isSafeInteger(parsed) ? parsed : null;
-};
-
-export const handleTimelineApiRequest = async (request: IncomingMessage, response: ServerResponse) => {
+export const handleTokensApiRequest = async (request: IncomingMessage, response: ServerResponse) => {
   const origin = request.headers.origin;
   const url = new URL(request.url ?? "/", "http://127.0.0.1");
 
-  if (url.pathname !== "/api/timeline") {
+  if (url.pathname !== "/api/tokens") {
     return false;
   }
 
@@ -70,7 +120,7 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
       405,
       fail("rollout-cache", {
         code: "METHOD_NOT_ALLOWED",
-        message: "Timeline API only supports GET requests.",
+        message: "Tokens API only supports GET requests.",
       }),
       origin,
     );
@@ -80,12 +130,6 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
   const threadId = url.searchParams.get("threadId")?.trim();
   if (!threadId) {
     badRequest(response, origin, "threadId is required.");
-    return true;
-  }
-
-  const fromByte = parseFromByte(url.searchParams.get("fromByte"));
-  if (fromByte === null) {
-    badRequest(response, origin, "fromByte must be a non-negative integer.");
     return true;
   }
 
@@ -135,47 +179,10 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
           }),
       });
 
-      if (fromByte !== undefined) {
-        const tail = await tailRolloutFile({
-          path: rolloutPath,
-          threadId,
-          fromByte,
-          sourceLine: cached.facts.events.length + 1,
-        });
-        const warnings = [...cached.warnings, ...tail.warnings];
-        writeJson(
-          response,
-          200,
-          ok(
-            "rollout-cache",
-            {
-              threadId,
-              events: tail.payload.events,
-              facts: cached.facts,
-              nextByteOffset: tail.payload.nextByteOffset,
-              cacheStatus: "tail" as const,
-            },
-            warnings,
-          ),
-          origin,
-        );
-        return true;
-      }
-
       writeJson(
         response,
         200,
-        ok(
-          "rollout-cache",
-          {
-            threadId,
-            events: cached.facts.events,
-            facts: cached.facts,
-            nextByteOffset: cached.facts.parsedThroughByte,
-            cacheStatus: cached.status,
-          },
-          [...cached.warnings, ...cached.facts.warnings],
-        ),
+        ok("rollout-cache", deriveTokenSeries(cached.facts), [...cached.warnings, ...cached.facts.warnings]),
         origin,
       );
       return true;
@@ -198,7 +205,8 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
           ? "ROLLOUT_NOT_FOUND"
           : error instanceof Error && error.name === "RolloutPathTraversalError"
             ? "ROLLOUT_PATH_TRAVERSAL"
-            : "TIMELINE_UNAVAILABLE";
+            : "TOKEN_SERIES_UNAVAILABLE";
+
     writeJson(
       response,
       status,
@@ -206,10 +214,10 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
         code,
         message:
           error instanceof Error && (error.name === "RolloutNotFoundError" || error.name === "RolloutPathTraversalError")
-            ? `${code}: ${url.searchParams.get("threadId") ?? "unknown thread"}`
+            ? `${code}: ${threadId}`
             : error instanceof Error
               ? error.message
-              : "Unable to load timeline.",
+              : "Unable to load token series.",
       }),
       origin,
     );

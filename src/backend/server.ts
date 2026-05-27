@@ -6,6 +6,7 @@ import { corsHeadersForOrigin } from "./api/http";
 import { handleHealthApiRequest } from "./api/health";
 import { handleSessionsApiRequest } from "./api/sessions";
 import { handleTimelineApiRequest } from "./api/timeline";
+import { handleTokensApiRequest } from "./api/tokens";
 
 const port = Number.parseInt(process.env.AGENTVIEW_API_PORT ?? "4317", 10);
 const host = "127.0.0.1";
@@ -31,6 +32,10 @@ const server = createServer(async (request, response) => {
     }
 
     if (await handleAgentGraphApiRequest(request, response)) {
+      return;
+    }
+
+    if (await handleTokensApiRequest(request, response)) {
       return;
     }
 

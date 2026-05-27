@@ -1,0 +1,217 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/unit/tokenSeries.test.ts tests/integration/graphTokensApi.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-phase-4-token-api
+
+ ❯ tests/unit/tokenSeries.test.ts (3 tests | 3 failed) 6ms
+   × deriveTokenSeries > derives aggregate totals, cache ratio, rate limits, and context utilization from cumulative snapshots 4ms
+     → Cannot find module '../../src/backend/api/tokens' imported from '/Users/adam/Projects/agentview/.worktrees/impl-phase-4-token-api/tests/unit/tokenSeries.test.ts'
+   × deriveTokenSeries > guards cached-input ratio when denominator or numerator values are invalid 1ms
+     → Cannot find module '../../src/backend/api/tokens' imported from '/Users/adam/Projects/agentview/.worktrees/impl-phase-4-token-api/tests/unit/tokenSeries.test.ts'
+   × deriveTokenSeries > returns an empty token series with display reasons when cached rollout facts contain no token snapshots 0ms
+     → Cannot find module '../../src/backend/api/tokens' imported from '/Users/adam/Projects/agentview/.worktrees/impl-phase-4-token-api/tests/unit/tokenSeries.test.ts'
+(node:35789) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ❯ tests/integration/graphTokensApi.test.ts (2 tests | 2 failed) 842ms
+   × graph/tokens API routes > serves selected-session token series from Phase 3 rollout cache facts 582ms
+     → expected { ok: true, data: { …(4) }, …(2) } to match object { ok: true, …(3) }
+   × graph/tokens API routes > returns token empty-state reasons from real rollout cache facts when token data is absent 260ms
+     → expected { ok: true, data: { …(4) }, …(2) } to match object { ok: true, …(2) }
+(2 matching properties omitted from actual)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/integration/graphTokensApi.test.ts > graph/tokens API routes > serves selected-session token series from Phase 3 rollout cache facts
+AssertionError: expected { ok: true, data: { …(4) }, …(2) } to match object { ok: true, …(3) }
+
+- Expected
++ Received
+
+  {
+    "data": {
+-     "cachedInputRatio": 0.25,
++     "cachedInputRatio": 0.07584269662921349,
+      "emptyStateReasons": [],
+-     "latestContextUtilization": 0.49166666666666664,
+-     "peakContextUtilization": 0.49166666666666664,
+-     "rateLimitPrimaryPercent": 57,
+-     "rateLimitSecondaryPercent": 9,
+-     "resetAt": "2026-05-26T19:00:00.000Z",
+      "snapshots": [
+-       ObjectContaining {
+-         "contextUtilization": 0.13,
+-         "rateLimitPrimaryPercent": 12,
+-         "total": 130,
++       {
++         "cachedInput": 320,
++         "contextUtilization": 4.1,
++         "input": 7200,
++         "output": 1220,
++         "rateLimitPrimaryPercent": 18,
++         "reasoningOutput": 480,
++         "timestamp": "2026-05-26T18:00:13.200Z",
++         "total": 8420,
+        },
+-       ObjectContaining {
+-         "contextUtilization": 0.49166666666666664,
+-         "rateLimitPrimaryPercent": 57,
+-         "rateLimitSecondaryPercent": 9,
++       {
++         "cachedInput": 2100,
++         "contextUtilization": 15.2,
++         "input": 27400,
++         "output": 3800,
++         "rateLimitPrimaryPercent": 31,
++         "reasoningOutput": 900,
++         "timestamp": "2026-05-26T18:01:15.200Z",
++         "total": 31200,
++       },
++       {
++         "cachedInput": 5400,
++         "contextUtilization": 38.1,
++         "input": 71200,
++         "output": 11000,
++         "rateLimitPrimaryPercent": 54,
++         "reasoningOutput": 1600,
+          "resetAt": "2026-05-26T19:00:00.000Z",
+-         "total": 590,
++         "timestamp": "2026-05-26T18:02:30.000Z",
++         "total": 84200,
+        },
+      ],
+      "totals": {
+-       "cachedInput": 125,
+-       "input": 500,
+-       "output": 90,
+-       "reasoningOutput": 25,
+-       "total": 590,
++       "cachedInput": 5400,
++       "input": 71200,
++       "output": 11000,
++       "reasoningOutput": 1600,
++       "total": 84200,
+      },
+    },
+    "ok": true,
+-   "source": "rollout-cache",
++   "source": "fixture",
+    "warnings": [],
+  }
+
+ ❯ withApi.AGENTVIEW_CACHE_ROOT tests/integration/graphTokensApi.test.ts:211:31
+    209| 
+    210|         expect(response.status).toBe(200);
+    211|         expect(response.body).toMatchObject({
+       |                               ^
+    212|           ok: true,
+    213|           source: "rollout-cache",
+ ❯ withApi tests/integration/graphTokensApi.test.ts:131:12
+ ❯ tests/integration/graphTokensApi.test.ts:205:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/5]⎯
+
+ FAIL  tests/integration/graphTokensApi.test.ts > graph/tokens API routes > returns token empty-state reasons from real rollout cache facts when token data is absent
+AssertionError: expected { ok: true, data: { …(4) }, …(2) } to match object { ok: true, …(2) }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+    "data": {
+-     "emptyStateReasons": [
+-       "token-snapshots-missing",
+-       "cached-input-ratio-unavailable",
+-       "context-utilization-unavailable",
+-       "rate-limits-unavailable",
++     "emptyStateReasons": [],
++     "snapshots": [
++       {
++         "cachedInput": 320,
++         "contextUtilization": 4.1,
++         "input": 7200,
++         "output": 1220,
++         "rateLimitPrimaryPercent": 18,
++         "reasoningOutput": 480,
++         "timestamp": "2026-05-26T18:00:13.200Z",
++         "total": 8420,
++       },
++       {
++         "cachedInput": 2100,
++         "contextUtilization": 15.2,
++         "input": 27400,
++         "output": 3800,
++         "rateLimitPrimaryPercent": 31,
++         "reasoningOutput": 900,
++         "timestamp": "2026-05-26T18:01:15.200Z",
++         "total": 31200,
++       },
++       {
++         "cachedInput": 5400,
++         "contextUtilization": 38.1,
++         "input": 71200,
++         "output": 11000,
++         "rateLimitPrimaryPercent": 54,
++         "reasoningOutput": 1600,
++         "resetAt": "2026-05-26T19:00:00.000Z",
++         "timestamp": "2026-05-26T18:02:30.000Z",
++         "total": 84200,
++       },
+      ],
+-     "snapshots": [],
+      "totals": {
+-       "cachedInput": 0,
+-       "input": 0,
+-       "output": 0,
+-       "reasoningOutput": 0,
+-       "total": 0,
++       "cachedInput": 5400,
++       "input": 71200,
++       "output": 11000,
++       "reasoningOutput": 1600,
++       "total": 84200,
+      },
+    },
+    "ok": true,
+-   "source": "rollout-cache",
++   "source": "fixture",
+  }
+
+ ❯ withApi.AGENTVIEW_CACHE_ROOT tests/integration/graphTokensApi.test.ts:273:31
+    271| 
+    272|         expect(response.status).toBe(200);
+    273|         expect(response.body).toMatchObject({
+       |                               ^
+    274|           ok: true,
+    275|           source: "rollout-cache",
+ ❯ withApi tests/integration/graphTokensApi.test.ts:131:12
+ ❯ tests/integration/graphTokensApi.test.ts:267:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/5]⎯
+
+ FAIL  tests/unit/tokenSeries.test.ts > deriveTokenSeries > derives aggregate totals, cache ratio, rate limits, and context utilization from cumulative snapshots
+ FAIL  tests/unit/tokenSeries.test.ts > deriveTokenSeries > guards cached-input ratio when denominator or numerator values are invalid
+ FAIL  tests/unit/tokenSeries.test.ts > deriveTokenSeries > returns an empty token series with display reasons when cached rollout facts contain no token snapshots
+Error: Cannot find module '../../src/backend/api/tokens' imported from '/Users/adam/Projects/agentview/.worktrees/impl-phase-4-token-api/tests/unit/tokenSeries.test.ts'
+ ❯ loadTokens tests/unit/tokenSeries.test.ts:11:33
+      9| const tokensSpecifier = ["..", "..", "src", "backend", "api", "tokens"…
+     10| 
+     11| const loadTokens = async () => (await import(/* @vite-ignore */ tokens…
+       |                                 ^
+     12| 
+     13| const factsWithSnapshots = (tokenSnapshots: TokenSnapshot[]): CachedRo…
+ ❯ tests/unit/tokenSeries.test.ts:28:35
+
+Caused by: Error: Failed to load url ../../src/backend/api/tokens (resolved id: ../../src/backend/api/tokens). Does the file exist?
+ ❯ loadAndTransform node_modules/vite/dist/node/chunks/config.js:22679:33
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/5]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  5 failed (5)
+   Start at  00:48:34
+   Duration  1.12s (transform 31ms, setup 0ms, collect 38ms, tests 848ms, environment 233ms, prepare 56ms)
+
