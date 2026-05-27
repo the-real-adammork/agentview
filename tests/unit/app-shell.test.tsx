@@ -64,7 +64,7 @@ describe("fixture-backed five-view app shell", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Agent Graph" }));
     expect(screen.getByRole("heading", { name: /agent graph/i })).toBeVisible();
-    expect(screen.getByText(agentGraphFixture.root.title)).toBeVisible();
+    expect(within(screen.getByRole("list", { name: /agent graph nodes/i })).getByText(agentGraphFixture.root.title)).toBeVisible();
     expect(screen.getByText(/open children/i)).toHaveTextContent(String(agentGraphFixture.openCount));
 
     fireEvent.click(screen.getByRole("button", { name: "Tokens" }));

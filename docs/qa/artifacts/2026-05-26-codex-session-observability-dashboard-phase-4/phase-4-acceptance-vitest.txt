@@ -1,0 +1,46 @@
+
+> agentview@0.1.0 test
+> vitest --run
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-phase-4-graph-tokens
+
+(node:65954) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:65952) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:65959) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:65953) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/codexPaths.test.ts (3 tests) 24ms
+(node:65957) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/integration/stateStore.test.ts (3 tests) 28ms
+ ✓ tests/unit/tokenSeries.test.ts (3 tests) 55ms
+ ✓ tests/unit/parseRollout.test.ts (4 tests) 67ms
+ ✓ tests/perf/rolloutParse.test.ts (1 test) 55ms
+ ✓ tests/integration/rolloutCache.test.ts (4 tests) 91ms
+ ✓ tests/unit/graphTokenComponents.test.tsx (2 tests) 105ms
+ ✓ tests/unit/contracts.test.ts (6 tests) 3ms
+ ✓ tests/integration/liveTail.test.ts (3 tests) 19ms
+(node:66086) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/app-shell.test.tsx (3 tests) 137ms
+ ✓ tests/unit/agentGraph.test.ts (2 tests) 2ms
+ ✓ tests/unit/redaction.test.ts (4 tests) 2ms
+ ✓ tests/unit/sessionFilter.test.ts (2 tests) 3ms
+ ✓ tests/integration/timelineApi.test.ts (3 tests) 998ms
+   ✓ timeline API > serves selected-session timeline payloads from the rollout parser and derived cache  489ms
+ ✓ tests/integration/graphTokensApi.test.ts (5 tests) 1563ms
+   ✓ graph/tokens API routes > serves a depth-limited graph from real temp SQLite edges and thread metadata  426ms
+   ✓ graph/tokens API routes > returns a typed 404 when the graph root thread is absent  366ms
+ ✓ tests/integration/sessionsApi.test.ts (8 tests) 2291ms
+   ✓ sessions API routes > reports real state-db health and schema availability through an ApiResult envelope  405ms
+   ✓ sessions API routes > lists sessions from state_5.sqlite sorted by updated_at_ms without reading rollout JSONL on first paint  369ms
+
+ Test Files  16 passed (16)
+      Tests  56 passed (56)
+   Start at  01:03:09
+   Duration  2.73s (transform 374ms, setup 0ms, collect 893ms, tests 5.44s, environment 3.41s, prepare 760ms)
+
