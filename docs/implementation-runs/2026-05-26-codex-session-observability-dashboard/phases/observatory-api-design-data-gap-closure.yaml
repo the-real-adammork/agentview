@@ -6,14 +6,14 @@ worktree: ".worktrees/impl-observatory-api-design-data-gap-closure"
 active_lanes:
   - lane: "rollout-parser"
     task: "Task 2"
-    status: "test_proposed"
+    status: "implementation"
     worker: "worker-rollout-parser-1"
     branch: "impl/observatory-api-design-data-gap-closure-rollout-parser"
     worktree: ".worktrees/impl-observatory-api-design-data-gap-closure-rollout-parser"
     result: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/rollout-parser-2026-05-27T143305Z.yaml"
   - lane: "logs-schema-adapter"
     task: "Task 3"
-    status: "test_proposed"
+    status: "implementation"
     worker: "worker-logs-schema-adapter-1"
     branch: "impl/observatory-api-design-data-gap-closure-logs-schema-adapter"
     worktree: ".worktrees/impl-observatory-api-design-data-gap-closure-logs-schema-adapter"
@@ -79,4 +79,4 @@ acceptance:
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T14:33:05Z"
+updated_at: "2026-05-27T14:43:55Z"
