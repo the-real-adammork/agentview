@@ -109,6 +109,7 @@ const parseListQuery = (url: URL): ParsedQuery => {
     filter: {
       search: url.searchParams.get("search") ?? undefined,
       cwd: url.searchParams.get("cwd") ?? undefined,
+      repo: url.searchParams.get("repo") ?? undefined,
       archived: archived.value,
       threadSource: threadSource.value,
       agentRole: url.searchParams.get("role") ?? undefined,

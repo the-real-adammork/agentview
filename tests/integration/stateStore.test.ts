@@ -183,29 +183,40 @@ describe("read-only Codex state store", () => {
     }
   });
 
-  it("filters sessions by repository basename while preserving full cwd compatibility", async () => {
+  it("filters sessions by the git origin repo name across worktrees, ignoring path basename", async () => {
     const { openStateStore } = await loadStateStore();
     const fixture = await createCodexHomeFixture({
       threads: [
         {
-          id: "thread-agentview-main",
-          createdAtMs: 2_500,
+          id: "thread-worktree-a",
+          createdAtMs: 3_500,
           cwd: "/worktrees/agentview",
-          title: "AgentView main",
+          gitOriginUrl: "https://github.com/example/agentview.git",
+          title: "AgentView worktree A",
+          updatedAtMs: 4_000,
+        },
+        {
+          id: "thread-worktree-b",
+          createdAtMs: 2_500,
+          cwd: "/tmp/av-feature-2",
+          gitOriginUrl: "git@github.com:example/agentview.git",
+          title: "AgentView worktree B",
           updatedAtMs: 3_000,
         },
         {
-          id: "thread-agentview-sibling",
+          id: "thread-mislabeled",
           createdAtMs: 1_500,
-          cwd: "/tmp/sibling/agentview",
-          title: "AgentView sibling",
+          cwd: "/code/agentview",
+          gitOriginUrl: "https://github.com/example/workflowkit.git",
+          title: "Workflowkit checked out in an agentview folder",
           updatedAtMs: 2_000,
         },
         {
-          id: "thread-other",
+          id: "thread-local",
           createdAtMs: 500,
-          cwd: "/worktrees/agentview-fixture",
-          title: "Other repo",
+          cwd: "/local/scratchpad",
+          gitOriginUrl: null,
+          title: "Local repo with no origin",
           updatedAtMs: 1_000,
         },
       ],
@@ -215,12 +226,54 @@ describe("read-only Codex state store", () => {
       const store = await openStateStore({ codexHome: fixture.codexHome });
 
       try {
-        await expect(store.listSessions({ cwd: "agentview", archived: "include" }, { limit: 25 })).resolves.toEqual([
-          expect.objectContaining({ id: "thread-agentview-main", repoLabel: "agentview" }),
-          expect.objectContaining({ id: "thread-agentview-sibling", repoLabel: "agentview" }),
+        // Both worktrees of agentview match by origin, even though their paths differ;
+        // the folder literally named "agentview" but cloned from workflowkit does NOT.
+        await expect(store.listSessions({ repo: "agentview", archived: "include" }, { limit: 25 })).resolves.toEqual([
+          expect.objectContaining({ id: "thread-worktree-a", repoLabel: "agentview" }),
+          expect.objectContaining({ id: "thread-worktree-b", repoLabel: "agentview" }),
         ]);
+        await expect(store.listSessions({ repo: "workflowkit", archived: "include" }, { limit: 25 })).resolves.toEqual([
+          expect.objectContaining({ id: "thread-mislabeled", repoLabel: "workflowkit" }),
+        ]);
+        // No origin URL falls back to the cwd basename.
+        await expect(store.listSessions({ repo: "scratchpad", archived: "include" }, { limit: 25 })).resolves.toEqual([
+          expect.objectContaining({ id: "thread-local", repoLabel: "scratchpad" }),
+        ]);
+      } finally {
+        await store.close();
+      }
+    } finally {
+      await fixture.cleanup();
+    }
+  });
+
+  it("filters sessions by an exact cwd path", async () => {
+    const { openStateStore } = await loadStateStore();
+    const fixture = await createCodexHomeFixture({
+      threads: [
+        {
+          id: "thread-exact",
+          createdAtMs: 2_000,
+          cwd: "/worktrees/agentview",
+          title: "Exact path",
+          updatedAtMs: 2_500,
+        },
+        {
+          id: "thread-sibling",
+          createdAtMs: 1_000,
+          cwd: "/tmp/sibling/agentview",
+          title: "Sibling path",
+          updatedAtMs: 1_500,
+        },
+      ],
+    });
+
+    try {
+      const store = await openStateStore({ codexHome: fixture.codexHome });
+
+      try {
         await expect(store.listSessions({ cwd: "/worktrees/agentview", archived: "include" }, { limit: 25 })).resolves.toEqual([
-          expect.objectContaining({ id: "thread-agentview-main", repoLabel: "agentview" }),
+          expect.objectContaining({ id: "thread-exact" }),
         ]);
       } finally {
         await store.close();

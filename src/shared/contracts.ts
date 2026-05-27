@@ -41,6 +41,7 @@ export type ArchivedFilter = "include" | "exclude" | "only";
 export interface SessionFilter {
   search?: string;
   cwd?: string;
+  repo?: string;
   archived?: ArchivedFilter;
   threadSource?: ThreadSource;
   agentRole?: string;

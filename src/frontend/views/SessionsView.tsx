@@ -1,4 +1,5 @@
 import { ShortId } from "../components/ShortId";
+import { deriveRepoName } from "../../shared/repoName";
 import { TOKEN_BAR_CELLS, tokenBarFill } from "./tokenBar";
 import type { ApiError, ArchivedFilter, DiagnosticsSummary, SessionFilter, SessionSummary, ThreadSource } from "../../shared/contracts";
 
@@ -25,8 +26,7 @@ const uniqueValues = (sessions: SessionSummary[], getValue: (session: SessionSum
   );
 
 const formatTime = (value: string) => new Date(value).toLocaleTimeString("en-US");
-const shortRepo = (cwd: string) => cwd.split("/").filter(Boolean).at(-1) ?? cwd;
-const repoName = (session: SessionSummary) => session.repoLabel || shortRepo(session.cwd);
+const repoName = (session: SessionSummary) => session.repoLabel || deriveRepoName(undefined, session.cwd);
 
 function StatCell({ label, sub, tone, value }: { label: string; sub: string; tone?: "warn"; value: string | number }) {
   return (
@@ -150,9 +150,9 @@ export function SessionsView({
 
           <div className="lbl">Repo</div>
           <div className="row" role="group" aria-label="Repository quick filters">
-            <button className="opt" data-on={!filter.cwd} onClick={() => updateFilter({ cwd: undefined })} type="button">All</button>
+            <button className="opt" data-on={!filter.repo} onClick={() => updateFilter({ repo: undefined })} type="button">All</button>
             {repoOptions.slice(0, 5).map((repo) => (
-              <button className="opt" data-on={filter.cwd === repo} key={repo} onClick={() => updateFilter({ cwd: repo })} type="button">
+              <button className="opt" data-on={filter.repo === repo} key={repo} onClick={() => updateFilter({ repo })} type="button">
                 {repo}
               </button>
             ))}
