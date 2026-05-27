@@ -1,0 +1,60 @@
+status: complete
+task: "Phase 2 Task 3: Replace Sessions UI With Real API Data"
+changed_files:
+  - playwright.config.ts
+  - src/frontend/App.tsx
+  - src/frontend/api/client.ts
+  - src/frontend/components/Chrome.tsx
+  - src/frontend/styles/app.css
+  - src/frontend/views/SessionsView.tsx
+  - tests/e2e/sessions-index.spec.ts
+  - tests/unit/app-shell.test.tsx
+  - tests/unit/sessionFilter.test.ts
+  - docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-3-test-proposal.txt
+  - docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-3-implementation-focused-test.txt
+commands:
+  - command: "npm run test -- --run tests/unit/sessionFilter.test.ts"
+    result: pass
+    artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-3-implementation-focused-test.txt"
+  - command: "npm run e2e -- --grep @sessions"
+    result: pass
+    artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-3-implementation-focused-test.txt"
+  - command: "npm run typecheck"
+    result: pass
+    artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-3-implementation-focused-test.txt"
+service_wiring_rows:
+  - "Sessions first paint"
+  - "Session lookup"
+  - "Filter composition"
+real_dependencies:
+  - name: "local browser to API flow"
+    kind: "Playwright Chromium plus local HTTP API"
+    scope: "Sessions view health chrome, list, filters, row selection, and error state"
+    evidence_path: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-3-implementation-focused-test.txt"
+  - name: "state_5.sqlite"
+    kind: "read-only SQLite database"
+    scope: "Playwright web server CODEX_HOME fixture read through production API routes"
+    evidence_path: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-3-implementation-focused-test.txt"
+mocks_or_fixtures:
+  - id: "mf-phase2-004"
+    name: "Playwright temp state_5.sqlite fixture"
+    kind: fixture
+    scope: test-only
+    affected_paths:
+      - "playwright.config.ts"
+      - "tests/e2e/sessions-index.spec.ts"
+    service_wiring_rows:
+      - "Sessions first paint"
+      - "Session lookup"
+      - "Filter composition"
+    disposition: test-only
+    acceptable_because: "The fixture supplies deterministic CODEX_HOME data for the local API web server; production/dev runtime still resolves configured CODEX_HOME and reads state_5.sqlite through the same routes."
+    conversion_task: null
+    evidence:
+      - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-3-implementation-focused-test.txt"
+residual_risks:
+  - "Warning and failed-tool counts remain placeholder statuses until later source wiring."
+  - "Playwright uses generated temp SQLite data rather than private ~/.codex validation."
+review_status: not_reviewed
+blockers: []
+lesson_candidate: null

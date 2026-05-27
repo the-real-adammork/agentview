@@ -1,0 +1,44 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/unit/sessionFilter.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-phase-2-sessions-index
+
+ ✓ tests/unit/sessionFilter.test.ts (2 tests) 1ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  00:08:45
+   Duration  267ms (transform 20ms, setup 0ms, collect 20ms, tests 1ms, environment 106ms, prepare 26ms)
+
+
+> agentview@0.1.0 e2e
+> playwright test --grep @sessions
+
+(node:54148) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m(node:54202) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m(node:54203) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m(node:54203) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+[2m[WebServer] [22m(node:54231) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 1 worker
+
+(node:54233) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:54233) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:54233) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+  ✓  1 tests/e2e/sessions-index.spec.ts:14:3 › real Sessions index @sessions › loads real state-db sessions sorted by update time and selects rows for placeholder detail views (216ms)
+  ✓  2 tests/e2e/sessions-index.spec.ts:39:3 › real Sessions index @sessions › composes search and filter controls against the sessions API (177ms)
+  ✓  3 tests/e2e/sessions-index.spec.ts:55:3 › real Sessions index @sessions › shows an API error state when the sessions endpoint is unavailable (127ms)
+
+  3 passed (1.6s)
+
+> agentview@0.1.0 typecheck
+> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json
+

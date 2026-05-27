@@ -31,7 +31,7 @@ describe("fixture-backed five-view app shell", () => {
       expect(within(primaryNav).getByRole("button", { name: view })).toBeVisible();
     }
 
-    expect(screen.getByRole("status", { name: /fixture transport status/i })).toHaveTextContent(
+    expect(screen.getByRole("status", { name: /transport status/i })).toHaveTextContent(
       /source:\s*fixture/i,
     );
   });
@@ -49,7 +49,7 @@ describe("fixture-backed five-view app shell", () => {
       name: new RegExp(activeSession.title, "i"),
     });
 
-    expect(activeRow).toHaveAttribute("aria-selected", "true");
+    expect(activeRow).toHaveAttribute("aria-current", "true");
     expect(activeRow).toHaveTextContent(activeSession.status);
     expect(activeRow).toHaveTextContent(activeSession.branch);
     expect(activeRow).toHaveTextContent(activeSession.model);

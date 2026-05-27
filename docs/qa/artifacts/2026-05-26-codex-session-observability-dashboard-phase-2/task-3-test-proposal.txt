@@ -1,0 +1,40 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/unit/sessionFilter.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview/.worktrees/impl-phase-2-sessions-index
+
+ ❯ tests/unit/sessionFilter.test.ts (2 tests | 2 failed) 2ms
+   × session filter query serialization > serializes composed filters into the API query contract 1ms
+     → (0 , buildSessionQuery) is not a function
+   × session filter query serialization > omits empty strings and undefined values 0ms
+     → (0 , buildSessionQuery) is not a function
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/unit/sessionFilter.test.ts > session filter query serialization > serializes composed filters into the API query contract
+TypeError: (0 , buildSessionQuery) is not a function
+ ❯ tests/unit/sessionFilter.test.ts:25:12
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/unit/sessionFilter.test.ts > session filter query serialization > omits empty strings and undefined values
+TypeError: (0 , buildSessionQuery) is not a function
+ ❯ tests/unit/sessionFilter.test.ts:32:7
+     30|   it("omits empty strings and undefined values", () => {
+     31|     expect(
+     32|       buildSessionQuery(
+       |       ^
+     33|         {
+     34|           search: "  ",
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  00:05:21
+   Duration  261ms (transform 20ms, setup 0ms, collect 20ms, tests 2ms, environment 107ms, prepare 30ms)
+

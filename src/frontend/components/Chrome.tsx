@@ -9,6 +9,8 @@ interface ChromeProps {
 }
 
 export function Chrome({ children, health, sessionCount }: ChromeProps) {
+  const source = health.mode === "real" ? "state-db" : "fixture";
+
   return (
     <div className="app-shell">
       <header className="hazard-strip" aria-label="Observatory status">
@@ -16,19 +18,19 @@ export function Chrome({ children, health, sessionCount }: ChromeProps) {
           <span className="hazard-strip__kicker">Hazard</span>
           <span className="hazard-strip__title">AgentView Observatory</span>
         </div>
-        <div className="hazard-strip__meta" aria-label="Fixture mode health">
+        <div className="hazard-strip__meta" aria-label="Transport health">
           <span>{health.mode} mode</span>
-          <span>healthy</span>
+          <span>{health.status === "ok" ? "healthy" : "unavailable"}</span>
           <time dateTime={health.checkedAt}>{new Date(health.checkedAt).toLocaleTimeString("en-US")}</time>
         </div>
       </header>
 
       {children}
 
-      <footer className="status-bar" role="status" aria-label="Fixture transport status">
-        <span>source: fixture</span>
+      <footer className="status-bar" role="status" aria-label="Transport status">
+        <span>source: {source}</span>
         <span>{sessionCount} sessions</span>
-        <span>real codex reads: disabled</span>
+        <span>state db: {health.stateDb?.supported ? "supported" : health.mode === "real" ? "unavailable" : "not connected"}</span>
       </footer>
     </div>
   );
