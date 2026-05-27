@@ -1,0 +1,74 @@
+status: complete
+task: "Task 4"
+lane: graph-tokens-api
+base_commit: 881bcbc12e756c7f06db948222b00e40a77ee83b
+head_commit: 9cf634f1e59bbd0f53581d38b58160e32759c277
+changed_files:
+  - src/backend/api/agentGraph.ts
+  - src/backend/sqlite/stateStore.ts
+  - tests/unit/tokenSeries.test.ts
+  - tests/unit/agentGraph.test.ts
+  - tests/integration/graphTokensApi.test.ts
+  - docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/graph-tokens-api-2026-05-27T145455Z.yaml
+  - docs/qa/artifacts/observatory-api-design-data-gap-closure/graph-tokens-api-task-4-test-proposal.txt
+  - docs/qa/artifacts/observatory-api-design-data-gap-closure/graph-tokens-api-implementation.txt
+commands:
+  - command: "npm run test -- --run tests/unit/tokenSeries.test.ts tests/unit/agentGraph.test.ts tests/integration/graphTokensApi.test.ts tests/integration/diagnosticsApi.test.ts"
+    result: fail_expected
+    artifact: docs/qa/artifacts/observatory-api-design-data-gap-closure/graph-tokens-api-task-4-test-proposal.txt
+  - command: "npm run test -- --run tests/unit/tokenSeries.test.ts tests/unit/agentGraph.test.ts tests/integration/graphTokensApi.test.ts tests/integration/diagnosticsApi.test.ts"
+    result: pass
+    artifact: docs/qa/artifacts/observatory-api-design-data-gap-closure/graph-tokens-api-implementation.txt
+service_wiring_rows:
+  - "Full token metadata"
+  - "Spawn child navigation data"
+  - "Failed command summaries"
+  - "Observed diagnostics logs"
+real_dependencies:
+  - "Vitest focused unit/integration suite"
+  - "node:sqlite-backed temp state_5.sqlite fixtures"
+  - "node:sqlite-backed temp logs_2.sqlite fixtures"
+  - "temporary rollout JSONL and rollout cache fixtures"
+mocks_or_fixtures:
+  - name: "temp state_5.sqlite graph fixture"
+    kind: "fixture"
+    scope: "tests/fixtures/codexHome.ts via graphTokensApi integration test"
+    affected_paths:
+      - tests/integration/graphTokensApi.test.ts
+      - tests/fixtures/codexHome.ts
+    service_wiring_rows:
+      - "Spawn child navigation data"
+    disposition: "kept"
+    acceptable_reason: "Exercises real StateStore/API wiring against temporary SQLite rows without mutating user Codex data."
+    conversion_task: null
+    evidence_path: docs/qa/artifacts/observatory-api-design-data-gap-closure/graph-tokens-api-implementation.txt
+  - name: "temp rollout JSONL/cache fixtures"
+    kind: "fixture"
+    scope: "graphTokensApi and diagnosticsApi integration tests"
+    affected_paths:
+      - tests/integration/graphTokensApi.test.ts
+      - tests/integration/diagnosticsApi.test.ts
+      - tests/fixtures/diagnostics.ts
+    service_wiring_rows:
+      - "Full token metadata"
+      - "Failed command summaries"
+    disposition: "kept"
+    acceptable_reason: "Provides deterministic normalized rollout facts for token and failed-tool API behavior."
+    conversion_task: null
+    evidence_path: docs/qa/artifacts/observatory-api-design-data-gap-closure/graph-tokens-api-implementation.txt
+  - name: "temp observed logs_2.sqlite fixture"
+    kind: "fixture"
+    scope: "tests/fixtures/diagnostics.ts via diagnosticsApi integration test"
+    affected_paths:
+      - tests/integration/diagnosticsApi.test.ts
+      - tests/fixtures/diagnostics.ts
+    service_wiring_rows:
+      - "Observed diagnostics logs"
+    disposition: "kept"
+    acceptable_reason: "Exercises observed logs schema without command columns using temporary SQLite data."
+    conversion_task: null
+    evidence_path: docs/qa/artifacts/observatory-api-design-data-gap-closure/graph-tokens-api-implementation.txt
+residual_risks:
+  - "Verification was limited to the approved Task 4 focused unit/integration suite."
+review_status: "ready_for_orchestrator_review"
+blockers: []
