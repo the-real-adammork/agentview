@@ -4,11 +4,6 @@ plan: "docs/plans/2026-05-26-codex-session-observability-dashboard-phase-1-fixtu
 branch: "impl/phase-1-fixture-shell"
 worktree: "."
 active_lanes:
-  - lane: "ui-shell"
-    status: implementation
-    worker: "worker-ui-shell-1"
-    branch: "impl/phase-1-ui-shell"
-    worktree: ".worktrees/phase-1-ui-shell"
   - lane: "api-e2e-harness"
     status: test_proposal
     worker: "worker-api-e2e-1"
@@ -47,12 +42,22 @@ tasks:
         artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-2-integration-typecheck.txt"
   "3":
     title: "Port The Fixture-Backed Five-View Shell"
-    status: in_progress
+    status: done
     lane: "ui-shell"
+    commit: "5a8d9d4"
     verification:
       - command: "npm run test -- --run tests/unit/app-shell.test.tsx"
         result: fail_expected
         artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-3-test-proposal.txt"
+      - command: "npm run test -- --run tests/unit/app-shell.test.tsx"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-3-integration-app-shell-test.txt"
+      - command: "npm run typecheck"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-3-integration-typecheck.txt"
+      - command: "npm run tokens:check"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-3-integration-tokens-check.txt"
   "4":
     title: "Add Local API Fixture Server And Playwright Harness"
     status: in_progress
@@ -74,11 +79,11 @@ service_wiring:
     status: contract_fixture_covered
     evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-2-integration-focused-test.txt"
   visual_shell:
-    status: pending
-    evidence: null
+    status: covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-3-integration-app-shell-test.txt"
   runtime_asset_safety:
-    status: pending
-    evidence: null
+    status: covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-3-integration-tokens-check.txt"
 acceptance:
   status: pending
   packet: "docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-1.md"
@@ -100,4 +105,4 @@ mock_fixture_ledger:
       - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-2-integration-focused-test.txt"
 lessons: []
 blockers: []
-updated_at: "2026-05-27T03:00:57Z"
+updated_at: "2026-05-27T03:06:30Z"

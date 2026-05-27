@@ -1,0 +1,14 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/unit/app-shell.test.tsx
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview
+
+ ✓ tests/unit/app-shell.test.tsx (3 tests) 87ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  22:06:26
+   Duration  506ms (transform 43ms, setup 0ms, collect 134ms, tests 87ms, environment 118ms, prepare 30ms)
+
