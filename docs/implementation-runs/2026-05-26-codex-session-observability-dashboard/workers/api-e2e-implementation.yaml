@@ -1,0 +1,52 @@
+status: implemented
+worker_id: worker-api-e2e-1
+run_id: 2026-05-26-codex-session-observability-dashboard
+task: "Phase 1 Task 4 - Add Local API Fixture Server And Playwright Harness"
+changed_files:
+  - src/backend/server.ts
+  - src/backend/api/fixtures.ts
+  - playwright.config.ts
+  - tests/e2e/observatory-shell.spec.ts
+  - docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-4-implementation-e2e.txt
+  - docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/api-e2e-implementation.yaml
+commands:
+  - run: "npx playwright test tests/e2e/observatory-shell.spec.ts --grep \"restricts fixture API CORS\" --reporter=line"
+    exit_code: 0
+    result: passed
+  - run: "npm run typecheck"
+    exit_code: 0
+    result: passed
+  - run: "npm run e2e"
+    exit_code: 0
+    result: passed
+    artifact: docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-4-implementation-e2e.txt
+service_wiring_rows:
+  - "App health"
+  - "Fixture sessions navigation"
+real_dependencies:
+  - "Node/npm local runtime"
+  - "Playwright browser runtime"
+  - "Loopback ports 4317 for the fixture API and 4173 for the Vite app, overridable through AGENTVIEW_API_PORT and AGENTVIEW_APP_PORT"
+mocks_or_fixtures:
+  - surface: "Local API health and fixture payload endpoints"
+    source: "src/backend/api/fixtures.ts"
+    type: "static mocked fixtures from src/fixtures/observatoryFixtures.ts with loopback-only CORS reflection"
+    real_codex_reads: false
+  - surface: "Fixture API CORS boundary"
+    source: "src/backend/api/fixtures.ts and tests/e2e/observatory-shell.spec.ts"
+    type: "real HTTP preflight/request checks; no Origin is accepted without ACAO, loopback HTTP origins are reflected, non-loopback origins are not reflected"
+    real_codex_reads: false
+  - surface: "Browser shell navigation"
+    source: "src/frontend fixture snapshot plus Playwright browser runtime"
+    type: "fixture-backed UI data with real local Vite rendering"
+    real_codex_reads: false
+  - surface: "Runtime network guard"
+    source: "tests/e2e/observatory-shell.spec.ts"
+    type: "real browser request observation; fails non-loopback HTTP(S) requests"
+    real_codex_reads: false
+residual_risks:
+  - "The five views still render fixture data from the frontend fixture snapshot; the e2e contract validates local HTTP health and view navigation, not replacement of the UI client with HTTP fetches."
+  - "The API fixture routes are representative only and intentionally do not read real Codex state, rollout, session, or log sources."
+review_status: "ready_for_phase_owner_review"
+plan_updates_recommended: []
+blockers: []

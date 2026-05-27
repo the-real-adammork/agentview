@@ -1,0 +1,20 @@
+Task 4 test proposal artifact
+
+Primary command:
+  npm run e2e
+  exit_code: 1
+  expected_failure: Playwright has no config boundary yet, so `playwright test` scans unit tests and imports Vitest tests outside Vitest.
+  key_output:
+    - "Error: Vitest failed to access its internal state."
+    - "at createExpect (.../node_modules/vitest/dist/chunks/vi.bdSIJ99Y.js:426:16)"
+
+Focused syntax/intent check:
+  npx playwright test tests/e2e/observatory-shell.spec.ts --reporter=line
+  exit_code: 1
+  expected_failure: The new spec loads and fails on missing Playwright `use.baseURL`, before any app/API harness is implemented.
+  key_output:
+    - "Playwright config must provide use.baseURL so npm run e2e starts the Vite app"
+    - "Received: undefined"
+
+Conclusion:
+  The proposed e2e test is failing for missing Playwright config/dev-server/API harness behavior, not a TypeScript or syntax error in the spec.

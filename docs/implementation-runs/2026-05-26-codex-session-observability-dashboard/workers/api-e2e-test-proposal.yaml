@@ -1,0 +1,40 @@
+status: test_proposed
+result: fail_expected
+worker_id: worker-api-e2e-1
+run_id: 2026-05-26-codex-session-observability-dashboard
+task: "Phase 1 Task 4 - Add Local API Fixture Server And Playwright Harness"
+test_files_changed:
+  - tests/e2e/observatory-shell.spec.ts
+artifacts:
+  - docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-1/task-4-test-proposal.txt
+command_result:
+  primary:
+    run: "npm run e2e"
+    exit_code: 1
+    result: fail_expected
+    summary: "Fails because Playwright has no config/testDir boundary and imports Vitest unit tests outside the Vitest runner."
+  focused_check:
+    run: "npx playwright test tests/e2e/observatory-shell.spec.ts --reporter=line"
+    exit_code: 1
+    result: fail_expected
+    summary: "New spec loads and fails on missing Playwright use.baseURL, confirming the failure is harness/config related rather than syntax related."
+expected_failure:
+  - "No Playwright config exists yet to restrict discovery to tests/e2e, so npm run e2e scans tests/unit and trips Vitest internal state errors."
+  - "No Playwright use.baseURL/webServer exists yet, so the focused e2e spec fails before visiting the app."
+  - "API/dev-server orchestration remains intentionally unimplemented in this test-proposal stage."
+requirement_mapping:
+  visit_app: "Spec calls page.goto(baseURL) and requires Playwright use.baseURL to be local loopback."
+  browser_runtime_api_health: "Spec fetches /api/health from the page context and asserts ok fixture health data."
+  primary_view_navigation: "Spec clicks Sessions, Timeline, Agent Graph, Tokens, and Diagnostics primary nav controls."
+  non_local_network_guard: "Spec records HTTP(S) page requests and fails if any runtime request targets a non-loopback host."
+service_wiring_rows:
+  - "App health"
+  - "Fixture sessions navigation"
+mock_or_fixture_disclosure:
+  automated_tests: "mocked fixtures through real local HTTP/dev server once Task 4 implementation wires the harness"
+  production_dev_path_exercised: "not yet; this stage only proposes the failing Playwright contract"
+  mock_only_risk: "real Codex source reads remain out of scope until later phases"
+  required_real_dependencies: "Node/npm local runtime and Playwright browser runtime"
+blockers:
+  - "None for the test proposal."
+  - "To make the test pass, the implementation stage must add Playwright config with e2e-only discovery, local Vite/API webServer orchestration, and browser-accessible API health wiring."
