@@ -3,14 +3,7 @@ status: running
 plan: "docs/plans/2026-05-27-observatory-api-design-data-gap-closure.md"
 branch: "impl/observatory-api-design-data-gap-closure"
 worktree: ".worktrees/impl-observatory-api-design-data-gap-closure"
-active_lanes:
-  - lane: "rollout-parser"
-    task: "Task 2"
-    status: "implementation"
-    worker: "worker-rollout-parser-1"
-    branch: "impl/observatory-api-design-data-gap-closure-rollout-parser"
-    worktree: ".worktrees/impl-observatory-api-design-data-gap-closure-rollout-parser"
-    result: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/rollout-parser-2026-05-27T143305Z.yaml"
+active_lanes: []
 orchestrator:
   supervisor_inbox: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/supervisor-inbox/observatory-api-design-data-gap-closure.yaml"
   spawn_method: tmux-pane
@@ -31,8 +24,13 @@ tasks:
         artifact: "docs/qa/artifacts/observatory-api-design-data-gap-closure/task-1-contracts.txt"
   "2":
     title: "Parse Observed Rollout Envelopes Into Joined Timeline, Turn, Token, Agent, And Summary Facts"
-    status: in_progress
+    status: done
     lane: "rollout-parser"
+    commit: "fccad47c5ddafe375d70ae6f016f0988a191c7a0"
+    verification:
+      - command: "npm run test -- --run tests/unit/parseRollout.test.ts tests/integration/rolloutCache.test.ts tests/integration/timelineApi.test.ts tests/integration/liveTail.test.ts tests/privacy/privacyPreviews.test.ts"
+        result: pass
+        artifact: "docs/qa/artifacts/observatory-api-design-data-gap-closure/rollout-parser-integration.txt"
   "3":
     title: "Support The Observed logs_2.sqlite Schema In Diagnostics"
     status: done
@@ -53,23 +51,23 @@ tasks:
     status: not_started
 service_wiring:
   observed_rollout_timeline:
-    status: pending
-    evidence: null
+    status: backend_covered
+    evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/rollout-parser-integration.txt"
   spawn_child_navigation_data:
-    status: pending
-    evidence: null
+    status: backend_covered
+    evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/rollout-parser-integration.txt"
   full_token_metadata:
-    status: pending
-    evidence: null
+    status: backend_covered
+    evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/rollout-parser-integration.txt"
   observed_diagnostics_logs:
     status: covered
     evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/logs-schema-adapter-integration.txt"
   failed_command_summaries:
-    status: pending
-    evidence: null
+    status: backend_covered
+    evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/rollout-parser-integration.txt"
   cache_and_live_tail_facts:
-    status: pending
-    evidence: null
+    status: backend_covered
+    evidence: "docs/qa/artifacts/observatory-api-design-data-gap-closure/rollout-parser-integration.txt"
 mock_fixture_ledger:
   - id: "mf-task3-observed-logs-sqlite"
     name: "Observed logs_2.sqlite fixture"
@@ -102,10 +100,32 @@ mock_fixture_ledger:
     conversion_task: null
     evidence:
       - "docs/qa/artifacts/observatory-api-design-data-gap-closure/logs-schema-adapter-integration.txt"
+  - id: "mf-task2-observed-rollout-jsonl"
+    name: "Observed rollout JSONL envelope fixtures"
+    kind: fixture
+    introduced_by: "Task 2"
+    scope: test-only
+    affected_paths:
+      - "tests/unit/parseRollout.test.ts"
+      - "tests/integration/rolloutCache.test.ts"
+      - "tests/integration/timelineApi.test.ts"
+      - "tests/integration/liveTail.test.ts"
+      - "tests/privacy/privacyPreviews.test.ts"
+    service_wiring_rows:
+      - "observed_rollout_timeline"
+      - "spawn_child_navigation_data"
+      - "full_token_metadata"
+      - "failed_command_summaries"
+      - "cache_and_live_tail_facts"
+    disposition: test-only
+    acceptable_because: "Temp JSONL fixtures exercise production parser, cache, tail, timeline API, and privacy paths without adding runtime fixture behavior."
+    conversion_task: null
+    evidence:
+      - "docs/qa/artifacts/observatory-api-design-data-gap-closure/rollout-parser-integration.txt"
 acceptance:
   status: pending
   packet: "docs/qa/phase-acceptance/2026-05-27-observatory-api-design-data-gap-closure.md"
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T14:52:30Z"
+updated_at: "2026-05-27T14:53:58Z"
