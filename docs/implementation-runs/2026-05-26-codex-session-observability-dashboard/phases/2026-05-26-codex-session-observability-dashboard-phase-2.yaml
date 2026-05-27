@@ -6,7 +6,7 @@ worktree: ".worktrees/impl-phase-2-sessions-index"
 active_lanes:
   - lane: "sessions-api-tests"
     status: test_proposed
-    worker: null
+    worker: "019e6798-f4c6-72c0-bde7-4b1901f0c061"
     branch: "impl/phase-2-sessions-api-tests"
     worktree: ".worktrees/impl-phase-2-sessions-api-tests"
     result: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/sessions-api-tests-20260527T040143Z.yaml"
@@ -82,4 +82,4 @@ acceptance:
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T04:01:57Z"
+updated_at: "2026-05-27T04:08:08Z"
