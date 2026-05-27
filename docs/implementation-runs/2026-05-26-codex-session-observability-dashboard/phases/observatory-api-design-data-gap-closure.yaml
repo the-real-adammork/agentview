@@ -1,0 +1,61 @@
+phase: "observatory-api-design-data-gap-closure"
+status: not_started
+plan: "docs/plans/2026-05-27-observatory-api-design-data-gap-closure.md"
+branch: "impl/observatory-api-design-data-gap-closure"
+worktree: ".worktrees/impl-observatory-api-design-data-gap-closure"
+active_lanes: []
+orchestrator:
+  supervisor_inbox: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/supervisor-inbox/observatory-api-design-data-gap-closure.yaml"
+  spawn_method: tmux-pane
+  tmux_pane: null
+  fallback_reason: null
+  validation:
+    checked_at: "2026-05-27T14:23:20Z"
+    status: unknown
+    reason: "Phase 6 orchestrator not launched yet."
+tasks:
+  "1":
+    title: "Establish Enriched Shared Contracts And Observed-Shape Fixtures"
+    status: not_started
+  "2":
+    title: "Parse Observed Rollout Envelopes Into Joined Timeline, Turn, Token, Agent, And Summary Facts"
+    status: not_started
+  "3":
+    title: "Support The Observed logs_2.sqlite Schema In Diagnostics"
+    status: not_started
+  "4":
+    title: "Enrich Agent Graph And Token API Responses From Normalized Facts"
+    status: not_started
+  "5":
+    title: "Prove The Frontend Can Consume The Enriched API Data"
+    status: not_started
+  "6":
+    title: "Complete Integration, Regression, And Acceptance Packet"
+    status: not_started
+service_wiring:
+  observed_rollout_timeline:
+    status: pending
+    evidence: null
+  spawn_child_navigation_data:
+    status: pending
+    evidence: null
+  full_token_metadata:
+    status: pending
+    evidence: null
+  observed_diagnostics_logs:
+    status: pending
+    evidence: null
+  failed_command_summaries:
+    status: pending
+    evidence: null
+  cache_and_live_tail_facts:
+    status: pending
+    evidence: null
+mock_fixture_ledger: []
+acceptance:
+  status: pending
+  packet: "docs/qa/phase-acceptance/2026-05-27-observatory-api-design-data-gap-closure.md"
+  commands: []
+lessons: []
+blockers: []
+updated_at: "2026-05-27T14:23:20Z"

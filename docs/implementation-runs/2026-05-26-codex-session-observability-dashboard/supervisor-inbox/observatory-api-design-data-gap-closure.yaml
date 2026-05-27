@@ -1,0 +1,14 @@
+phase: "observatory-api-design-data-gap-closure"
+orchestrator_status: starting
+updated_at: "2026-05-27T14:23:20Z"
+heartbeat_expires_at: "2026-05-27T14:33:20Z"
+tmux:
+  pane_id: null
+request:
+  type: none
+  reason: null
+  artifact: null
+phase_completion:
+  phase_yaml: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/phases/observatory-api-design-data-gap-closure.yaml"
+  acceptance_packet: null
+  commit: null
