@@ -3,13 +3,7 @@ status: running
 plan: "docs/plans/2026-05-26-codex-session-observability-dashboard-phase-2-sessions-index.md"
 branch: "impl/phase-2-sessions-index"
 worktree: ".worktrees/impl-phase-2-sessions-index"
-active_lanes:
-  - lane: "sessions-ui"
-    status: implementing
-    worker: "019e67cd-332a-70d3-966b-d613e7d962d7"
-    branch: "impl/phase-2-sessions-ui"
-    worktree: ".worktrees/impl-phase-2-sessions-ui"
-    result: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/sessions-ui-implementation-20260527T045834Z.yaml"
+active_lanes: []
 role_separation:
   supervisor: "supervisor"
   phase_owner: "019e6788-7213-7f21-acac-1394f306a55a"
@@ -59,8 +53,25 @@ tasks:
         artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt"
   "3":
     title: "Replace Sessions UI With Real API Data"
-    status: implementing
+    status: done
     lane: "sessions-ui"
+    commit: "c566f27"
+    worker_note: "Worker 019e67cd-332a-70d3-966b-d613e7d962d7 stalled with a clean worktree and was closed; phase orchestrator completed the lane directly."
+    implementation_review:
+      status: approved
+      reviewer: "phase-orchestrator"
+      result: pass
+      artifact: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/sessions-ui-implementation-20260527T045834Z.yaml"
+    verification:
+      - command: "npm run test -- --run tests/unit/sessionFilter.test.ts"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-3-implementation-focused-test.txt"
+      - command: "npm run e2e -- --grep @sessions"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-3-implementation-focused-test.txt"
+      - command: "npm run typecheck"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-3-implementation-focused-test.txt"
   "4":
     title: "Add First-Paint Performance Guard"
     status: not_started
@@ -72,14 +83,14 @@ service_wiring:
     status: api_covered
     evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt"
   sessions_first_paint:
-    status: api_covered
-    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt"
+    status: ui_covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-3-implementation-focused-test.txt"
   session_lookup:
-    status: api_covered
-    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt"
+    status: ui_covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-3-implementation-focused-test.txt"
   filter_composition:
-    status: api_covered
-    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt"
+    status: ui_covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-3-implementation-focused-test.txt"
 mock_fixture_ledger:
   - id: "mf-phase2-001"
     name: "temp Codex home SQLite fixture"
@@ -114,6 +125,23 @@ mock_fixture_ledger:
     conversion_task: null
     evidence:
       - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-2-implementation-focused-test.txt"
+  - id: "mf-phase2-004"
+    name: "Playwright temp state_5.sqlite fixture"
+    kind: fixture
+    introduced_by: "Task 3"
+    scope: test-only
+    affected_paths:
+      - "playwright.config.ts"
+      - "tests/e2e/sessions-index.spec.ts"
+    service_wiring_rows:
+      - "Sessions first paint"
+      - "Session lookup"
+      - "Filter composition"
+    disposition: test-only
+    acceptable_because: "The fixture supplies deterministic CODEX_HOME data for the local API web server; production/dev runtime still resolves configured CODEX_HOME and reads state_5.sqlite through the same routes."
+    conversion_task: null
+    evidence:
+      - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-2/task-3-implementation-focused-test.txt"
   - id: "mf-phase2-003"
     name: "sessions API JSONL read trap preloader"
     kind: fixture
@@ -134,4 +162,4 @@ acceptance:
   commands: []
 lessons: []
 blockers: []
-updated_at: "2026-05-27T04:58:34Z"
+updated_at: "2026-05-27T05:09:39Z"
