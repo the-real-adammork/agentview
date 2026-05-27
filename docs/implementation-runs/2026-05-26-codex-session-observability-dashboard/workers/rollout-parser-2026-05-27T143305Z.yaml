@@ -1,0 +1,50 @@
+status: complete
+task: Task 2
+lane: rollout-parser
+base_commit: d9477218e908faf7c51afbfabe9bbc401b78b5d9
+head_commit: b84968629eff6261198f7fe0b20b59ae4f5235f0
+changed_files:
+  - src/backend/rollout/parseRollout.ts
+  - tests/unit/parseRollout.test.ts
+  - tests/integration/rolloutCache.test.ts
+  - tests/integration/timelineApi.test.ts
+  - tests/integration/liveTail.test.ts
+  - tests/privacy/privacyPreviews.test.ts
+  - docs/qa/artifacts/observatory-api-design-data-gap-closure/rollout-parser-test-proposal.txt
+  - docs/qa/artifacts/observatory-api-design-data-gap-closure/rollout-parser-implementation.txt
+  - docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/workers/rollout-parser-2026-05-27T143305Z.yaml
+commands:
+  - command: npm run test -- --run tests/unit/parseRollout.test.ts tests/integration/rolloutCache.test.ts tests/integration/timelineApi.test.ts tests/integration/liveTail.test.ts tests/privacy/privacyPreviews.test.ts
+    artifact: docs/qa/artifacts/observatory-api-design-data-gap-closure/rollout-parser-test-proposal.txt
+    result: fail_expected
+  - command: npm run test -- --run tests/unit/parseRollout.test.ts tests/integration/rolloutCache.test.ts tests/integration/timelineApi.test.ts tests/integration/liveTail.test.ts tests/privacy/privacyPreviews.test.ts
+    artifact: docs/qa/artifacts/observatory-api-design-data-gap-closure/rollout-parser-implementation.txt
+    result: pass
+  - command: npm run typecheck
+    artifact: null
+    result: pass
+service_wiring_rows:
+  - Observed rollout timeline
+  - Spawn child navigation data
+  - Full token metadata
+  - Failed command summaries
+  - Cache and live tail facts
+real_dependencies:
+  - local filesystem JSONL fixtures
+  - Vitest runtime
+  - TypeScript compiler
+  - local API server for timeline integration tests
+mocks_or_fixtures:
+  automated_tests: temp JSONL rollout fixtures with observed event_msg and response_item envelope shapes
+  production_dev_paths_exercised:
+    - src/backend/rollout/jsonlStream.ts
+    - src/backend/rollout/parseRollout.ts
+    - src/backend/cache/rolloutCache.ts
+    - src/backend/tail/liveTail.ts
+    - src/backend/api/timeline.ts
+  mock_only_risk: Real Codex output wrappers may include additional shell exit-code, duration, and token-count field spellings beyond the JSON wrapper fixtures.
+residual_risks:
+  - Parser supports the observed envelope variants covered by fixtures; future Codex rollout event names or wrapper schemas may require additional aliases.
+  - Worker result YAML records the implementation commit hash after commit, so this YAML file itself remains workflow metadata outside commit b849686.
+review_status: self_verified; pending phase-owner review
+blockers: []
