@@ -1,0 +1,52 @@
+Phase 2 Task 2 implementation evidence
+
+Task: Wire Health, Sessions, And Thread API Routes
+Worker branch: impl/phase-2-sessions-api-tests
+Worktree: /Users/adam/Projects/agentview/.worktrees/impl-phase-2-sessions-api-tests
+
+Summary:
+- Wired /api/health to the read-only state_5.sqlite state store with ApiResult envelopes and schema availability.
+- Wired /api/sessions list and /api/sessions/:threadId lookup routes to state_5.sqlite, including query filter parsing, 404s, and typed source-unavailable errors.
+- Added shared local-only CORS/json response helpers and registered health/sessions ahead of existing fixture routes.
+- Added a narrow explicit list-branch guard in src/backend/api/sessions.ts after typecheck reported TS18047 on nullable parsed query state.
+
+Service wiring rows covered:
+- Health and source availability
+- Sessions first paint
+- Session lookup
+- Filter composition
+
+Required command evidence:
+
+1. npm run test -- --run tests/integration/sessionsApi.test.ts
+   Result: pass
+   Evidence summary:
+   - Vitest ran tests/integration/sessionsApi.test.ts.
+   - 8 tests passed.
+   - The run emitted Node's experimental node:sqlite warning only.
+
+2. npm run typecheck
+   Result: pass
+   Evidence summary:
+   - tsc --noEmit -p tsconfig.json passed.
+   - tsc --noEmit -p tsconfig.node.json passed.
+
+Intermediate diagnostic:
+- Before the final sessions.ts guard, npm run typecheck failed with:
+  src/backend/api/sessions.ts(235,49): error TS18047: 'parsed' is possibly 'null'.
+  src/backend/api/sessions.ts(235,64): error TS18047: 'parsed' is possibly 'null'.
+- The focused integration test was already passing before and after that narrow type fix.
+
+Real dependencies exercised:
+- Real local HTTP server process via npm run api.
+- Read-only node:sqlite connection to fixture CODEX_HOME/state_5.sqlite.
+- Parameterized SQL against threads and thread_spawn_edges.
+
+Mocks/fixtures used by approved tests:
+- Temporary Codex home and state_5.sqlite fixtures for deterministic integration coverage.
+- Unsupported schema fixture for typed SCHEMA_UNSUPPORTED coverage.
+- JSONL read trap preloader to prove first-paint sessions list does not read rollout JSONL.
+
+Residual risks:
+- Not validated against private real ~/.codex data in this worker.
+- Warning and failed-tool badge counts remain source-status placeholders for later service wiring.
