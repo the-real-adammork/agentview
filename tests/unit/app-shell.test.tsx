@@ -42,7 +42,7 @@ describe("fixture-backed five-view app shell", () => {
     const sessionsTable = screen.getByRole("table", { name: /sessions/i });
     const headers = within(sessionsTable).getAllByRole("columnheader").map((header) => header.textContent);
 
-    expect(headers).toEqual(["Session", "Status", "Branch", "Model", "Tokens", "Children", "Updated"]);
+    expect(headers).toEqual(["Session", "Status", "Branch", "Model", "Tokens", "Children", "Diagnostics", "Updated"]);
 
     const [activeSession] = sessionSummariesFixture;
     const activeRow = within(sessionsTable).getByRole("row", {

@@ -124,9 +124,9 @@ test.describe("observatory local fixture shell", () => {
       ok: true,
       data: {
         status: "ok",
-        mode: "fixture",
+        mode: "real",
       },
-      source: "fixture",
+      source: "state-db",
     });
 
     await expect(page.getByText("AgentView Observatory")).toBeVisible();

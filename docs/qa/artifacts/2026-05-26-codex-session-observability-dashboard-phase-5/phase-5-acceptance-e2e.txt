@@ -1,0 +1,36 @@
+
+> agentview@0.1.0 e2e
+> playwright test
+
+(node:70383) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m(node:70441) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m(node:70442) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+[2m[WebServer] [22m(node:70442) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+[2m[WebServer] [22m(node:70470) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[2m[WebServer] [22m(Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 13 tests using 1 worker
+
+(node:70472) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:70472) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:70472) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+  ✓   1 tests/e2e/diagnostics-hardening.spec.ts:29:3 › Diagnostics hardening @hardening › keeps all views local-only and renders partial source errors instead of blank views (337ms)
+  ✓   2 tests/e2e/diagnostics-ui.spec.ts:137:3 › Diagnostics UI @diagnostics › filters structured diagnostics by level, target, and scope against local API logs (221ms)
+  ✓   3 tests/e2e/diagnostics-ui.spec.ts:187:3 › Diagnostics UI @diagnostics › renders failed-command summaries and uses loudest-target links to filter logs (197ms)
+  ✓   4 tests/e2e/diagnostics-ui.spec.ts:223:3 › Diagnostics UI @diagnostics › shows rollout-cache failed-command fallback when logs_2.sqlite is missing (167ms)
+  ✓   5 tests/e2e/diagnostics-ui.spec.ts:246:3 › Diagnostics UI @diagnostics › hydrates Sessions warning badges after first paint without blocking rows (146ms)
+  ✓   6 tests/e2e/diagnostics-ui.spec.ts:294:3 › Diagnostics UI @diagnostics › keeps raw TUI tail hidden until advanced reveal, redacts previews, and appends from next offset (263ms)
+  ✓   7 tests/e2e/graph-tokens.spec.ts:10:3 › real Graph and Tokens views @graph-tokens › renders graph and token service wiring with Timeline navigation (384ms)
+  ✓   8 tests/e2e/observatory-shell.spec.ts:54:3 › observatory local fixture shell › restricts fixture API CORS to loopback browser origins (18ms)
+  ✓   9 tests/e2e/observatory-shell.spec.ts:103:3 › observatory local fixture shell › boots from local API fixtures, visits every primary view, and blocks external runtime requests (275ms)
+  ✓  10 tests/e2e/sessions-index.spec.ts:14:3 › real Sessions index @sessions › loads real state-db sessions sorted by update time and selects rows for placeholder detail views (198ms)
+  ✓  11 tests/e2e/sessions-index.spec.ts:39:3 › real Sessions index @sessions › composes search and filter controls against the sessions API (191ms)
+  ✓  12 tests/e2e/sessions-index.spec.ts:55:3 › real Sessions index @sessions › shows an API error state when the sessions endpoint is unavailable (127ms)
+  ✓  13 tests/e2e/timeline-detail.spec.ts:11:3 › real Timeline detail @timeline › renders parsed rollout rows, redacted previews, collapsed output, scrubber ticks, filters, and tail updates (282ms)
+
+  13 passed (4.0s)
