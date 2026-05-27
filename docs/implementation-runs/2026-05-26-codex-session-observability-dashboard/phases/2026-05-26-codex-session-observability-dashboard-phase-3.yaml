@@ -1,5 +1,5 @@
 phase: "2026-05-26-codex-session-observability-dashboard-phase-3"
-status: running
+status: complete
 plan: "docs/plans/2026-05-26-codex-session-observability-dashboard-phase-3-timeline-cache.md"
 branch: "impl/phase-3-timeline-cache"
 worktree: ".worktrees/impl-phase-3-timeline-cache"
@@ -16,37 +16,151 @@ orchestrator:
 tasks:
   "1":
     title: "Implement Streaming Parser, Redaction, And Fixtures"
-    status: not_started
+    status: done
+    lane: "parser-cache"
+    commit: "d20934d"
+    verification:
+      - command: "npm run test -- --run tests/unit/parseRollout.test.ts tests/unit/redaction.test.ts"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-3/vitest.txt"
   "2":
     title: "Add Rollout Cache And Timeline API"
-    status: not_started
+    status: done
+    lane: "parser-cache"
+    commit: "d20934d"
+    verification:
+      - command: "npm run test -- --run tests/integration/rolloutCache.test.ts tests/integration/timelineApi.test.ts"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-3/vitest.txt"
   "3":
     title: "Build Real Timeline View"
-    status: not_started
+    status: done
+    lane: "timeline-ui"
+    commit: "d20934d"
+    verification:
+      - command: "npm run e2e -- --grep @timeline"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-3/e2e-timeline.txt"
   "4":
     title: "Add Selected-Session Tail And Rollout Performance Guard"
-    status: not_started
+    status: done
+    lane: "tail-perf"
+    commit: "d20934d"
+    verification:
+      - command: "npm run test -- --run tests/integration/liveTail.test.ts tests/perf/rolloutParse.test.ts"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-3/vitest.txt"
+      - command: "npm run perf:rollout"
+        result: pass
+        artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-3/perf-rollout.txt"
   "5":
     title: "Integrate Phase 3 Acceptance Packet"
-    status: not_started
+    status: done
+    lane: "acceptance"
+    commit: "d20934d"
+    verification:
+      - command: "npm run typecheck && npm run test -- --run && npm run e2e -- --grep @timeline && npm run perf:rollout"
+        result: pass
+        artifact: "docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-3.md"
 service_wiring:
   timeline_detail_load:
-    status: pending
-    evidence: null
+    status: covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-3/e2e-timeline.txt"
   rollout_parse_cache:
-    status: pending
-    evidence: null
+    status: covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-3/vitest.txt"
   redacted_tool_previews:
-    status: pending
-    evidence: null
+    status: covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-3/e2e-timeline.txt"
   selected_rollout_tail:
-    status: pending
-    evidence: null
-mock_fixture_ledger: []
+    status: covered
+    evidence: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-3/e2e-timeline.txt"
+mock_fixture_ledger:
+  - id: "mf-phase3-001"
+    name: "Temp rollout JSONL files"
+    kind: fixture
+    scope: test-only
+    affected_paths:
+      - "tests/unit/parseRollout.test.ts"
+      - "tests/integration/rolloutCache.test.ts"
+      - "tests/integration/timelineApi.test.ts"
+      - "tests/e2e/timeline-detail.spec.ts"
+      - "playwright.config.ts"
+    service_wiring_rows:
+      - "timeline_detail_load"
+      - "rollout_parse_cache"
+      - "redacted_tool_previews"
+      - "selected_rollout_tail"
+    disposition: test-only
+    acceptable_because: "Representative generated JSONL exercises the same parser/cache/API runtime path without private transcripts."
+    conversion_task: null
+    evidence:
+      - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-3/vitest.txt"
+      - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-3/e2e-timeline.txt"
+  - id: "mf-phase3-002"
+    name: "Temp state_5.sqlite fixtures"
+    kind: fixture
+    scope: test-only
+    affected_paths:
+      - "tests/fixtures/codexHome.ts"
+      - "tests/integration/timelineApi.test.ts"
+      - "playwright.config.ts"
+    service_wiring_rows:
+      - "timeline_detail_load"
+    disposition: test-only
+    acceptable_because: "Temp SQLite fixtures exercise the real read-only state store and API path."
+    conversion_task: null
+    evidence:
+      - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-3/e2e-timeline.txt"
+  - id: "mf-phase3-003"
+    name: "Existing fixture shell fallback"
+    kind: fixture
+    scope: runtime
+    affected_paths:
+      - "src/fixtures/observatoryFixtures.ts"
+      - "src/backend/api/fixtures.ts"
+      - "src/frontend/api/client.ts"
+    service_wiring_rows: []
+    disposition: intentional-phase-boundary
+    acceptable_because: "Fixture shell remains an approved local fallback from earlier phases; Phase 3 Timeline acceptance uses the real rollout-cache path."
+    conversion_task: "Phase 4 graph/tokens and Phase 5 diagnostics hardening"
+    evidence:
+      - "docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-3.md"
+  - id: "mf-phase3-004"
+    name: "Generated rollout performance data"
+    kind: generated-test-data
+    scope: test-only
+    affected_paths:
+      - "scripts/perf/rollout-parse.mjs"
+      - "tests/perf/rolloutParse.test.ts"
+    service_wiring_rows:
+      - "rollout_parse_cache"
+    disposition: test-only
+    acceptable_because: "Generated data measures parser/cache behavior through the production parser and cache modules."
+    conversion_task: null
+    evidence:
+      - "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-3/perf-rollout.txt"
 acceptance:
-  status: pending
+  status: passed
   packet: "docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-3.md"
-  commands: []
+  commands:
+    - command: "npm run typecheck"
+      result: pass
+      artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-3/typecheck.txt"
+    - command: "npm run test -- --run"
+      result: pass
+      artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-3/vitest.txt"
+    - command: "npm run e2e -- --grep @timeline"
+      result: pass
+      artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-3/e2e-timeline.txt"
+    - command: "npm run perf:rollout"
+      result: pass
+      artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-3/perf-rollout.txt"
+    - command: "rg -n --hidden --glob '!node_modules' --glob '!.git' --glob '!docs/qa/artifacts/**' --glob '!docs/implementation-runs/**' 'mock|fixture|fake|stub|noop|no-op|placeholder|TODO.*real|temporary.*fake|fixture-only|disabled network' ."
+      result: pass
+      artifact: "docs/qa/artifacts/2026-05-26-codex-session-observability-dashboard-phase-3/mock-fixture-audit.txt"
+  mock_fixture_ledger_status: reconciled
 lessons: []
 blockers: []
-updated_at: "2026-05-27T05:20:35Z"
+completed_at: "2026-05-27T05:38:11Z"
+updated_at: "2026-05-27T05:38:11Z"

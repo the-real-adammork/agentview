@@ -1,14 +1,14 @@
 phase: "2026-05-26-codex-session-observability-dashboard-phase-3"
-orchestrator_status: running
-updated_at: "2026-05-27T05:20:35Z"
-heartbeat_expires_at: "2026-05-27T05:30:35Z"
+orchestrator_status: complete
+updated_at: "2026-05-27T05:38:11Z"
+heartbeat_expires_at: "2026-05-27T05:48:11Z"
 tmux:
   pane_id: "%102"
 request:
-  type: none
-  reason: null
-  artifact: null
+  type: phase_completion
+  reason: "Phase 3 acceptance passed."
+  artifact: "docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-3.md"
 phase_completion:
   phase_yaml: "docs/implementation-runs/2026-05-26-codex-session-observability-dashboard/phases/2026-05-26-codex-session-observability-dashboard-phase-3.yaml"
-  acceptance_packet: null
-  commit: null
+  acceptance_packet: "docs/qa/phase-acceptance/2026-05-26-codex-session-observability-dashboard-phase-3.md"
+  commit: "d20934d"
