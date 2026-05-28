@@ -18,7 +18,7 @@ export function SegBar({ activeView, onChange, views }: SegBarProps) {
           type="button"
         >
           <span className="idx" aria-hidden="true">{String(index).padStart(2, "0")}</span>
-          {view}
+          <span className="label">{view}</span>
         </button>
       ))}
     </nav>

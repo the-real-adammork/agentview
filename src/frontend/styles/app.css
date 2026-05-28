@@ -2660,27 +2660,144 @@ tbody tr[aria-current="true"] {
   overflow-wrap: break-word;
 }
 
-@media (max-width: 900px) {
-  .sessions-toolbar,
-  .diagnostics-toolbar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+/* ===========================================================================
+   Responsive (design handoff). Breakpoints, largest → smallest so each
+   override layers on the previous: 1440 / 1280 / 1100 / 960 / 720 / 520, plus
+   short-viewport handling. Selectors map to the app's real classes.
+   =========================================================================== */
+
+/* ≤1440 — tighten chrome, narrow side columns. */
+@media (max-width: 1440px) {
+  .header { grid-template-columns: 280px 1fr auto; }
+  .header .brand { padding: 0 12px; gap: 10px; }
+  .header .brand .mark { width: 32px; height: 32px; }
+  .header .brand .name { font-size: 16px; letter-spacing: 0.14em; }
+  .nav button { padding: 0 14px; letter-spacing: 0.14em; }
+  .top-hazard .center { padding: 0 14px; letter-spacing: 0.28em; font-size: 13px; gap: 12px; }
+
+  .overview { grid-template-columns: 280px minmax(0, 1fr); }
+  .timeline { grid-template-columns: 300px minmax(0, 1fr) 280px; }
+  .diag { grid-template-columns: 240px minmax(0, 1fr) 260px; }
+  .graph { grid-template-columns: minmax(0, 1fr) 300px; }
+}
+
+/* ≤1280 — drop JP wordmark and low-priority header stats. */
+@media (max-width: 1280px) {
+  .top-hazard .center .jp { display: none; }
+  .header .brand .sub { display: none; }
+  .header .right .stat:nth-child(2),
+  .header .right .stat:nth-child(3) { display: none; }
+  .header .right { gap: 12px; padding: 0 12px; }
+}
+
+/* ≤1100 — collapse right panels, drop lower-priority table columns. */
+@media (max-width: 1100px) {
+  /* Sessions table: hide Source + Child columns. */
+  .tbl thead th:nth-child(7), .tbl tbody td:nth-child(7),
+  .tbl thead th:nth-child(8), .tbl tbody td:nth-child(8) { display: none; }
+
+  .timeline { grid-template-columns: 300px minmax(0, 1fr); }
+  .tl-side-r { display: none; }
+
+  .diag { grid-template-columns: 240px minmax(0, 1fr); }
+  .diag-side.right { display: none; }
+
+  .tokens .row2 { grid-template-columns: 1fr 1fr; }
+
+  .ov-toolbar .chip:nth-child(3) { display: none; } /* JOIN chip */
+}
+
+/* ≤960 — stack to a single column. */
+@media (max-width: 960px) {
+  .top-hazard .center { font-size: 11px; letter-spacing: 0.22em; }
+
+  .header { grid-template-columns: auto 1fr; }
+  .header .right { display: none; }
+  .header .brand .name { font-size: 14px; }
+  .nav button { padding: 0 10px; font-size: 10px; }
+
+  /* Sessions: filters become a capped top bar above the table. */
+  .overview { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .ov-side {
+    border-right: 0;
+    border-bottom: var(--border-width) solid var(--rule);
+    grid-template-rows: auto auto auto;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .ov-side > .side-stat { grid-template-columns: repeat(4, 1fr); }
+
+  .tbl thead th:nth-child(5), .tbl tbody td:nth-child(5) { display: none; } /* Model */
+
+  /* Timeline: hide left meta (nav handles return); window chips scroll inline. */
+  .timeline { grid-template-columns: 1fr; }
+  .tl-side { display: none; }
+  .tl-tabs { overflow-x: auto; }
+  .tl-tabs button { white-space: nowrap; padding: 10px 12px; }
+  .tl-range { margin-left: 0; border-left: 0; padding-left: 8px; }
+  .tl-range-lbl { display: none; }
+
+  /* Graph: stack canvas above the inspector. */
+  .graph { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
+  .graph-info { border-left: 0; border-top: var(--border-width) solid var(--rule); max-height: 280px; }
+
+  /* Diagnostics: stack filter sidebar above the log stream. */
+  .diag { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .diag-side {
+    border-right: 0;
+    border-bottom: var(--border-width) solid var(--rule);
+    max-height: 220px;
+    overflow: auto;
   }
 
-  .field--wide {
-    grid-column: 1 / -1;
-  }
+  /* Status footer: drop $CODEX_HOME + LINK badges. */
+  .status { grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; }
+  .status > span:nth-child(3),
+  .status > span:nth-child(4) { display: none; }
+}
 
-  /* The window chips scroll inline with the kind tabs; the label and divider
-     drop so the group doesn't read as a separate region while scrolling. */
-  .tl-range {
-    margin-left: 0;
-    padding-left: 8px;
-    border-left: 0;
-  }
+/* ≤720 — minimum-viable: code-only nav, mark-only brand. */
+@media (max-width: 720px) {
+  .nav button { padding: 0 10px; }
+  .nav button .label { display: none; }
+  .nav button .idx { font-size: 13px; color: var(--ink-dim); letter-spacing: 0.08em; }
+  .nav button[data-active="true"] .idx { color: var(--bg-0); }
 
-  .tl-range-lbl {
-    display: none;
-  }
+  .header .brand > div:not(.mark) { display: none; }
+  .header .brand { padding: 0 10px; border-right: var(--border-width) solid var(--rule); }
+  .header .brand .mark { width: 28px; height: 28px; }
+
+  .top-hazard .center .blink { display: none; }
+  .top-hazard .center .hazard-strip__sys { display: none; }
+  .top-hazard .center { font-size: 10px; letter-spacing: 0.18em; gap: 8px; }
+
+  .ov-side { max-height: 200px; }
+  .ov-side > .side-stat { grid-template-columns: repeat(2, 1fr); }
+  .ov-toolbar { padding: 8px 10px; flex-wrap: wrap; }
+  .ov-toolbar .chip { display: none; }
+  .ov-toolbar .ov-search { width: 100%; }
+
+  .tokens .row2 { grid-template-columns: 1fr; }
+
+  .tbl thead th:nth-child(4), .tbl tbody td:nth-child(4) { display: none; } /* Repo */
+
+  .status { font-size: 9px; letter-spacing: 0.1em; }
+}
+
+/* ≤520 — portrait phones. */
+@media (max-width: 520px) {
+  .top-hazard .center { display: none; }
+  .nav button { padding: 0 8px; }
+  .nav button .idx { font-size: 11px; }
+
+  .tbl thead th:nth-child(2), .tbl tbody td:nth-child(2) { display: none; } /* Updated */
+
+  .tl-tabs button { font-size: 10px; padding: 8px 8px; letter-spacing: 0.12em; }
+}
+
+/* Short viewports — compact the timeline scrubber band. */
+@media (max-height: 640px) {
+  .tl-scrubber-wrap { min-height: 52px; }
 }
 
 .metric-row {
@@ -3049,75 +3166,6 @@ tbody tr[aria-current="true"] {
 .node-list__item {
   display: grid;
   gap: var(--space-2);
-}
-
-@media (max-width: 720px) {
-  .header {
-    grid-template-columns: 1fr;
-  }
-
-  .header .brand,
-  .header .right {
-    min-height: 54px;
-    border-right: 0;
-    border-bottom: var(--border-width) solid var(--rule-soft);
-  }
-
-  .nav {
-    min-height: 48px;
-    overflow-x: auto;
-  }
-
-  .nav button {
-    min-width: max-content;
-    padding-inline: 14px;
-  }
-
-  .top-hazard .center {
-    gap: 8px;
-    font-size: 11px;
-    letter-spacing: 0.18em;
-  }
-
-  .top-hazard .jp {
-    display: none;
-  }
-
-  .status {
-    grid-template-columns: 1fr;
-    gap: 4px;
-    padding-block: 6px;
-  }
-
-  .status .ticker-wrap {
-    display: none;
-  }
-
-  .hazard-strip,
-  .status-bar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .app-shell__main {
-    padding: var(--space-3);
-  }
-
-  .timeline-list__item,
-  .timeline-event,
-  .snapshot-list__item,
-  .graph-layout,
-  .token-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .timeline-toolbar {
-    grid-template-columns: 1fr;
-  }
-
-  .diagnostics-toolbar {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
