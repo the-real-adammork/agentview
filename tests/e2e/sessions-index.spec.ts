@@ -67,11 +67,14 @@ test.describe("real Sessions index @sessions", () => {
 
     await expect(rows.nth(0)).toHaveAttribute("aria-current", "true");
     await expect(rows.nth(1)).toContainText("1/2");
-    await rows.nth(1).click();
-    await expect(rows.nth(1)).toHaveAttribute("aria-current", "true");
 
-    await page.getByRole("button", { name: "Timeline" }).click();
+    // Clicking a row selects that session and navigates to its Timeline (handoff COMP/01).
+    await rows.nth(1).click();
     await expect(page.getByRole("heading", { name: /timeline/i })).toBeVisible();
+
+    // Returning to the index shows the clicked session as the active row.
+    await page.getByRole("button", { name: "Sessions" }).click();
+    await expect((await sessionRows(page)).nth(1)).toHaveAttribute("aria-current", "true");
   });
 
   test("composes search and filter controls against the sessions API", async ({ page }, testInfo) => {
@@ -181,9 +184,8 @@ test.describe("real Sessions index @sessions", () => {
   test("uses side-only selected row rails without a heavy top and bottom outline", async ({ page }, testInfo) => {
     await page.goto(appBaseUrl(testInfo));
 
-    const rows = await sessionRows(page);
-    await rows.nth(1).click();
-
+    // The first session is active on load; inspect its rails without clicking
+    // (a row click now navigates to the Timeline per handoff COMP/01).
     const activeRow = page.getByRole("table", { name: /sessions/i }).locator('tbody tr[data-active="true"]').first();
     await expect(activeRow).toBeVisible();
     const styles = await activeRow.evaluate((row) => {

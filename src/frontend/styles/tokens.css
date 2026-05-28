@@ -48,3 +48,49 @@
   --border-width: 1px;
   --focus-ring: 0 0 0 2px var(--color-accent);
 }
+
+/*
+ * Palette channels. The accent (--primary) and ink/rule ramps swap per palette;
+ * signal colors (--warn/--amber/--cyan/--good) stay constant so failure/tool/user
+ * semantics read the same in every theme. The --color-* aliases above resolve at
+ * use time, so overriding the raw tokens here cascades to the whole app.
+ * Default (no attribute / data-palette="orange") uses the :root values.
+ */
+[data-palette="amber"] {
+  --primary: #ffb800;
+  --primary-bright: #ffd24d;
+  --ink: #ffd98a;
+  --ink-strong: #fff0c8;
+  --ink-dim: rgba(255, 217, 138, 0.55);
+  --ink-faint: rgba(255, 217, 138, 0.28);
+  --ink-ghost: rgba(255, 217, 138, 0.14);
+  --rule: rgba(255, 184, 0, 0.4);
+  --rule-strong: rgba(255, 184, 0, 0.75);
+  --rule-soft: rgba(255, 184, 0, 0.16);
+}
+
+[data-palette="red"] {
+  --primary: #ff2d4d;
+  --primary-bright: #ff6680;
+  --ink: #ff9aab;
+  --ink-strong: #ffd1d9;
+  --ink-dim: rgba(255, 154, 171, 0.55);
+  --ink-faint: rgba(255, 154, 171, 0.28);
+  --ink-ghost: rgba(255, 154, 171, 0.14);
+  --rule: rgba(255, 45, 77, 0.4);
+  --rule-strong: rgba(255, 45, 77, 0.75);
+  --rule-soft: rgba(255, 45, 77, 0.16);
+}
+
+[data-palette="cyan"] {
+  --primary: #46d8ff;
+  --primary-bright: #8aeaff;
+  --ink: #b8edff;
+  --ink-strong: #e6f8ff;
+  --ink-dim: rgba(184, 237, 255, 0.55);
+  --ink-faint: rgba(184, 237, 255, 0.28);
+  --ink-ghost: rgba(184, 237, 255, 0.14);
+  --rule: rgba(70, 216, 255, 0.4);
+  --rule-strong: rgba(70, 216, 255, 0.75);
+  --rule-soft: rgba(70, 216, 255, 0.16);
+}

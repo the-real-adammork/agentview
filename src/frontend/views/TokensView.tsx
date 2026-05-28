@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { RateLimitMeter } from "../components/RateLimitMeter";
 import { ShortId } from "../components/ShortId";
@@ -99,6 +99,47 @@ function Readout({
   );
 }
 
+function formatCountdown(ms: number) {
+  const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return `${hours}h ${String(minutes).padStart(2, "0")}m`;
+  }
+  if (minutes > 0) {
+    return `${minutes}m ${String(seconds).padStart(2, "0")}s`;
+  }
+  return `${seconds}s`;
+}
+
+function ResetCountdown({ resetAt }: { resetAt?: string }) {
+  const target = resetAt ? new Date(resetAt).getTime() : Number.NaN;
+  const hasTarget = !Number.isNaN(target);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!hasTarget) {
+      return undefined;
+    }
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [hasTarget, target]);
+
+  if (!hasTarget) {
+    return <div className="rate-reset rate-reset--idle">Reset · n/a</div>;
+  }
+
+  const remaining = target - now;
+
+  return (
+    <div className="rate-reset" role="timer" aria-live="off">
+      <span>Resets in</span>
+      <strong className="num">{remaining <= 0 ? "now" : formatCountdown(remaining)}</strong>
+    </div>
+  );
+}
+
 function MiniReadout({ label, value }: { label: string; value: string }) {
   return (
     <div className="token-mini">
@@ -155,14 +196,15 @@ function TokenCurve({ snapshots }: { snapshots: TokenSnapshot[] }) {
 }
 
 function CachedRatioBars({ snapshots, ratio }: { snapshots: TokenSnapshot[]; ratio?: number }) {
+  const measurable = snapshots.filter((snapshot) => snapshot.input > 0);
+
+  if (measurable.length === 0 && ratio === undefined) {
+    return <div className="empty-state">No cache data</div>;
+  }
+
   const values =
-    snapshots.length > 0
-      ? snapshots.slice(-12).map((snapshot) => {
-          if (snapshot.input === 0) {
-            return ratio ?? 0;
-          }
-          return snapshot.cachedInput / snapshot.input;
-        })
+    measurable.length > 0
+      ? measurable.slice(-12).map((snapshot) => snapshot.cachedInput / snapshot.input)
       : [ratio ?? 0];
 
   return (
@@ -285,6 +327,7 @@ export function TokensView({
                   }
                 />
               </div>
+              <ResetCountdown resetAt={resetAt} />
               <div className="token-plan">Plan · {planTypeLabel} · next {resetLabel}</div>
             </section>
 

@@ -5,6 +5,7 @@ import {
   Handle,
   MiniMap,
   Position,
+  MarkerType,
   ReactFlow,
   useEdgesState,
   useNodesState,
@@ -174,15 +175,25 @@ export function AgentGraphView({
       })),
     );
     setEdges(
-      graph.edges.map((edge) => ({
-        id: `${edge.parentId}-${edge.childId}`,
-        source: edge.parentId,
-        target: edge.childId,
-        type: "default",
-        animated: edge.status === "open",
-        label: edge.status,
-        className: `graph-flow-edge graph-flow-edge--${edge.status}`,
-      })),
+      graph.edges.map((edge) => {
+        const open = edge.status === "open";
+        return {
+          id: `${edge.parentId}-${edge.childId}`,
+          source: edge.parentId,
+          target: edge.childId,
+          type: "default",
+          animated: open,
+          label: edge.status,
+          ariaLabel: `${open ? "Open" : "Closed"} spawn edge`,
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            width: 16,
+            height: 16,
+            color: open ? "var(--warn)" : "var(--primary)",
+          },
+          className: `graph-flow-edge graph-flow-edge--${edge.status}`,
+        };
+      }),
     );
   }, [graph, positions, setNodes, setEdges]);
 

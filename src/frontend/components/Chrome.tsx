@@ -3,12 +3,15 @@ import type { ReactNode } from "react";
 import type { HealthStatus } from "../../shared/contracts";
 import type { ObservatoryView } from "../App";
 import { LiveTokenTotal } from "../live/LiveTokens";
+import { PaletteSwitcher, type Palette } from "./PaletteSwitcher";
 
 interface ChromeProps {
   children: ReactNode;
   activeView: ObservatoryView;
   health: HealthStatus;
   navigation: ReactNode;
+  palette: Palette;
+  onPaletteChange: (palette: Palette) => void;
   sessionCount: number;
   tokenTotal: number;
   warningSessionCount: number;
@@ -28,6 +31,8 @@ export function Chrome({
   children,
   health,
   navigation,
+  palette,
+  onPaletteChange,
   sessionCount,
   tokenTotal,
   warningSessionCount,
@@ -42,7 +47,7 @@ export function Chrome({
   ];
 
   return (
-    <div className="app-shell shell" data-palette="orange" data-screen-label={`Observatory · ${activeView}`}>
+    <div className="app-shell shell" data-palette={palette} data-screen-label={`Observatory · ${activeView}`}>
       <div className="plate" aria-hidden="true" />
       <div className="grid-bg" aria-hidden="true" />
 
@@ -53,6 +58,7 @@ export function Chrome({
           <span>OBSERVATORY · 観測装置</span>
           <span className="jp">機密 / レベル 7</span>
           <span className="blink">● LIVE</span>
+          <PaletteSwitcher palette={palette} onChange={onPaletteChange} />
         </div>
         <div className="hazard" aria-hidden="true" />
         <span className="sr-only">

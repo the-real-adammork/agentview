@@ -17,7 +17,7 @@ test.describe("real Graph and Tokens views @graph-tokens", () => {
     await page.getByRole("row", { name: /Parent real sessions work/i }).click();
 
     const graphResponsePromise = page.waitForResponse((response) => response.url().includes("/api/agent-graph"));
-    await page.getByRole("button", { name: "Agent Graph" }).click();
+    await page.getByRole("navigation", { name: "Primary views" }).getByRole("button", { name: "Agent Graph" }).click();
     const graphResponse = await graphResponsePromise;
     expect(graphResponse.status()).toBe(200);
     const graphBody = await graphResponse.json();
@@ -106,7 +106,7 @@ test.describe("real Graph and Tokens views @graph-tokens", () => {
     await expect.soft(page.getByText(/plan type/i)).toContainText("pro", { timeout: 1_000 });
     await expect.soft(page.getByText(/primary rate limit/i)).toContainText("64", { timeout: 1_000 });
     await expect.soft(page.getByText(/secondary rate limit/i)).toContainText("12", { timeout: 1_000 });
-    await expect.soft(page.getByText(/reset/i)).toContainText("7:30", { timeout: 1_000 });
+    await expect.soft(page.getByText(/^Reset\b/i)).toContainText("7:30", { timeout: 1_000 });
     await expect(page.getByRole("table", { name: /top token sessions/i })).toContainText("Parent real sessions work");
 
     await page.getByRole("button", { name: /open parent real sessions work/i }).click();

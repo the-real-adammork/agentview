@@ -22,6 +22,8 @@ describe("fixture-backed five-view app shell", () => {
         activeView="Sessions"
         health={{ checkedAt: "2026-05-27T18:00:00.000Z", mode: "fixture", status: "ok" }}
         navigation={<nav aria-label="Primary views" />}
+        palette="orange"
+        onPaletteChange={() => {}}
         sessionCount={500}
         tokenTotal={4_102_376_000}
         warningSessionCount={28}

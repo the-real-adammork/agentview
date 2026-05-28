@@ -6,6 +6,7 @@ import { createLiveTokenStore } from "./live/liveTokenStore";
 import { LiveTokenStoreContext } from "./live/LiveTokens";
 import { Chrome } from "./components/Chrome";
 import { SegBar } from "./components/SegBar";
+import { usePalette } from "./usePalette";
 import { AgentGraphView } from "./views/AgentGraphView";
 import { DiagnosticsView } from "./views/DiagnosticsView";
 import { SessionsView } from "./views/SessionsView";
@@ -31,6 +32,7 @@ export type ObservatoryView = (typeof views)[number];
 export function App() {
   const fixture = useMemo(() => createFixtureSnapshot(), []);
   const liveTokenStore = useMemo(() => createLiveTokenStore(), []);
+  const [palette, setPalette] = usePalette();
   const [activeView, setActiveView] = useState<ObservatoryView>("Sessions");
   const [health, setHealth] = useState<HealthStatus>(fixture.health);
   const [sessions, setSessions] = useState<SessionSummary[]>(fixture.sessions);
@@ -342,6 +344,8 @@ export function App() {
         activeView={activeView}
         health={health}
         navigation={<SegBar views={views} activeView={activeView} onChange={setActiveView} />}
+        palette={palette}
+        onPaletteChange={setPalette}
         sessionCount={sessions.length}
         tokenTotal={tokenTotal}
         warningSessionCount={warningSessionCount}

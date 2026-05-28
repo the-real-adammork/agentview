@@ -2297,6 +2297,28 @@ tbody tr[aria-current="true"] {
   text-transform: uppercase;
 }
 
+.rate-reset {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-block-start: var(--space-2);
+  color: var(--ink-dim);
+  font-family: var(--display);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.rate-reset strong {
+  color: var(--ink-strong);
+  font-size: 14px;
+}
+
+.rate-reset--idle {
+  color: var(--ink-faint);
+}
+
 .token-readout strong,
 .token-mini strong,
 .token-ratio-readout {
@@ -3191,5 +3213,70 @@ tbody tr[aria-current="true"] {
 
   to {
     transform: translateX(-50%);
+  }
+}
+
+/* Numbers always render with tabular figures so they align in columns and
+   don't shift width as live values tick. Font family is left to context
+   (display numerals stay Big Shoulders, data stays mono). */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reduced-motion gate (handoff §09): blink/ticker stop, decorative scanlines
+   and the React Flow open-edge flow animation are silenced. Hover/focus color
+   transitions are intentionally left alone. */
+@media (prefers-reduced-motion: reduce) {
+  .blink,
+  .ticker {
+    animation: none;
+  }
+
+  .scanlines {
+    display: none;
+  }
+
+  .react-flow__edge.animated .react-flow__edge-path {
+    animation: none;
+  }
+}
+
+/* Palette switcher — compact chrome control in the top hazard strip. */
+.palette-switch {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  margin-inline-start: var(--space-2);
+}
+
+.palette-switch__opt {
+  min-inline-size: 30px;
+  padding: 2px 5px;
+  border: var(--border-width) solid var(--rule);
+  background: var(--bg-0);
+  color: var(--ink-dim);
+  font-family: var(--display);
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.palette-switch__opt:hover {
+  color: var(--ink);
+  border-color: var(--rule-strong);
+}
+
+.palette-switch__opt[aria-pressed="true"] {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--bg-0);
+  box-shadow: 0 0 8px var(--rule-strong);
+}
+
+@media (max-width: 720px) {
+  .palette-switch {
+    display: none;
   }
 }

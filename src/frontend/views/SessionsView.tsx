@@ -8,7 +8,7 @@ import type { ApiError, ArchivedFilter, DiagnosticsSummary, SessionFilter, Sessi
 
 interface SessionsViewProps {
   activeSessionId: string;
-  onSelectSession: (sessionId: string) => void;
+  onSelectSession: (sessionId: string, view?: "Timeline") => void;
   filter: SessionFilter;
   onFilterChange: (filter: SessionFilter) => void;
   sessions: SessionSummary[];
@@ -32,6 +32,23 @@ function StatCell({ label, sub, tone, value }: { label: string; sub: string; ton
       <div className="v" data-tone={tone}>{value}</div>
       <div className="s">{sub}</div>
     </div>
+  );
+}
+
+const TOKEN_BAR_CELLS = 12;
+const TOKEN_BAR_SCALE = 200_000;
+const TOKEN_BAR_WARN = 100_000;
+
+function TokenSegBar({ tokens }: { tokens: number }) {
+  const lit = Math.round(Math.min(1, tokens / TOKEN_BAR_SCALE) * TOKEN_BAR_CELLS);
+  const warn = tokens > TOKEN_BAR_WARN;
+
+  return (
+    <span className="segbar session-token-bar" aria-hidden="true">
+      {Array.from({ length: TOKEN_BAR_CELLS }, (_, cell) => (
+        <i className={cell < lit ? (warn ? "on hi" : "on") : ""} key={cell} />
+      ))}
+    </span>
   );
 }
 
@@ -267,11 +284,11 @@ export function SessionsView({
                   aria-current={session.id === activeSessionId ? "true" : undefined}
                   className="session-row"
                   key={session.id}
-                  onClick={() => onSelectSession(session.id)}
+                  onClick={() => onSelectSession(session.id, "Timeline")}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
-                      onSelectSession(session.id);
+                      onSelectSession(session.id, "Timeline");
                     }
                   }}
                   tabIndex={0}
@@ -294,6 +311,7 @@ export function SessionsView({
                   <td>{session.model || "-"}</td>
                   <td className="numeric">
                     <LiveSessionTokens sessionId={session.id} fallback={tokenValue} />
+                    <TokenSegBar tokens={tokenValue} />
                   </td>
                   <td className="badge-cell">
                     <span className={source === "subagent" ? "chip amber" : "chip"}>{source === "subagent" ? `SUB · ${(session.agentRole ?? "worker").charAt(0).toUpperCase()}` : "USER"}</span>
