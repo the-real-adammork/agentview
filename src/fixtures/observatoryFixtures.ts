@@ -24,7 +24,9 @@ export const sessionSummariesFixture: SessionSummary[] = [
     lastMessage: "Dashboard scaffolded; awaiting timeline worker.",
     childCount: 2,
     openChildCount: 1,
+    parentId: null,
     tokenTotal: 184312,
+    threadSource: "user",
   },
   {
     id: childResearcherId,
@@ -37,7 +39,11 @@ export const sessionSummariesFixture: SessionSummary[] = [
     lastMessage: "Top noisy targets identified; suppression list ready.",
     childCount: 1,
     openChildCount: 0,
+    parentId: rootThreadId,
     tokenTotal: 24680,
+    threadSource: "subagent",
+    agentNickname: "ARCHIMEDES",
+    agentRole: "researcher",
   },
   {
     id: childWorkerId,
@@ -50,7 +56,11 @@ export const sessionSummariesFixture: SessionSummary[] = [
     lastMessage: "Timeline rows drafted; waiting on tool output states.",
     childCount: 0,
     openChildCount: 0,
+    parentId: rootThreadId,
     tokenTotal: 41820,
+    threadSource: "subagent",
+    agentNickname: "SOCRATES",
+    agentRole: "worker",
   },
 ];
 

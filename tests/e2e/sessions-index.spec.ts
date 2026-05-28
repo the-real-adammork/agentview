@@ -36,7 +36,7 @@ test.describe("real Sessions index @sessions", () => {
   }, testInfo) => {
     await page.goto(appBaseUrl(testInfo));
 
-    await expect(page.getByRole("heading", { name: "WORKFLOWKIT" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /repos/i })).toBeVisible();
     await expect(page.getByLabel(/observatory status/i)).toContainText(/real mode/i);
     await expect(page.getByRole("status", { name: /transport status/i })).toContainText(/source: state-db/i);
     await expect(page.getByRole("status", { name: /transport status/i })).toContainText(/sessions:\s*3/i);
@@ -57,24 +57,31 @@ test.describe("real Sessions index @sessions", () => {
 
     const rows = await sessionRows(page);
     await expect(rows).toHaveCount(3);
-    await expect(rows.nth(0)).toContainText("UI fixture archived");
-    await expect(rows.nth(1)).toContainText("Subagent implementation lane");
-    await expect(rows.nth(2)).toContainText("Parent real sessions work");
-    await expect(rows.nth(0)).toContainText("agentview-fixture");
-    await expect(rows.nth(0)).not.toContainText("/repo/agentview-fixture");
-    await expect(rows.nth(1)).toContainText("agentview");
-    await expect(rows.nth(1)).not.toContainText("/repo/agentview");
+    // Tree-grouped order: the user root leads, its sub-agents nest beneath it
+    // (newest descendant first), rather than a flat updated_at sort.
+    await expect(rows.nth(0)).toContainText("Parent real sessions work");
+    await expect(rows.nth(1)).toContainText("UI fixture archived");
+    await expect(rows.nth(2)).toContainText("Subagent implementation lane");
+    await expect(rows.nth(0)).toHaveAttribute("data-depth", "0");
+    await expect(rows.nth(1)).toHaveAttribute("data-depth", "1");
+    await expect(rows.nth(2)).toHaveAttribute("data-depth", "1");
+    // Each row still shows its own repo label (not the full cwd).
+    await expect(rows.nth(1)).toContainText("agentview-fixture");
+    await expect(rows.nth(1)).not.toContainText("/repo/agentview-fixture");
+    await expect(rows.nth(0)).toContainText("agentview");
+    await expect(rows.nth(0)).not.toContainText("/repo/agentview");
 
-    await expect(rows.nth(0)).toHaveAttribute("aria-current", "true");
-    await expect(rows.nth(1)).toContainText("1/2");
+    // archived-ui is the most recently updated row, so it is the default selection.
+    await expect(rows.nth(1)).toHaveAttribute("aria-current", "true");
+    await expect(rows.nth(2)).toContainText("1/2");
 
     // Clicking a row selects that session and navigates to its Timeline (handoff COMP/01).
-    await rows.nth(1).click();
+    await rows.nth(2).click();
     await expect(page.getByRole("heading", { name: /timeline/i })).toBeVisible();
 
     // Returning to the index shows the clicked session as the active row.
     await page.getByRole("button", { name: "Sessions" }).click();
-    await expect((await sessionRows(page)).nth(1)).toHaveAttribute("aria-current", "true");
+    await expect((await sessionRows(page)).nth(2)).toHaveAttribute("aria-current", "true");
   });
 
   test("composes search and filter controls against the sessions API", async ({ page }, testInfo) => {

@@ -424,7 +424,7 @@
       <div class="mark"></div>
       <div>
         <h1>ENGINEERING<br>HANDOFF</h1>
-        <div class="sub">// Observatory Dashboard · v0.2 · Build &amp; Wiring Spec</div>
+        <div class="sub">// Observatory Dashboard · v0.3 · Build &amp; Wiring Spec</div>
       </div>
       <div class="meta">
         <div><b>VERSION</b> 2026.05.28 · v0.2</div>
@@ -472,8 +472,10 @@
       <h3 class="block"><span class="reticle"><span class="reticle"></span></span> What this product is</h3>
       <p>
         Observatory is a <strong>read-only local dashboard</strong> for inspecting Codex agent sessions stored under
-        <code class="inline">~/.codex</code>. The prototype demonstrates five views over the data model defined in the
-        ingestion spec: Sessions, Timeline, Agent Graph, Tokens, Diagnostics.
+        <code class="inline">~/.codex</code>. The prototype demonstrates six views over the data model defined in the
+        ingestion spec: Repos, Sessions, Timeline, Agent Graph, Tokens, Diagnostics. Repos is the top-level
+        landing index (reached from the <strong>REPOS</strong> button that anchors the header nav), grouping
+        every session by its root repository.
       </p>
       <p>
         The visual language is intentionally <strong>industrial-instrumentation</strong>: dense data, monospace
@@ -874,7 +876,7 @@
           <h2>Composite Patterns</h2>
           <div class="d">Higher-order arrangements assembled from atoms. These are the recurring "scenes" of the dashboard.</div>
         </div>
-        <div class="tag">6 patterns</div>
+        <div class="tag">8 patterns</div>
       </header>
 
       <!-- session row -->
@@ -1101,6 +1103,46 @@
           </div>
         </div>
       </div>
+
+      <!-- repo card — NEW in v0.3 -->
+      <div class="comp">
+        <header>
+          <div class="name">Repo Card <span style="font-family: var(--mono); color: var(--good); font-size: 10px; letter-spacing: 0.06em; margin-left: 6px;">● NEW · v0.3</span></div>
+          <div class="desc">One repository in the Repos index. Header identity + 4 stats, a body tree of active root sessions with sub-agent chips, and a clickable footer.</div>
+          <div class="id">COMP/07</div>
+        </header>
+        <div class="body">
+          <div class="kv">
+            <div class="k">CSS</div><div class="v">.repo-card · .repo-card-head · .repo-stats · .repo-tree · .repo-row · .repo-subs-row · .sub-chip · .repo-card-foot</div>
+            <div class="k">React</div><div class="v">&lt;RepoCard group nowMs onOpenRepo onSelectSession /&gt;  (ReposView.tsx)</div>
+            <div class="k">Grouping</div><div class="v">By the <strong>root parent's</strong> repo (origin-derived label, cwd-basename fallback). Sub-agents inherit their root's repo.</div>
+            <div class="k">Stats</div><div class="v">Active 12h · Σ Tokens · Warn · Open ◌ (open children, pulse when &gt; 0)</div>
+            <div class="k">Active window</div><div class="v">A root counts as active when its newest member (root or any sub) updated within 12h.</div>
+            <div class="k">Interaction</div><div class="v">Card head/foot → open repo (Sessions dossier). Row/sub-chip → open that thread's Timeline. data-has-active drives the lit accent.</div>
+            <div class="k">Empty state</div><div class="v">No activity in 12h → "—— no activity in last 12h ——" + last-seen relative time.</div>
+          </div>
+          <p>Cards sort by active-session count, then most-recent activity. The index header carries totals (repos · active · sessions) and the "Active = 12h" window note.</p>
+        </div>
+      </div>
+
+      <!-- thread navigator — NEW in v0.3 -->
+      <div class="comp">
+        <header>
+          <div class="name">Thread Navigator (Agent Tree) <span style="font-family: var(--mono); color: var(--good); font-size: 10px; letter-spacing: 0.06em; margin-left: 6px;">● NEW · v0.3</span></div>
+          <div class="desc">Timeline sidebar tree of the whole spawn graph rooted at the active session's root. Replaces the old flat "Other Sessions" list.</div>
+          <div class="id">COMP/08</div>
+        </header>
+        <div class="body">
+          <div class="kv">
+            <div class="k">CSS</div><div class="v">.thread-nav · .thread-row[data-here][data-depth][data-tone] · .tn-tab · .tn-kicker · .tn-name · .tn-here</div>
+            <div class="k">React</div><div class="v">&lt;ThreadNav current sessions onSelect /&gt;  (TimelineView.tsx, fed by flattenAgentTree)</div>
+            <div class="k">Tree</div><div class="v">Roots at the current thread's topmost ancestor (walk <code class="inline">parentId</code>), depth-first by spawn time. Indent via <code class="inline">--depth</code>.</div>
+            <div class="k">Marks</div><div class="v">Active node → "● HERE" + disabled; others show role kicker + nickname + token total and jump to their Timeline.</div>
+            <div class="k">Tone</div><div class="v">primary for user roots, amber for sub-agents (mirrors the source chip language).</div>
+          </div>
+          <p>From any sub-agent you can still see and reach the parent, siblings, and cousins — the tree is computed from the full session list, not just the current thread's direct children.</p>
+        </div>
+      </div>
     </section>
 
     <!-- =====================================================
@@ -1113,7 +1155,7 @@
           <h2>Data Wiring</h2>
           <div class="d">How each view reads from the four data sources. Field-level mapping you can lift straight into queries.</div>
         </div>
-        <div class="tag">5 views · 4 sources</div>
+        <div class="tag">6 views · 4 sources</div>
       </header>
 
       <h3 class="block"><span>▸</span> Sources at a glance</h3>
@@ -1189,6 +1231,25 @@
 <span class="k">WHERE</span> e.parent_thread_id = ?
 <span class="k">ORDER BY</span> c.created_at_ms;</pre>
       <p>For the active root view: also recurse one level for grandchildren (depth ≤ 2 covers the typical use case; flag any session with depth ≥ 3 in the inspector).</p>
+
+      <h3 class="block"><span>▸</span> Field map — Repos grouping <span class="meta">NEW · v0.3</span></h3>
+      <p>The Repos index and the Sessions tree both group client-side off the session list, so each
+      <code class="inline">SessionSummary</code> must carry its parent linkage. Add <code class="inline">parentId</code>
+      (from <code class="inline">thread_spawn_edges</code> where <code class="inline">child_thread_id = id</code>) and the full
+      <code class="inline">gitOriginUrl</code> alongside the existing preview.</p>
+      <table class="spec-tbl">
+        <thead><tr><th>UI field</th><th>SQL · column</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td>parentId</td><td class="val">thread_spawn_edges.parent_thread_id WHERE child_thread_id = threads.id</td><td>LEFT JOIN; null for user roots. Walk it to the root to group sub-agents under their owner.</td></tr>
+          <tr><td>Repo key</td><td class="val">deriveRepoName(threads.git_origin_url, threads.cwd)</td><td>Origin-derived label (collapses worktrees), cwd basename fallback. Group by the <strong>root</strong> session's key.</td></tr>
+          <tr><td>Active 12h</td><td class="val">max(member.updated_at_ms) within 12h of now</td><td>Per root subtree; a repo is "hot" when any root is active.</td></tr>
+          <tr><td>Σ Tokens · Warn · Open</td><td class="val">Σ tokens_used · Σ warnings · Σ open_child_count</td><td>Summed across every member (root + descendants) of the repo.</td></tr>
+        </tbody>
+      </table>
+      <div class="callout warn">
+        <div class="label">Contract dependency</div>
+        <div>Without <code class="inline">parentId</code> on the session row the front-end cannot reconstruct the tree — the Repos view, the Sessions sub-agent nesting, and the Timeline Agent Tree all depend on it. It is sourced once in <code class="inline">normalizeThread</code> and reused everywhere via the <code class="inline">sessionTree</code> helpers (<code class="inline">rootOf</code> · <code class="inline">groupSessionsByRepo</code> · <code class="inline">flattenAgentTree</code>).</div>
+      </div>
     </section>
 
     <!-- =====================================================
@@ -1268,8 +1329,18 @@
           <h2>Acceptance / QA</h2>
           <div class="d">Per-view checklist. Sign off only when every box is ticked.</div>
         </div>
-        <div class="tag">5 views</div>
+        <div class="tag">6 views</div>
       </header>
+
+      <h3 class="block">Repos overview</h3>
+      <ul class="check">
+        <li class="done"><b>v0.3</b> REPOS header button opens the index; it carries data-active and the 5-tab SegBar stays intact.</li>
+        <li class="done"><b>v0.3</b> Sessions group by the root parent's repo; sub-agents nest under their owner, not their own cwd.</li>
+        <li class="done"><b>v0.3</b> Card stats (Active 12h · Σ Tokens · Warn · Open) aggregate the whole repo subtree; "hot" accent when active &gt; 0.</li>
+        <li class="done"><b>v0.3</b> Card head/foot → Sessions scoped to the repo (dossier); a row or sub-chip → that thread's Timeline.</li>
+        <li class="done"><b>v0.3</b> Repo dossier shows identity + "‹ ALL REPOS" back link + repo-scoped stats; branch filter appears with &gt; 1 branch.</li>
+        <li><b>P2</b> Repos with no 12h activity collapse to an empty state with a last-seen time.</li>
+      </ul>
 
       <h3 class="block">Sessions overview</h3>
       <ul class="check">
@@ -1291,6 +1362,7 @@
         <li><b>P2</b> Tab filter (All / Messages / Tools / Agent / Tokens / Warnings) only re-renders the visible list.</li>
         <li class="done"><b>v0.2</b> Window filter (1H / 4H / 12H / ALL) trims scrubber, tab counts, scrubber duration, and event stream from the same windowed slice. Header swaps to "LAST {N}H" when set.</li>
         <li class="done"><b>v0.2</b> Window control responsive: label hides at ≤ 960px, chips scroll inline with the kind tabs.</li>
+        <li class="done"><b>v0.3</b> Sidebar shows the Agent Tree (root + descendants) with the active node marked "● HERE"; any other node jumps to its Timeline.</li>
       </ul>
 
       <h3 class="block">Agent Graph</h3>
@@ -1364,7 +1436,7 @@
     <div class="doc-footer">
       <div>// WORKFLOWKIT · OBSERVATORY</div>
       <div class="center">END OF HANDOFF · 引渡終わり</div>
-      <div style="text-align: right;">v0.2 · 2026.05.28</div>
+      <div style="text-align: right;">v0.3 · 2026.05.28</div>
     </div>
   </div>
 

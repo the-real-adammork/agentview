@@ -72,6 +72,8 @@ export interface SessionSummary {
   lastMessage: string;
   childCount: number;
   openChildCount: number;
+  /** Parent thread id when this thread was spawned as a sub-agent; null/undefined for user roots. */
+  parentId?: string | null;
   tokenTotal: number;
   rolloutPath?: string;
   createdAtMs?: number;
@@ -87,6 +89,7 @@ export interface SessionSummary {
   agentRole?: string | null;
   gitSha?: string | null;
   gitBranch?: string | null;
+  gitOriginUrl?: string | null;
   gitOriginUrlPreview?: string | null;
   archived?: boolean;
   warningCountStatus?: CountStatus;

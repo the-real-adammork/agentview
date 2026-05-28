@@ -3280,3 +3280,673 @@ tbody tr[aria-current="true"] {
     display: none;
   }
 }
+
+/* ============================================================
+   REPOS VIEW · THREAD NAV · REPO DOSSIER
+   Ported from the design handoff (workflowkit-evangelion) to back
+   the Repos index, the Timeline agent tree, and the Sessions repo
+   dossier. Class names mirror the prototype 1:1.
+   ============================================================ */
+
+/* --- header REPOS entry button (replaces the static brand block) --- */
+.repos-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  padding: 0 18px;
+  border: 0;
+  border-right: 1px solid var(--rule);
+  background: var(--bg-1);
+  cursor: pointer;
+  color: var(--ink-strong);
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-size: 14px;
+  position: relative;
+}
+.repos-btn .mark {
+  width: 30px;
+  height: 30px;
+  background: var(--primary);
+  clip-path: polygon(0 0, 100% 0, 100% 70%, 70% 100%, 0 100%);
+  box-shadow: 0 0 12px rgba(255, 107, 26, 0.55);
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+.repos-btn .mark::after {
+  content: "▦";
+  color: var(--bg-0);
+  font-size: 16px;
+  line-height: 1;
+}
+.repos-btn .lbl {
+  color: var(--ink-strong);
+}
+.repos-btn .caret {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--primary);
+  letter-spacing: 0;
+  opacity: 0.6;
+  transition: transform 80ms, opacity 80ms;
+}
+.repos-btn:hover {
+  background: rgba(255, 107, 26, 0.08);
+}
+.repos-btn:hover .caret {
+  opacity: 1;
+  transform: translateX(2px);
+}
+.repos-btn[data-active="true"] {
+  background: var(--primary);
+  color: var(--bg-0);
+}
+.repos-btn[data-active="true"] .mark {
+  background: var(--bg-0);
+  box-shadow: none;
+}
+.repos-btn[data-active="true"] .mark::after {
+  color: var(--primary);
+}
+.repos-btn[data-active="true"] .lbl,
+.repos-btn[data-active="true"] .caret {
+  color: var(--bg-0);
+  opacity: 1;
+}
+.repos-btn:focus-visible {
+  outline: 1px solid var(--primary);
+  outline-offset: -2px;
+}
+
+/* --- Timeline agent tree (thread navigator) --- */
+.thread-nav {
+  border-bottom: 1px solid var(--rule);
+  background: linear-gradient(to bottom, rgba(255, 107, 26, 0.05), transparent);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+}
+.thread-nav-body {
+  padding: 6px 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.thread-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-left: 2px solid transparent;
+  background: transparent;
+  padding: 6px 8px;
+  padding-left: calc(8px + var(--depth, 0) * 16px);
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--ink);
+}
+.thread-row:not([data-here="true"]):hover {
+  background: rgba(255, 107, 26, 0.06);
+}
+.thread-row[data-tone="amber"]:not([data-here="true"]):hover {
+  background: rgba(255, 184, 0, 0.08);
+}
+.thread-row .tn-connector {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--amber);
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+.thread-row .tn-tab {
+  width: 4px;
+  height: 24px;
+  flex-shrink: 0;
+  background: var(--ink-faint);
+}
+.thread-row .tn-tab[data-tone="primary"] {
+  background: var(--primary);
+  box-shadow: 0 0 6px var(--primary);
+}
+.thread-row .tn-tab[data-tone="amber"] {
+  background: var(--amber);
+  box-shadow: 0 0 6px var(--amber);
+}
+.thread-row .tn-text {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.thread-row .tn-kicker {
+  font-family: var(--display);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.thread-row[data-tone="amber"] .tn-kicker {
+  color: var(--amber);
+}
+.thread-row[data-tone="primary"] .tn-kicker {
+  color: var(--primary);
+}
+.thread-row .tn-name {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.thread-row .tn-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-dim);
+}
+.thread-row .tn-here {
+  font-family: var(--display);
+  font-size: 8px;
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+  color: var(--primary);
+}
+.thread-row[data-tone="amber"] .tn-here {
+  color: var(--amber);
+}
+.thread-row[data-here="true"] {
+  background: var(--bg-2);
+  border-left-color: var(--primary);
+  cursor: default;
+}
+.thread-row[data-here="true"][data-tone="amber"] {
+  border-left-color: var(--amber);
+}
+.thread-row[data-here="true"] .tn-name {
+  font-weight: 700;
+}
+
+/* --- Repos index --- */
+.repos {
+  height: 100%;
+  overflow: auto;
+  padding: 18px 24px 40px;
+}
+.repos-head {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 6px 0 18px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 18px;
+}
+.repos .hazard-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.repos .hazard-tag__stripe {
+  width: 30px;
+  height: 24px;
+  background: repeating-linear-gradient(-45deg, var(--primary) 0 7px, var(--bg-0) 7px 14px);
+}
+.repos .hazard-tag__label {
+  margin: 0;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.14em;
+  color: var(--ink-strong);
+  text-transform: uppercase;
+}
+.repos-head-stats {
+  display: flex;
+  gap: 32px;
+  margin-left: auto;
+}
+.repos-head-stats > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.repos-head-stats .kicker {
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+}
+.repos-head-stats .num.strong {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--ink-strong);
+  line-height: 1;
+}
+.repos-head-stats .num.faint {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+  letter-spacing: 0.12em;
+}
+.repos-empty {
+  padding: 40px 0;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+}
+.repos-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.repo-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--rule);
+  background: var(--bg-1);
+  transition: border-color 80ms, transform 80ms;
+}
+.repo-card[data-has-active="true"] {
+  border-color: var(--rule-strong);
+}
+.repo-card:hover {
+  border-color: var(--primary);
+}
+.repo-card-head {
+  display: grid;
+  grid-template-columns: 4px 1fr auto;
+  gap: 14px;
+  padding: 14px 16px 14px 0;
+  cursor: pointer;
+  border-bottom: 1px solid var(--rule-soft);
+  background: linear-gradient(to bottom, rgba(255, 107, 26, 0.04), transparent);
+}
+.repo-card[data-has-active="true"] .repo-card-head {
+  background: linear-gradient(to bottom, rgba(255, 107, 26, 0.08), transparent);
+}
+.repo-tab {
+  background: var(--ink-faint);
+  margin-left: 0;
+}
+.repo-card[data-has-active="true"] .repo-tab {
+  background: var(--primary);
+  box-shadow: 0 0 10px var(--primary);
+}
+.repo-id {
+  min-width: 0;
+}
+.repo-name {
+  display: flex;
+  align-items: baseline;
+  font-family: var(--mono);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.repo-name .parent-dir {
+  color: var(--ink-faint);
+}
+.repo-name .leaf {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 0.06em;
+  color: var(--ink-strong);
+  text-transform: uppercase;
+  margin-left: 2px;
+}
+.repo-branch {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-dim);
+  flex-wrap: wrap;
+}
+.repo-branch .num {
+  color: var(--primary);
+  letter-spacing: 0;
+}
+.repo-branch .sep {
+  color: var(--ink-faint);
+}
+.repo-stats {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: 18px;
+  padding-right: 4px;
+}
+.repo-stats .stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 50px;
+}
+.repo-stats .stat .v {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--ink-strong);
+  line-height: 1;
+}
+.repo-stats .stat.hot .v {
+  color: var(--primary);
+}
+.repo-stats .stat .l {
+  font-family: var(--display);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+}
+.repo-body {
+  padding: 12px 16px 16px;
+}
+.repo-empty {
+  display: flex;
+  align-items: baseline;
+  padding: 14px 0;
+  letter-spacing: 0.12em;
+  font-size: 11px;
+}
+.repo-empty__seen {
+  font-size: 10px;
+  margin-left: 8px;
+}
+.repo-section-lbl {
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.repo-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.repo-tree-row {
+  display: flex;
+  flex-direction: column;
+}
+.repo-row {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: 8px;
+  padding: 6px 8px 6px 6px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+}
+.repo-row:hover {
+  background: rgba(255, 107, 26, 0.05);
+  border-left-color: var(--primary);
+}
+.repo-row-bullet {
+  color: var(--primary);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.3;
+}
+.repo-row-body {
+  min-width: 0;
+}
+.repo-row-title {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-strong);
+  font-weight: 500;
+  line-height: 1.35;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.repo-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  flex-wrap: wrap;
+}
+.repo-row-meta .num {
+  font-family: var(--mono);
+  color: var(--ink);
+  letter-spacing: 0.04em;
+}
+.repo-row-meta .muted {
+  color: var(--ink-dim);
+}
+.repo-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-top: 1px solid var(--rule-soft);
+  background: var(--bg-2);
+  cursor: pointer;
+  font-family: var(--display);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: var(--primary);
+  text-transform: uppercase;
+  font-weight: 700;
+  transition: background 80ms;
+}
+.repo-card-foot:hover {
+  background: var(--primary);
+  color: var(--bg-0);
+}
+.repo-card-foot .arrow {
+  font-family: var(--mono);
+  font-size: 16px;
+  line-height: 1;
+}
+.repo-subs-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 0 4px 28px;
+  margin-bottom: 2px;
+  position: relative;
+}
+.repo-subs-row::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 0;
+  bottom: 8px;
+  width: 1px;
+  background: var(--amber);
+  opacity: 0.35;
+}
+.sub-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 0;
+  border: 1px solid var(--rule-soft);
+  background: rgba(255, 184, 0, 0.05);
+  cursor: pointer;
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--ink);
+  text-transform: uppercase;
+  position: relative;
+}
+.sub-chip:hover {
+  border-color: var(--amber);
+  background: rgba(255, 184, 0, 0.12);
+}
+.sub-chip-tab {
+  width: 3px;
+  align-self: stretch;
+  background: var(--amber);
+}
+.sub-chip[data-status="open"] .sub-chip-tab {
+  background: var(--warn);
+  box-shadow: 0 0 5px var(--warn);
+}
+.sub-chip-nick {
+  font-weight: 700;
+  color: var(--amber);
+  letter-spacing: 0.12em;
+}
+.sub-chip-role {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--ink-dim);
+  border: 1px solid var(--rule-soft);
+  padding: 0 4px;
+  letter-spacing: 0.06em;
+}
+.sub-chip-tok {
+  font-family: var(--mono);
+  color: var(--ink-strong);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.sub-chip-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--warn);
+  box-shadow: 0 0 5px var(--warn);
+  border-radius: 50%;
+}
+
+/* --- Sessions left panel: repo dossier mode --- */
+.ov-repo-head {
+  padding: 12px 14px 14px;
+  border-bottom: 1px solid var(--rule);
+  background: linear-gradient(to bottom, rgba(255, 107, 26, 0.06), transparent);
+}
+.ov-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--rule);
+  background: var(--bg-0);
+  color: var(--ink-dim);
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 4px 10px 4px 8px;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+.ov-back .arrow {
+  font-family: var(--mono);
+  color: var(--primary);
+  font-size: 14px;
+  letter-spacing: 0;
+}
+.ov-back:hover {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+.ov-repo-name {
+  display: block;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.1;
+  margin-bottom: 6px;
+  word-break: break-all;
+}
+.ov-repo-name .parent-dir {
+  color: var(--ink-faint);
+}
+.ov-repo-name .leaf {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  color: var(--ink-strong);
+  text-transform: uppercase;
+}
+.ov-repo-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-dim);
+  flex-wrap: wrap;
+}
+.ov-repo-meta .num {
+  color: var(--primary);
+  letter-spacing: 0;
+}
+.ov-repo-meta .sep {
+  color: var(--ink-faint);
+}
+.ov-side .ov-repo-head + .side-stat {
+  border-top: 0;
+}
+
+/* --- Sessions table: tree-grouped sub-agent rows (nested under parent) --- */
+.tbl tbody tr.session-row[data-depth="1"] > * {
+  background: rgba(255, 184, 0, 0.02);
+}
+.tbl tbody tr.session-row[data-depth="1"] .session-cell {
+  padding-left: 28px;
+}
+.session-cell .tree-branch {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  margin-right: 6px;
+}
+.tbl tbody tr.session-row[data-depth="1"] .session-title {
+  font-size: 12px;
+}
+
+@media (max-width: 960px) {
+  .repos {
+    padding: 12px 14px 30px;
+  }
+  .repos-head {
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .repos-head-stats {
+    margin-left: 0;
+    gap: 18px;
+  }
+  .repos-grid {
+    grid-template-columns: 1fr;
+  }
+  .repo-stats {
+    gap: 12px;
+  }
+  .thread-nav-body {
+    max-height: 200px;
+  }
+  .repos-btn {
+    padding: 0 12px;
+    font-size: 12px;
+    letter-spacing: 0.16em;
+  }
+  .repos-btn .caret {
+    display: none;
+  }
+}

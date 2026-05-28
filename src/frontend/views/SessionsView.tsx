@@ -1,9 +1,16 @@
-import type { ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 
 import { ShortId } from "../components/ShortId";
-import { deriveRepoName } from "../../shared/repoName";
 import { LiveSessionTokens, LiveTokenTotal } from "../live/LiveTokens";
 import { countActiveSessions, tokensByHour } from "./sessionStats";
+import {
+  REPO_ACTIVE_WINDOW_MS,
+  buildSessionRows,
+  indexSessions,
+  rootOf,
+  sessionRepoName,
+  sessionUpdatedMs,
+} from "./sessionTree";
 import type { ApiError, ArchivedFilter, DiagnosticsSummary, SessionFilter, SessionSummary, ThreadSource } from "../../shared/contracts";
 
 interface SessionsViewProps {
@@ -11,6 +18,8 @@ interface SessionsViewProps {
   onSelectSession: (sessionId: string, view?: "Timeline") => void;
   filter: SessionFilter;
   onFilterChange: (filter: SessionFilter) => void;
+  repoFilter?: string | null;
+  onClearRepoFilter?: () => void;
   sessions: SessionSummary[];
   diagnosticsByThreadId: Record<string, DiagnosticsSummary["sessionsWarningBadges"][number]>;
   isLoading: boolean;
@@ -23,7 +32,7 @@ const uniqueValues = (sessions: SessionSummary[], getValue: (session: SessionSum
   );
 
 const formatTime = (value: string) => new Date(value).toLocaleTimeString("en-US");
-const repoName = (session: SessionSummary) => session.repoLabel || deriveRepoName(undefined, session.cwd);
+const tokensK = (value: number) => `${Math.round(value / 1000)}K`;
 
 function StatCell({ label, sub, tone, value }: { label: string; sub: string; tone?: "warn"; value: ReactNode }) {
   return (
@@ -75,37 +84,100 @@ export function SessionsView({
   onFilterChange,
   onSelectSession,
   filter,
+  repoFilter = null,
+  onClearRepoFilter,
   sessions,
   diagnosticsByThreadId,
   isLoading,
   error,
 }: SessionsViewProps) {
+  // Client-side branch scoping (by the root parent's branch). Only the repo +
+  // search + source filters round-trip to the API; branch is a local refinement.
+  const [branchFilter, setBranchFilter] = useState<string | null>(null);
+
+  const index = useMemo(() => indexSessions(sessions), [sessions]);
+  const rootRepo = (session: SessionSummary) => sessionRepoName(rootOf(session, index));
+  const rootBranch = (session: SessionSummary) => {
+    const root = rootOf(session, index);
+    return root.gitBranch || root.branch || null;
+  };
+
+  // repoFilter (inbound from the Repos view) matches the root parent's repo so
+  // sub-agents follow their owner into the dossier.
+  const repoScoped = useMemo(
+    () => (repoFilter ? sessions.filter((session) => rootRepo(session) === repoFilter) : sessions),
+    [sessions, repoFilter, index],
+  );
+  const branchOptions = uniqueValues(repoScoped, rootBranch);
+  const scopedSessions = useMemo(
+    () => (branchFilter ? repoScoped.filter((session) => rootBranch(session) === branchFilter) : repoScoped),
+    [repoScoped, branchFilter, index],
+  );
+
+  const rows = useMemo(() => buildSessionRows(scopedSessions, () => true), [scopedSessions]);
+
   const roleOptions = uniqueValues(sessions, (session) => session.agentRole);
   const modelOptions = uniqueValues(sessions, (session) => session.model);
-  const repoOptions = uniqueValues(sessions, repoName);
+  const repoOptions = uniqueValues(sessions, sessionRepoName);
   const updateFilter = (patch: Partial<SessionFilter>) => onFilterChange({ ...filter, ...patch });
-  const activeSessions = countActiveSessions(sessions, Date.now());
-  const subagentSessions = sessions.filter((session) => session.threadSource === "subagent" || session.agentRole).length;
-  const openChildren = sessions.reduce((total, session) => total + session.openChildCount, 0);
-  const tokenTotal = sessions.reduce((total, session) => total + (session.tokensUsed ?? session.tokenTotal), 0);
-  const hourlyTokens = tokensByHour(sessions, Date.now());
+  const nowMs = Date.now();
+  const activeSessions = repoFilter
+    ? scopedSessions.filter((session) => nowMs - sessionUpdatedMs(session) <= REPO_ACTIVE_WINDOW_MS).length
+    : countActiveSessions(scopedSessions, nowMs);
+  const subagentSessions = scopedSessions.filter((session) => session.threadSource === "subagent" || session.agentRole).length;
+  const openChildren = scopedSessions.reduce((total, session) => total + session.openChildCount, 0);
+  const tokenTotal = scopedSessions.reduce((total, session) => total + (session.tokensUsed ?? session.tokenTotal), 0);
+  const hourlyTokens = tokensByHour(scopedSessions, nowMs);
   const selectSource = (source?: ThreadSource) => updateFilter({ threadSource: source });
   const selectArchive = (archived: ArchivedFilter) => updateFilter({ archived });
+
+  // Representative session for the dossier header (prefer a user root).
+  const repoSample = repoScoped.find((session) => !session.parentId) ?? repoScoped[0];
+  const repoLeaf = repoSample?.cwd.split("/").pop() ?? repoFilter ?? "—";
+  const repoDir = repoSample ? `${repoSample.cwd.split("/").slice(0, -1).join("/")}/` : "";
 
   return (
     <section className="overview" aria-labelledby="sessions-title">
       <aside className="ov-side" aria-label="Session catalog controls">
-        <div className="ov-side__head">
-          <div className="kicker">▸ Catalog</div>
-          <h1 aria-label="Sessions" className="display" id="sessions-title">SESSION INDEX</h1>
-          <div className="muted">state_5.sqlite · threads · {sessions.length} visible</div>
-        </div>
+        {repoFilter ? (
+          <div className="ov-repo-head">
+            <button className="ov-back" onClick={onClearRepoFilter} type="button" title="Back to Repos">
+              <span className="arrow" aria-hidden="true">‹</span>
+              <span>ALL REPOS</span>
+            </button>
+            <div className="ov-repo-name">
+              <span className="parent-dir">{repoDir}</span>
+              <span className="leaf">{repoLeaf}</span>
+            </div>
+            <div className="ov-repo-meta">
+              <span>{repoSample?.gitBranch || repoSample?.branch || "—"}</span>
+              {repoSample?.gitSha ? (
+                <>
+                  <span className="sep">·</span>
+                  <span className="num">{repoSample.gitSha.slice(0, 7)}</span>
+                </>
+              ) : null}
+              {repoSample?.gitOriginUrlPreview ? (
+                <>
+                  <span className="sep">·</span>
+                  <span className="muted">{repoSample.gitOriginUrlPreview}</span>
+                </>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <div className="ov-side__head">
+            <div className="kicker">▸ Catalog</div>
+            <h1 aria-label="Sessions" className="display" id="sessions-title">SESSION INDEX</h1>
+            <div className="muted">state_5.sqlite · threads · {scopedSessions.length} visible</div>
+          </div>
+        )}
 
         <div className="side-stat">
-          <StatCell label="Active" value={activeSessions} sub="updated < 1h" />
+          <StatCell label="Active" value={activeSessions} sub={repoFilter ? "updated < 12h" : "updated < 1h"} />
           <StatCell label="Sub-agents" value={subagentSessions} sub="subagent threads" />
           <StatCell label="Open child" value={openChildren} tone="warn" sub="awaiting" />
-          <StatCell label="Σ Tokens" value={<LiveTokenTotal fallback={tokenTotal} />} sub="all sessions" />
+          <StatCell label="Σ Tokens" value={repoFilter ? tokensK(tokenTotal) : <LiveTokenTotal fallback={tokenTotal} />} sub={repoFilter ? "this repo" : "all sessions"} />
         </div>
 
         <div className="filter-grp">
@@ -149,6 +221,20 @@ export function SessionsView({
               </button>
             ))}
           </div>
+
+          {branchOptions.length > 1 ? (
+            <>
+              <div className="lbl">Branch</div>
+              <div className="row" role="group" aria-label="Branch quick filters">
+                <button className="opt" data-on={!branchFilter} onClick={() => setBranchFilter(null)} type="button">All</button>
+                {branchOptions.slice(0, 5).map((branch) => (
+                  <button className="opt" data-on={branchFilter === branch} key={branch} onClick={() => setBranchFilter(branch)} type="button">
+                    {branch}
+                  </button>
+                ))}
+              </div>
+            </>
+          ) : null}
 
           <label className="field">
             <span>Role</span>
@@ -218,7 +304,7 @@ export function SessionsView({
         </form>
 
         <div className="ov-side__foot">
-          <span>RESULTS · {sessions.length}</span>
+          <span>RESULTS · {scopedSessions.length}</span>
           <span className="warn-c blink">▸ LIVE INDEX</span>
         </div>
       </aside>
@@ -237,7 +323,7 @@ export function SessionsView({
             <span className="muted">↵ exec</span>
           </label>
           <div className="chip dim">SORT · updated_at ↓</div>
-          <div className="chip dim">JOIN · thread_spawn_edges</div>
+          <div className="chip dim">TREE · thread_spawn_edges</div>
           <div className="chip">PROFILE · adam@local</div>
         </div>
 
@@ -263,21 +349,21 @@ export function SessionsView({
             </tr>
           </thead>
           <tbody>
-            {isLoading && sessions.length === 0 ? (
+            {isLoading && rows.length === 0 ? (
               <tr>
                 <td colSpan={10}>Loading sessions...</td>
               </tr>
             ) : null}
-            {!isLoading && sessions.length === 0 ? (
+            {!isLoading && rows.length === 0 ? (
               <tr>
                 <td colSpan={10}>No sessions match the current filters.</td>
               </tr>
             ) : null}
-            {sessions.map((session, index) => {
+            {rows.map(({ session, depth }, index) => {
               const diagnostics = diagnosticsByThreadId[session.id];
               const tokenValue = session.tokensUsed ?? session.tokenTotal;
               const branch = session.branch || session.gitBranch || "-";
-              const repo = repoName(session);
+              const repo = sessionRepoName(session);
               const source = session.threadSource ?? (session.agentRole ? "subagent" : "user");
               return (
                 <tr
@@ -293,13 +379,15 @@ export function SessionsView({
                   }}
                   tabIndex={0}
                   data-active={session.id === activeSessionId ? "true" : undefined}
+                  data-depth={depth}
                 >
                   <td className="muted num">{String(index + 1).padStart(3, "0")}</td>
                   <td className="num">
                     <time dateTime={session.updatedAt}>{formatTime(session.updatedAt)}</time>
                     <div className="muted">{new Date(session.updatedAt).toLocaleDateString("en-US")}</div>
                   </td>
-                  <th scope="row">
+                  <th scope="row" className={depth > 0 ? "session-cell session-cell--sub" : "session-cell"}>
+                    {depth > 0 ? <span className="tree-branch" aria-hidden="true">└</span> : null}
                     <span className="session-title strong">{session.title}</span>
                     <span className="session-brief arr">{session.lastMessage || session.preview || session.firstUserMessagePreview || session.titlePreview || "No preview available."}</span>
                     <ShortId value={session.id} />

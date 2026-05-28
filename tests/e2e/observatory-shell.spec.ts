@@ -129,7 +129,7 @@ test.describe("observatory local fixture shell", () => {
       source: "state-db",
     });
 
-    await expect(page.getByRole("heading", { name: "WORKFLOWKIT" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /repos/i })).toBeVisible();
 
     for (const viewName of primaryViews) {
       await page

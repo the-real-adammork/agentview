@@ -12,6 +12,8 @@ interface ChromeProps {
   navigation: ReactNode;
   palette: Palette;
   onPaletteChange: (palette: Palette) => void;
+  onOpenRepos: () => void;
+  reposActive: boolean;
   sessionCount: number;
   tokenTotal: number;
   warningSessionCount: number;
@@ -33,6 +35,8 @@ export function Chrome({
   navigation,
   palette,
   onPaletteChange,
+  onOpenRepos,
+  reposActive,
   sessionCount,
   tokenTotal,
   warningSessionCount,
@@ -68,13 +72,18 @@ export function Chrome({
       </header>
 
       <div className="header">
-        <div className="brand">
-          <div className="mark" aria-hidden="true" />
-          <div>
-            <h1 className="name">WORKFLOWKIT</h1>
-            <div className="sub">// Observatory · 観測</div>
-          </div>
-        </div>
+        <button
+          className="repos-btn"
+          type="button"
+          data-active={reposActive ? "true" : "false"}
+          aria-pressed={reposActive}
+          onClick={onOpenRepos}
+          title="Browse all repos"
+        >
+          <span className="mark" aria-hidden="true" />
+          <span className="lbl">REPOS</span>
+          <span className="caret" aria-hidden="true">▸</span>
+        </button>
 
         {navigation}
 
