@@ -9,6 +9,7 @@ import { SegBar } from "./components/SegBar";
 import { usePalette } from "./usePalette";
 import { AgentGraphView } from "./views/AgentGraphView";
 import { DiagnosticsView } from "./views/DiagnosticsView";
+import { ReposView } from "./views/ReposView";
 import { SessionsView } from "./views/SessionsView";
 import { TimelineView } from "./views/TimelineView";
 import { TokensView } from "./views/TokensView";
@@ -27,7 +28,9 @@ const stylesheetHref = new URL("./styles/app.css", import.meta.url).href;
 
 const views = ["Sessions", "Timeline", "Agent Graph", "Tokens", "Diagnostics"] as const;
 
-export type ObservatoryView = (typeof views)[number];
+// "Repos" is reachable from the header REPOS button + the in-view "all repos" back
+// affordance, but it is deliberately not part of the primary SegBar tab set.
+export type ObservatoryView = (typeof views)[number] | "Repos";
 
 export function App() {
   const fixture = useMemo(() => createFixtureSnapshot(), []);
@@ -37,6 +40,7 @@ export function App() {
   const [health, setHealth] = useState<HealthStatus>(fixture.health);
   const [sessions, setSessions] = useState<SessionSummary[]>(fixture.sessions);
   const [sessionFilter, setSessionFilter] = useState<SessionFilter>({ archived: "include" });
+  const [repoFilter, setRepoFilter] = useState<string | null>(null);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [sessionsError, setSessionsError] = useState<ApiError | null>(null);
   const [activeSessionId, setActiveSessionId] = useState(fixture.sessions[0]?.id ?? "");
@@ -151,6 +155,18 @@ export function App() {
     if (view) {
       setActiveView(view);
     }
+  }, []);
+
+  // Header REPOS button + dossier "all repos" back link land on the full index.
+  const openReposIndex = useCallback(() => {
+    setRepoFilter(null);
+    setActiveView("Repos");
+  }, []);
+
+  // Opening a repo card scopes the Sessions catalog to that repo (dossier mode).
+  const openRepo = useCallback((repoName: string) => {
+    setRepoFilter(repoName);
+    setActiveView("Sessions");
   }, []);
 
   const loadTimeline = useCallback((fromByte?: number) => {
@@ -346,20 +362,31 @@ export function App() {
         navigation={<SegBar views={views} activeView={activeView} onChange={setActiveView} />}
         palette={palette}
         onPaletteChange={setPalette}
+        onOpenRepos={openReposIndex}
+        reposActive={activeView === "Repos"}
         sessionCount={sessions.length}
         tokenTotal={tokenTotal}
         warningSessionCount={warningSessionCount}
       >
         <main className="app-shell__main" aria-label="Observatory workspace">
+          {activeView === "Repos" ? (
+            <ReposView
+              sessions={sessions}
+              onOpenRepo={openRepo}
+              onSelectSession={(sessionId) => selectSession(sessionId, "Timeline")}
+            />
+          ) : null}
           {activeView === "Sessions" ? (
             <SessionsView
               sessions={sessions}
               filter={sessionFilter}
+              repoFilter={repoFilter}
               isLoading={sessionsLoading}
               error={sessionsError}
               activeSessionId={activeSessionId}
               diagnosticsByThreadId={sessionDiagnostics}
               onFilterChange={setSessionFilter}
+              onClearRepoFilter={openReposIndex}
               onSelectSession={selectSession}
             />
           ) : null}
