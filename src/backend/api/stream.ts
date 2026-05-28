@@ -39,24 +39,68 @@ export const handleStreamApiRequest = async (
     connection: "keep-alive",
     "x-accel-buffering": "no",
   });
-  // Open the stream immediately so proxies/browsers commit to the connection.
-  response.write(":ok\n\n");
+
+  const runtime = await getLiveRuntime();
+
+  let cleanedUp = false;
+  // Holder so cleanup() can reference these before they're assigned below
+  // (subscribe/heartbeat are wired after the listeners that may call cleanup).
+  const resources: { heartbeat?: ReturnType<typeof setInterval>; teardown?: () => void | Promise<void> } = {};
+
+  const cleanup = () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    if (resources.heartbeat) clearInterval(resources.heartbeat);
+    runtime.hub.remove(connection.id);
+    void resources.teardown?.();
+  };
+
+  // A client can drop at any time; once the socket is ended/destroyed any further
+  // write throws ERR_STREAM_WRITE_AFTER_END. Guard every write and tear the
+  // connection down on failure so one dead client never crashes the process.
+  const writable = () => !cleanedUp && !response.writableEnded && !response.destroyed;
+  const safeWrite = (frame: string): boolean => {
+    if (!writable()) return false;
+    try {
+      return response.write(frame);
+    } catch {
+      cleanup();
+      return false;
+    }
+  };
+  const safeClose = () => {
+    if (response.writableEnded || response.destroyed) return;
+    try {
+      response.end();
+    } catch {
+      /* socket already closing */
+    }
+  };
 
   const connection: LiveConnection = {
     id: randomUUID(),
     threadId,
-    write: (frame) => response.write(frame),
-    close: () => response.end(),
+    write: safeWrite,
+    close: safeClose,
   };
 
-  const runtime = await getLiveRuntime();
+  // Without these listeners an async transport error becomes an uncaught
+  // exception (and takes the whole API down), so register them before any write.
+  request.on("close", cleanup);
+  request.on("error", cleanup);
+  response.on("close", cleanup);
+  response.on("error", cleanup);
+
   runtime.hub.add(connection);
 
-  const heartbeat = setInterval(() => {
-    response.write(": keep-alive\n\n");
+  // Open the stream immediately so proxies/browsers commit to the connection.
+  safeWrite(":ok\n\n");
+
+  resources.heartbeat = setInterval(() => {
+    safeWrite(": keep-alive\n\n");
   }, HEARTBEAT_MS);
 
-  const teardown = await runtime.sources.subscribe({
+  resources.teardown = await runtime.sources.subscribe({
     connection,
     threadId,
     filter: { archived: "include" },
@@ -65,16 +109,8 @@ export const handleStreamApiRequest = async (
     logCursorId,
   });
 
-  let cleanedUp = false;
-  const cleanup = () => {
-    if (cleanedUp) return;
-    cleanedUp = true;
-    clearInterval(heartbeat);
-    runtime.hub.remove(connection.id);
-    void teardown();
-  };
-  request.on("close", cleanup);
-  response.on("close", cleanup);
+  // If the client already vanished during the awaited subscribe, reconcile now.
+  if (!writable()) cleanup();
 
   return true;
 };
