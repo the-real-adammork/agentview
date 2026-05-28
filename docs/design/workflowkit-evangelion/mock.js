@@ -186,6 +186,7 @@
     push(7800, { kind: "tool_call", name: "shell", args: { cmd: ["sqlite3", "-cmd", ".schema threads", "state_5.sqlite"] }, call_id: "c02" });
     push(9200, { kind: "tool_output", call_id: "c02", exit: 0, output: "CREATE TABLE threads ( id TEXT PRIMARY KEY, rollout_path TEXT NOT NULL, ... agent_nickname TEXT, agent_role TEXT, ... preview TEXT NOT NULL DEFAULT '');" });
     push(11000, { kind: "assistant", phase: "answer", text: "Found 673 rows in `threads`, 428 edges in `thread_spawn_edges`. logs_2 has 406,883 rows. Will model entities Session / Turn / ToolCall / ToolResult / TokenSnapshot / AgentEdge / RuntimeLog." });
+    push(12000, { kind: "skill_invoke", name: "read_pdf", call_id: "sk01", summary: "extract the entity model from ~/.codex/observatory-spec.pdf (12 pp)", status: "ok" });
     push(13200, { kind: "token_count", total: 8420, input: 7200, output: 1220, cached: 320, ctx_pct: 4.1, rate_pct: 18 });
     push(15400, { kind: "tool_call", name: "spawn_agent", args: { nickname: "ARCHIMEDES", role: "researcher", task: "audit logs_2 noisy targets" }, call_id: "c03", spawn_thread_id: subA.id });
     push(16100, { kind: "tool_output", call_id: "c03", exit: 0, output: `{ "thread_id": "${subA.id}", "depth": 1, "agent_nickname": "ARCHIMEDES" }` });
@@ -209,6 +210,7 @@
     push(120000, { kind: "assistant", phase: "answer", text: "Integrating reports. Will draft the Sessions overview and timeline next." });
     push(124000, { kind: "tool_call", name: "write_file", args: { path: "dashboard/overview.tsx" }, call_id: "c10" });
     push(124800, { kind: "tool_output", call_id: "c10", exit: 0, output: "Wrote 8,420 bytes." });
+    push(126000, { kind: "skill_invoke", name: "web_search", call_id: "sk02", summary: "sqlite WAL busy_timeout best practice for concurrent readers", status: "ok" });
     push(150000, { kind: "token_count", total: 84200, input: 71200, output: 11000, cached: 5400, ctx_pct: 38.1, rate_pct: 54 });
     push(180000, { kind: "tool_call", name: "wait_agent", args: { thread_id: subB.id }, call_id: "c11" });
     push(180100, { kind: "warning", text: "SOCRATES STILL OPEN // exceeded soft deadline 120s — continuing to poll" });
@@ -220,22 +222,49 @@
   timelines[parent.id] = makeTimeline(parent);
 
   // also build slimmer timelines for a couple sub-agents
-  function makeSubTimeline(session, task) {
-    const t0 = new Date(session.created_at);
+  // sub timelines are anchored to a real offset within the PARENT run and spread
+  // over their concurrent window, so the aggregated "+SUBS" view interleaves by time.
+  const pT0 = new Date(parent.created_at);
+  function makeSubTimeline(session, task, t0Date, spanMs) {
+    const t0 = t0Date ? new Date(t0Date) : new Date(session.created_at);
+    const scale = spanMs ? spanMs / 10100 : 1;
     const ev = [];
-    const push = (offsetMs, e) => ev.push({ ...e, ts: new Date(t0.getTime() + offsetMs) });
+    const push = (offsetMs, e) => ev.push({ ...e, ts: new Date(t0.getTime() + offsetMs * scale) });
     push(0, { kind: "task_started", turn_id: "t01", text: "TURN 01 // task_started", approval: "never", sandbox: "read-only", model: session.model, effort: session.reasoning_effort });
     push(800, { kind: "user", text: `subagent task: ${task}` });
     push(2400, { kind: "assistant", phase: "reasoning", text: "Reading logs_2.sqlite schema; will group warnings by target and rank by count." });
     push(3800, { kind: "tool_call", name: "shell", args: { cmd: ["sqlite3", "logs_2.sqlite", "SELECT target, COUNT(*) FROM logs GROUP BY target ORDER BY 2 DESC LIMIT 12;"] }, call_id: "s01" });
     push(4900, { kind: "tool_output", call_id: "s01", exit: 0, output: "codex_otel.log_only|254011\ncodex_otel.trace_safe|41202\ncodex_api::endpoint::responses_websocket|36400\nlog|22014\nopentelemetry_sdk|18722\n..." });
+    push(6000, { kind: "skill_invoke", name: "web_search", call_id: "s-sk1", summary: "OpenTelemetry log sampling defaults", status: "ok" });
     push(8200, { kind: "token_count", total: 4400, input: 3900, output: 500, cached: 0, ctx_pct: 2.1, rate_pct: 19 });
     push(9800, { kind: "assistant", phase: "answer", text: "Top noisy targets identified; suppression list ready." });
     push(10100, { kind: "task_complete", turn_id: "t01", duration_ms: 10100, ttft_ms: 920, last_agent_message: "Top noisy targets identified; suppression list ready." });
     return ev;
   }
-  timelines[subA.id] = makeSubTimeline(subA, "audit logs_2 noisy targets");
-  timelines[subB.id] = makeSubTimeline(subB, "draft the session timeline view");
+  // ARCHIMEDES runs spawn(15.4s) → report(64s); SOCRATES spawn(17.2s) → still open (~180s)
+  timelines[subA.id] = makeSubTimeline(subA, "audit logs_2 noisy targets", new Date(pT0.getTime() + 15400), 47000);
+  timelines[subB.id] = makeSubTimeline(subB, "draft the session timeline view", new Date(pT0.getTime() + 17200), 150000);
+
+  // sub-sub-agent timelines (depth 2) — anchored inside their parent sub's window
+  function makeSubSubTimeline(session, task, t0Date, spanMs) {
+    const t0 = t0Date ? new Date(t0Date) : new Date(session.created_at);
+    const scale = spanMs ? spanMs / 6900 : 1;
+    const ev = [];
+    const push = (offsetMs, e) => ev.push({ ...e, ts: new Date(t0.getTime() + offsetMs * scale) });
+    push(0, { kind: "task_started", turn_id: "t01", text: "TURN 01 // task_started", approval: "never", sandbox: "read-only", model: session.model, effort: session.reasoning_effort });
+    push(600, { kind: "user", text: `subagent task: ${task}` });
+    push(1900, { kind: "assistant", phase: "reasoning", text: "Scoping the request to a single file; will grep then patch." });
+    push(2600, { kind: "tool_call", name: "read_file", args: { path: "src/index.ts" }, call_id: "ss01" });
+    push(3200, { kind: "tool_output", call_id: "ss01", exit: 0, output: "// 412 lines read" });
+    push(5200, { kind: "token_count", total: 2600, input: 2300, output: 300, cached: 200, ctx_pct: 1.3, rate_pct: 11 });
+    push(6400, { kind: "assistant", phase: "answer", text: "Patch drafted; returning summary to parent." });
+    push(6700, { kind: "agent_report", from: session.agent_nickname, text: "Done — 1 file changed, summary attached." });
+    push(6900, { kind: "task_complete", turn_id: "t01", duration_ms: 6900, ttft_ms: 740, last_agent_message: "Done — 1 file changed." });
+    return ev;
+  }
+  // HYPATIA inside ARCHIMEDES' window; TURING inside SOCRATES' window
+  timelines[subD.id] = makeSubSubTimeline(subD, "patch the JSONL lazy-parser", new Date(pT0.getTime() + 28000), 22000);   // HYPATIA → under ARCHIMEDES
+  timelines[subF.id] = makeSubSubTimeline(subF, "wire the scrubber dots", new Date(pT0.getTime() + 90000), 40000);        // TURING → under SOCRATES
 
   // token series for the parent
   function tokenSeries(session) {

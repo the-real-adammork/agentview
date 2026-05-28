@@ -23,6 +23,7 @@
   --amber: #ffb800;
   --cyan: #46d8ff;
   --good: #6cf099;
+  --skill: #b388ff;
 
   --rule: rgba(255, 107, 26, 0.35);
   --rule-strong: rgba(255, 107, 26, 0.7);
@@ -560,6 +561,21 @@ input, select, textarea { font: inherit; color: inherit; }
   box-shadow: 0 0 10px 1px var(--primary), 0 0 4px var(--primary);
 }
 .session-sq:focus-visible { outline: 1px solid var(--primary); outline-offset: -2px; }
+
+/* gated session square — empty (no session) / disabled (no repo) */
+.session-sq[data-empty="true"] { cursor: pointer; }
+.session-sq[data-disabled="true"] { cursor: not-allowed; opacity: 0.4; }
+.session-sq[data-disabled="true"]:hover { background: var(--bg-1); }
+.session-sq .ss-depth-empty { color: var(--ink-dim); }
+.session-sq .ss-name-empty {
+  font-family: var(--display);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 11px;
+  color: var(--ink-dim);
+}
+.session-sq[data-empty="true"]:not([data-disabled="true"]) .ss-name-empty { color: var(--primary); }
 .header .brand {
   display: flex; align-items: center; gap: 12px;
   height: 100%;
@@ -665,6 +681,12 @@ input, select, textarea { font: inherit; color: inherit; }
   letter-spacing: 0;
 }
 .nav button:hover { color: var(--ink-strong); background: rgba(255, 107, 26, 0.06); }
+.nav button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  color: var(--ink-dim);
+}
+.nav button:disabled:hover { background: transparent; color: var(--ink-dim); }
 .nav button[data-active="true"] {
   color: var(--primary);
   background: rgba(255, 107, 26, 0.10);
@@ -1055,6 +1077,45 @@ input, select, textarea { font: inherit; color: inherit; }
   border-bottom: 1px solid var(--primary); /* cancel the 2px underline from generic .tl-tabs rule */
   box-shadow: 0 0 8px rgba(255,107,26,0.5);
 }
+.tl-tabs .tl-range-div {
+  width: 1px;
+  align-self: stretch;
+  margin: 6px 4px;
+  background: var(--rule);
+}
+
+/* event source rail — per-row left gutter: depth bars + agent name (in +SUBS scope) */
+.ev-wrap.with-src { display: flex; align-items: stretch; }
+.ev-src-rail {
+  flex: 0 0 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 12px 6px 0;
+}
+.ev-src-rail .ev-src-bars { display: flex; gap: 2px; }
+.ev-src-rail .ev-src-bar { width: 3px; height: 16px; background: var(--ink-faint); }
+.ev-src-rail .ev-src-bar[data-lvl="0"] { background: var(--primary); }
+.ev-src-rail .ev-src-bar[data-lvl="1"] { background: var(--amber); }
+.ev-src-rail .ev-src-bar[data-lvl="2"] { background: var(--cyan); }
+.ev-src-rail .ev-src-name {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  max-width: 54px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-dim);
+}
+.ev-src-rail[data-tone="primary"] .ev-src-name { color: var(--primary); }
+.ev-src-rail[data-tone="amber"] .ev-src-name { color: var(--amber); }
+.ev-src-rail[data-tone="cyan"] .ev-src-name { color: var(--cyan); }
+.ev-wrap.with-src .ev { flex: 1; min-width: 0; }
 
 .tl-scrubber {
   position: relative;
@@ -1097,12 +1158,14 @@ input, select, textarea { font: inherit; color: inherit; }
 .ev.warn::before { background: var(--warn); box-shadow: 0 0 6px var(--warn); }
 .ev.spawn::before { background: var(--good); box-shadow: 0 0 6px var(--good); }
 .ev.token::before { background: var(--ink-strong); }
+.ev.skill::before { background: var(--skill); box-shadow: 0 0 6px var(--skill); }
 
 .ev .head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-dim); }
 .ev .head .who { color: var(--ink-strong); font-weight: 700; font-family: var(--display); }
 .ev .head .who.user { color: var(--cyan); }
 .ev .head .who.tool { color: var(--amber); }
 .ev .head .who.spawn { color: var(--good); }
+.ev .head .who.skill { color: var(--skill); }
 .ev .head .who.warn { color: var(--warn); }
 .ev .head .right { margin-left: auto; }
 .ev pre {
