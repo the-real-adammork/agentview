@@ -1,11 +1,21 @@
-import type { ServerResponse } from "node:http";
+import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type { ApiError, ApiResult, ApiSource } from "../../shared/contracts";
 
 const baseCorsHeaders = {
   "access-control-allow-headers": "content-type",
-  "access-control-allow-methods": "GET, OPTIONS",
+  "access-control-allow-methods": "GET, POST, OPTIONS",
   "cache-control": "no-store",
+};
+
+/** Reads and JSON-parses a request body. Returns undefined for an empty body; throws on invalid JSON. */
+export const readJsonBody = async (request: IncomingMessage): Promise<unknown> => {
+  const chunks: Buffer[] = [];
+  for await (const chunk of request) {
+    chunks.push(chunk as Buffer);
+  }
+  const raw = Buffer.concat(chunks).toString("utf8").trim();
+  return raw ? JSON.parse(raw) : undefined;
 };
 
 export const corsHeadersForOrigin = (origin: string | undefined) => {

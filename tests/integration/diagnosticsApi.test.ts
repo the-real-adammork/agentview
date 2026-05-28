@@ -308,6 +308,51 @@ describe("diagnostics API routes", () => {
     });
   });
 
+  it("accepts the thread list via POST body so large session sets avoid an over-length URL", async () => {
+    const fixture = await createDiagnosticsCodexHomeFixture({
+      logs: [
+        {
+          timestampMs: 6_200,
+          level: "WARN",
+          target: "agentview::diagnostics",
+          body: "summary warning",
+          threadId: "thread-summary-api",
+        },
+        {
+          timestampMs: 6_300,
+          level: "WARN",
+          target: "agentview::sessions",
+          body: "badge warning",
+          threadId: "thread-badge-api",
+        },
+      ],
+    });
+
+    await withApi(fixture, async ({ baseUrl }) => {
+      const response = await requestJson(baseUrl, "/api/diagnostics/summary", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ threadIds: ["thread-summary-api", "thread-badge-api"], targetLimit: 2 }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toMatchObject({
+        ok: true,
+        source: "logs-db",
+        data: {
+          warningCounts: {
+            total: 2,
+            byThreadId: { "thread-summary-api": 1, "thread-badge-api": 1 },
+          },
+          sessionsWarningBadges: [
+            expect.objectContaining({ threadId: "thread-summary-api", warningCount: 1 }),
+            expect.objectContaining({ threadId: "thread-badge-api", warningCount: 1 }),
+          ],
+        },
+      });
+    });
+  });
+
   it("combines observed-schema warning summaries with rollout-cache failed-command facts", async () => {
     const fixture = await createObservedDiagnosticsCodexHomeFixture({
       threads: [
