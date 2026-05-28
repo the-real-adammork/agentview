@@ -34,6 +34,19 @@ const uniqueValues = (sessions: SessionSummary[], getValue: (session: SessionSum
 const formatTime = (value: string) => new Date(value).toLocaleTimeString("en-US");
 const tokensK = (value: number) => `${Math.round(value / 1000)}K`;
 
+const isSubagent = (session: SessionSummary) => session.threadSource === "subagent" || Boolean(session.agentRole);
+
+// Sub-agents are spawned with prompts that share a long generic preamble, so the
+// raw title is indistinguishable between siblings. Lead with the agent's own
+// identity (nickname · role) and keep its prompt as the brief line below.
+const sessionTitle = (session: SessionSummary) =>
+  isSubagent(session) ? `${session.agentNickname ?? "agent"} · ${session.agentRole ?? "worker"}` : session.title;
+
+const sessionBrief = (session: SessionSummary) =>
+  isSubagent(session)
+    ? session.firstUserMessagePreview || session.title || session.preview || session.titlePreview || "No prompt available."
+    : session.lastMessage || session.preview || session.firstUserMessagePreview || session.titlePreview || "No preview available.";
+
 function StatCell({ label, sub, tone, value }: { label: string; sub: string; tone?: "warn"; value: ReactNode }) {
   return (
     <div className="cell">
@@ -41,23 +54,6 @@ function StatCell({ label, sub, tone, value }: { label: string; sub: string; ton
       <div className="v" data-tone={tone}>{value}</div>
       <div className="s">{sub}</div>
     </div>
-  );
-}
-
-const TOKEN_BAR_CELLS = 12;
-const TOKEN_BAR_SCALE = 200_000;
-const TOKEN_BAR_WARN = 100_000;
-
-function TokenSegBar({ tokens }: { tokens: number }) {
-  const lit = Math.round(Math.min(1, tokens / TOKEN_BAR_SCALE) * TOKEN_BAR_CELLS);
-  const warn = tokens > TOKEN_BAR_WARN;
-
-  return (
-    <span className="segbar session-token-bar" aria-hidden="true">
-      {Array.from({ length: TOKEN_BAR_CELLS }, (_, cell) => (
-        <i className={cell < lit ? (warn ? "on hi" : "on") : ""} key={cell} />
-      ))}
-    </span>
   );
 }
 
@@ -388,8 +384,8 @@ export function SessionsView({
                   </td>
                   <th scope="row" className={depth > 0 ? "session-cell session-cell--sub" : "session-cell"}>
                     {depth > 0 ? <span className="tree-branch" aria-hidden="true">└</span> : null}
-                    <span className="session-title strong">{session.title}</span>
-                    <span className="session-brief arr">{session.lastMessage || session.preview || session.firstUserMessagePreview || session.titlePreview || "No preview available."}</span>
+                    <span className="session-title strong">{sessionTitle(session)}</span>
+                    <span className="session-brief arr">{sessionBrief(session)}</span>
                     <ShortId value={session.id} />
                   </th>
                   <td>
@@ -399,7 +395,6 @@ export function SessionsView({
                   <td>{session.model || "-"}</td>
                   <td className="numeric">
                     <LiveSessionTokens sessionId={session.id} fallback={tokenValue} />
-                    <TokenSegBar tokens={tokenValue} />
                   </td>
                   <td className="badge-cell">
                     <span className={source === "subagent" ? "chip amber" : "chip"}>{source === "subagent" ? `SUB · ${(session.agentRole ?? "worker").charAt(0).toUpperCase()}` : "USER"}</span>
