@@ -31,4 +31,33 @@ describe("deriveRepoName", () => {
   it("falls back to the raw cwd when there is neither an origin nor a path segment", () => {
     expect(deriveRepoName(null, "")).toBe("");
   });
+
+  it("collapses a `.worktrees/<slug>` checkout to the parent repo's name (no origin)", () => {
+    expect(deriveRepoName(null, "/Users/adam/Projects/agentview/.worktrees/impl-phase-4-graph-tokens")).toBe(
+      "agentview",
+    );
+    expect(deriveRepoName(null, "/Users/adam/Gauntlet/replicated/.worktrees/impl-phase-2-first-rca-thin-slice")).toBe(
+      "replicated",
+    );
+  });
+
+  it("groups every worktree of the same repo under one name", () => {
+    const a = deriveRepoName(null, "/Users/adam/Projects/agentview/.worktrees/impl-phase-2-sessions-index");
+    const b = deriveRepoName(null, "/Users/adam/Projects/agentview/.worktrees/impl-phase-5-diagnostics-hardening");
+    const main = deriveRepoName(null, "/Users/adam/Projects/agentview");
+    expect(a).toBe("agentview");
+    expect(b).toBe("agentview");
+    expect(main).toBe("agentview");
+  });
+
+  it("tolerates a trailing slash on a worktree path", () => {
+    expect(deriveRepoName(null, "/Users/adam/Projects/agentview/.worktrees/impl-phase-4-graph-tokens/")).toBe(
+      "agentview",
+    );
+  });
+
+  it("leaves a non-dotted `worktrees/<slug>` path as its own basename", () => {
+    // The existing fallback semantics treat a bare `worktrees` dir as a normal path.
+    expect(deriveRepoName(undefined, "/worktrees/agentview/")).toBe("agentview");
+  });
 });

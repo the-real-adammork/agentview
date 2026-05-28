@@ -12,9 +12,21 @@ const repoNameFromOrigin = (origin: string): string | null => {
   return value.split(/[/:]/).filter(Boolean).at(-1) ?? null;
 };
 
+/**
+ * Collapses a git worktree path to its parent repository root.
+ *
+ * Worktrees live at `<repo>/.worktrees/<slug>`; resolving them to `<repo>` keeps
+ * every worktree of a repo grouped under one identity (name and displayed path)
+ * instead of splintering into one card per worktree. Non-worktree paths and a
+ * bare (non-dotted) `worktrees/` dir are returned unchanged.
+ */
+export const repoRootCwd = (cwd: string): string => {
+  const match = cwd.match(/^(.*)[/\\]\.worktrees[/\\][^/\\]+[/\\]?$/);
+  return (match ? match[1] : cwd).replace(/[/\\]+$/, "");
+};
+
 const pathBasename = (cwd: string): string =>
-  cwd
-    .replace(/[/\\]+$/, "")
+  repoRootCwd(cwd)
     .split(/[/\\]/)
     .filter(Boolean)
     .at(-1) ?? cwd;

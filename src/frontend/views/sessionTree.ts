@@ -1,5 +1,5 @@
 import type { SessionSummary } from "../../shared/contracts";
-import { deriveRepoName } from "../../shared/repoName";
+import { deriveRepoName, repoRootCwd } from "../../shared/repoName";
 
 export type SessionIndex = Map<string, SessionSummary>;
 
@@ -129,7 +129,7 @@ export const groupSessionsByRepo = (sessions: SessionSummary[], nowMs: number = 
     if (!group) {
       group = {
         repoName,
-        cwd: root.cwd,
+        cwd: repoRootCwd(root.cwd),
         branch: root.gitBranch ?? root.branch ?? null,
         gitSha: root.gitSha ?? null,
         originPreview: root.gitOriginUrlPreview ?? null,
