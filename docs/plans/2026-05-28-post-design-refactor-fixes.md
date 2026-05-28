@@ -166,8 +166,61 @@ formatter the rest of the app uses.
 
 ---
 
+## 5. SSE live-stream write-after-end crashes the whole API process  ⚠️ stability
+
+**Symptom:** The API process exits (taking down the dashboard) with
+`Error [ERR_STREAM_WRITE_AFTER_END]: write after end`. Observed when an SSE client
+disconnects (e.g. a browser tab/headless page closes) and a live push fires immediately
+after.
+
+**Stack (from `dev:all` output):**
+```
+at Object.write   src/backend/api/stream.ts:48
+at Object.send    src/backend/live/liveHub.ts:45
+at pushTimelineAndTokens  src/backend/live/liveSources.ts:154
+... emitErrorNt → uncaught → Node.js process exits (api exited with code 1)
+```
+
+**Root cause (confirmed):** The live connection writes straight to the HTTP response
+with no guard and no error handler:
+- `stream.ts:48` — `write: (frame) => response.write(frame)` (no `writableEnded`/
+  `destroyed` check, not wrapped).
+- `stream.ts:56` — the heartbeat `setInterval` also writes unguarded.
+- No `response.on("error", …)` listener, so when `response.write` emits
+  `ERR_STREAM_WRITE_AFTER_END` asynchronously it becomes an **uncaught exception** and
+  crashes the process instead of just dropping that one connection.
+
+There is a `cleanup` on `request`/`response` `"close"` (`stream.ts:69–77`) that removes
+the connection from the hub, but there's a race: a push already dispatched (or the
+heartbeat) can write between the socket closing and cleanup running.
+
+**Affected code:** `src/backend/api/stream.ts` (connection `write`, heartbeat),
+`src/backend/live/liveHub.ts:45` (`send`), `src/backend/live/liveSources.ts:154`
+(`pushTimelineAndTokens`).
+
+**Proposed fix direction:**
+- Guard every write: no-op if `response.writableEnded || response.destroyed`.
+- Wrap the write in try/catch and trigger `cleanup()` on failure so a dead connection is
+  removed rather than retried.
+- Attach `response.on("error", cleanup)` so transport errors never escalate to an
+  uncaught exception. Consider a top-level `unhandledRejection`/`uncaughtException` guard
+  on the server as defense-in-depth (log + keep serving), but the real fix is the guarded
+  write.
+
+**Verification:** open an SSE connection, kill the client mid-stream, confirm the API
+logs a dropped connection and keeps serving (no process exit). A quick repro: load the
+dashboard, then close it while a session is actively updating.
+
+---
+
 ## Sequencing
 
-Do these **after** the design refactor merges. Suggested order: #1 (self-contained,
-shared helper + test), #4 (shared formatter, low-risk), then #3 (UI empty-states), then
-#2 (needs a repro from Adam first).
+**#5 is a stability bug** (crashes the whole API on client disconnect) and can be fixed
+independently of the design refactor — pull it forward if the crashes are disrupting
+local use. Note: a "Failed to fetch" in *any* view (Timeline, Diagnostics, …) is the
+downstream symptom of #5 — once the API process dies, every fetch to `:4317` fails until
+it's restarted.
+
+Otherwise, do these **after** the design refactor merges. Suggested order: #5 (crash),
+#1 (self-contained, shared helper + test), #4 (shared formatter, low-risk), then #3 (UI
+empty-states), then #2 (needs a repro from Adam first).
