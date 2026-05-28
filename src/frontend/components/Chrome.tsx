@@ -3,12 +3,17 @@ import type { ReactNode } from "react";
 import type { HealthStatus } from "../../shared/contracts";
 import type { ObservatoryView } from "../App";
 import { LiveTokenTotal } from "../live/LiveTokens";
+import { PaletteSwitcher, type Palette } from "./PaletteSwitcher";
 
 interface ChromeProps {
   children: ReactNode;
   activeView: ObservatoryView;
   health: HealthStatus;
   navigation: ReactNode;
+  palette: Palette;
+  onPaletteChange: (palette: Palette) => void;
+  onOpenRepos: () => void;
+  reposActive: boolean;
   sessionCount: number;
   tokenTotal: number;
   warningSessionCount: number;
@@ -28,6 +33,10 @@ export function Chrome({
   children,
   health,
   navigation,
+  palette,
+  onPaletteChange,
+  onOpenRepos,
+  reposActive,
   sessionCount,
   tokenTotal,
   warningSessionCount,
@@ -42,7 +51,7 @@ export function Chrome({
   ];
 
   return (
-    <div className="app-shell shell" data-palette="orange" data-screen-label={`Observatory · ${activeView}`}>
+    <div className="app-shell shell" data-palette={palette} data-screen-label={`Observatory · ${activeView}`}>
       <div className="plate" aria-hidden="true" />
       <div className="grid-bg" aria-hidden="true" />
 
@@ -53,6 +62,7 @@ export function Chrome({
           <span>OBSERVATORY · 観測装置</span>
           <span className="jp">機密 / レベル 7</span>
           <span className="blink">● LIVE</span>
+          <PaletteSwitcher palette={palette} onChange={onPaletteChange} />
         </div>
         <div className="hazard" aria-hidden="true" />
         <span className="sr-only">
@@ -62,13 +72,18 @@ export function Chrome({
       </header>
 
       <div className="header">
-        <div className="brand">
-          <div className="mark" aria-hidden="true" />
-          <div>
-            <h1 className="name">WORKFLOWKIT</h1>
-            <div className="sub">// Observatory · 観測</div>
-          </div>
-        </div>
+        <button
+          className="repos-btn"
+          type="button"
+          data-active={reposActive ? "true" : "false"}
+          aria-pressed={reposActive}
+          onClick={onOpenRepos}
+          title="Browse all repos"
+        >
+          <span className="mark" aria-hidden="true" />
+          <span className="lbl">REPOS</span>
+          <span className="caret" aria-hidden="true">▸</span>
+        </button>
 
         {navigation}
 

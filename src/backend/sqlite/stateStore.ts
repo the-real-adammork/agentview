@@ -81,6 +81,7 @@ interface ThreadRow {
   preview: string;
   child_count: number | bigint;
   open_child_count: number | bigint;
+  parent_thread_id: string | null;
 }
 
 const requiredThreadColumns = [
@@ -148,6 +149,7 @@ const normalizeThread = (row: ThreadRow): SessionSummary => {
     lastMessage: preview || firstUserMessagePreview,
     childCount: toNumber(row.child_count),
     openChildCount: toNumber(row.open_child_count),
+    parentId: row.parent_thread_id ?? null,
     tokenTotal,
     rolloutPath: row.rollout_path,
     createdAtMs,
@@ -163,6 +165,7 @@ const normalizeThread = (row: ThreadRow): SessionSummary => {
     agentRole: row.agent_role,
     gitSha: row.git_sha,
     gitBranch: row.git_branch,
+    gitOriginUrl: row.git_origin_url,
     gitOriginUrlPreview: stripGitOrigin(row.git_origin_url),
     archived: row.archived === 1,
     warningCountStatus: "not_requested",
@@ -241,7 +244,8 @@ const selectThreadSql = `
     t.thread_source,
     t.preview,
     COALESCE(edge_counts.child_count, 0) AS child_count,
-    COALESCE(edge_counts.open_child_count, 0) AS open_child_count
+    COALESCE(edge_counts.open_child_count, 0) AS open_child_count,
+    parent_edge.parent_thread_id AS parent_thread_id
   FROM threads t
   LEFT JOIN (
     SELECT
@@ -251,6 +255,7 @@ const selectThreadSql = `
     FROM thread_spawn_edges
     GROUP BY parent_thread_id
   ) edge_counts ON edge_counts.parent_thread_id = t.id
+  LEFT JOIN thread_spawn_edges parent_edge ON parent_edge.child_thread_id = t.id
 `;
 
 export const openStateStore = async ({ codexHome }: { codexHome: string }): Promise<StateStore> => {

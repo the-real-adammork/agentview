@@ -1,8 +1,9 @@
-import { useState, type ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 
 import { ShortId } from "../components/ShortId";
 import { TimelineEventRow } from "../components/TimelineEventRow";
 import { TimelineScrubber } from "../components/TimelineScrubber";
+import { flattenAgentTree } from "./sessionTree";
 import type { AgentEdgeStatus, ApiError, SessionSummary, TimelinePayload } from "../../shared/contracts";
 import {
   TIME_WINDOWS,
@@ -33,14 +34,81 @@ const compactFormatter = new Intl.NumberFormat("en-US", {
 const formatTime = (value?: string) => (value ? new Date(value).toLocaleTimeString("en-US") : "pending");
 const formatPathTail = (value?: string) => value?.split("/").slice(-2).join("/") ?? "rollout pending";
 const sessionTokens = (session: SessionSummary) => session.tokensUsed ?? session.tokenTotal;
-const sourceLabel = (session: SessionSummary) =>
-  session.threadSource === "subagent" ? `SUB · ${session.agentNickname ?? "worker"}` : "USER";
 
 const STATUS_TONE: Record<AgentEdgeStatus, "good" | "warn"> = {
   open: "warn",
   closed: "good",
   failed: "warn",
 };
+
+const isSubagent = (session: SessionSummary) => session.threadSource === "subagent" || Boolean(session.agentRole);
+const threadKicker = (session: SessionSummary) =>
+  isSubagent(session) ? `SUB · ${(session.agentRole ?? "worker").toUpperCase()}` : "USER · ROOT";
+const threadName = (session: SessionSummary) =>
+  isSubagent(session) ? session.agentNickname ?? "agent" : session.title;
+
+/**
+ * Agent Tree — the full spawn tree rooted at the current session's root, so from
+ * any sub-agent you can still see and jump to the parent, siblings, and cousins.
+ */
+function ThreadNav({
+  current,
+  sessions,
+  onSelect,
+}: {
+  current: SessionSummary;
+  sessions: SessionSummary[];
+  onSelect: (sessionId: string) => void;
+}) {
+  const rows = flattenAgentTree(current, sessions);
+
+  return (
+    <div className="thread-nav">
+      <div className="panel-tit">
+        <span className="dot" />
+        <span>Agent Tree</span>
+        <span className="spacer" />
+        <span className="meta">{rows.length} thread{rows.length === 1 ? "" : "s"}</span>
+      </div>
+      <div className="thread-nav-body" role="list" aria-label="Agent tree">
+        {rows.map(({ session, depth }) => {
+          const here = session.id === current.id;
+          const tone = isSubagent(session) ? "amber" : "primary";
+          return (
+            <button
+              aria-current={here ? "true" : undefined}
+              className="thread-row"
+              data-depth={depth}
+              data-here={here ? "true" : undefined}
+              data-tone={tone}
+              disabled={here}
+              key={session.id}
+              onClick={here ? undefined : () => onSelect(session.id)}
+              role="listitem"
+              style={{ "--depth": depth } as CSSProperties}
+              title={here ? "Current thread" : `Open ${threadName(session)}'s timeline`}
+              type="button"
+            >
+              {depth > 0 ? <span className="tn-connector" aria-hidden="true">└</span> : null}
+              <span className="tn-tab" data-tone={tone} aria-hidden="true" />
+              <span className="tn-text">
+                <span className="tn-kicker">{threadKicker(session)}</span>
+                <span className="tn-name">{threadName(session)}</span>
+              </span>
+              <span className="tn-meta">
+                {here ? (
+                  <span className="tn-here">● HERE</span>
+                ) : (
+                  <span className="num">{compactFormatter.format(sessionTokens(session))}</span>
+                )}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function MetricRow({ label, value }: { label: string; value: ReactNode }) {
   return (
@@ -171,8 +239,6 @@ export function TimelineView({
     };
   });
 
-  const otherSessions = sessions.slice(0, 14);
-
   return (
     <section className="timeline" aria-labelledby="timeline-title">
       <aside className="tl-side" aria-label="Session meta">
@@ -195,27 +261,15 @@ export function TimelineView({
           </div>
         </div>
         <div className="tl-side__body">
-          <div className="panel-tit"><span className="dot"></span><span>Other Sessions</span><span className="spacer"></span><span className="meta">{payload?.cacheStatus ?? "pending"}</span></div>
-          <div className="tl-other" role="list" aria-label="Other sessions">
-            {otherSessions.length === 0 ? <div className="faint">-- no sessions --</div> : null}
-            {otherSessions.map((session) => (
-              <button
-                aria-current={session.id === activeSession?.id ? "true" : undefined}
-                className="tl-other__row"
-                data-active={session.id === activeSession?.id ? "true" : undefined}
-                key={session.id}
-                onClick={() => onSelectSession(session.id, "Timeline")}
-                role="listitem"
-                type="button"
-              >
-                <span className="tl-other__top">
-                  <span className="tl-other__title">{session.title}</span>
-                  <span className="num muted">{formatTime(session.updatedAt)}</span>
-                </span>
-                <span className="tl-other__sub muted">{sourceLabel(session)} · {compactFormatter.format(sessionTokens(session))} tok</span>
-              </button>
-            ))}
-          </div>
+          {activeSession ? (
+            <ThreadNav
+              current={activeSession}
+              sessions={sessions}
+              onSelect={(sessionId) => onSelectSession(sessionId, "Timeline")}
+            />
+          ) : (
+            <div className="faint">-- no session selected --</div>
+          )}
         </div>
       </aside>
 

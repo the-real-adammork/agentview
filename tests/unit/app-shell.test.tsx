@@ -22,6 +22,10 @@ describe("fixture-backed five-view app shell", () => {
         activeView="Sessions"
         health={{ checkedAt: "2026-05-27T18:00:00.000Z", mode: "fixture", status: "ok" }}
         navigation={<nav aria-label="Primary views" />}
+        palette="orange"
+        onPaletteChange={() => {}}
+        onOpenRepos={() => {}}
+        reposActive={false}
         sessionCount={500}
         tokenTotal={4_102_376_000}
         warningSessionCount={28}
@@ -41,9 +45,9 @@ describe("fixture-backed five-view app shell", () => {
     expect(banner).toHaveTextContent(/機密 \/ レベル 7/i);
     expect(banner).toHaveTextContent(/live/i);
 
-    const masthead = screen.getByRole("heading", { name: /workflowkit/i });
-    expect(masthead).toBeVisible();
-    expect(screen.getByText(/\/\/ Observatory · 観測/i)).toBeVisible();
+    const reposButton = screen.getByRole("button", { name: /repos/i });
+    expect(reposButton).toBeVisible();
+    expect(reposButton).toHaveAttribute("aria-pressed", "false");
     expect(banner).toHaveTextContent(/fixture mode/i);
     expect(banner).toHaveTextContent(/healthy/i);
 
@@ -72,7 +76,7 @@ describe("fixture-backed five-view app shell", () => {
     expect(screen.getByText(/Token usage · last 12h/i)).toBeVisible();
     expect(screen.getByText(/RESULTS ·/i)).toBeVisible();
     expect(screen.getByText(/SORT · updated_at/i)).toBeVisible();
-    expect(screen.getByText(/JOIN · thread_spawn_edges/i)).toBeVisible();
+    expect(screen.getByText(/TREE · thread_spawn_edges/i)).toBeVisible();
 
     const sessionsTable = screen.getByRole("table", { name: /sessions/i });
     expect(sessionsTable).toHaveClass("tbl");
@@ -109,7 +113,10 @@ describe("fixture-backed five-view app shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Timeline" }));
     expect(screen.getByRole("heading", { name: /timeline/i })).toBeVisible();
     expect(screen.getByText(/TURN 01 · VITALS/i)).toBeVisible();
-    expect(screen.getByText(/Other Sessions/i)).toBeVisible();
+    const agentTree = screen.getByRole("list", { name: /agent tree/i });
+    expect(within(agentTree).getByText(/● HERE/i)).toBeVisible();
+    expect(within(agentTree).getByText(/ARCHIMEDES/i)).toBeVisible();
+    expect(within(agentTree).getByText(/SOCRATES/i)).toBeVisible();
     expect(screen.getByText(/Context window/i)).toBeVisible();
     expect(screen.getByText(/Tool Usage · this turn/i)).toBeVisible();
     expect(screen.getByRole("button", { name: /open agent graph/i })).toBeVisible();
@@ -136,5 +143,27 @@ describe("fixture-backed five-view app shell", () => {
     expect(diagnosticsTable).toHaveClass("diag-table");
     expect(diagnosticsTable).toHaveTextContent(diagnosticsLogsFixture[0].target);
     expect(diagnosticsTable).toHaveTextContent(diagnosticsLogsFixture[0].bodyPreview);
+  });
+
+  it("opens the Repos index from the header and scopes Sessions to a repo dossier", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: /repos/i }));
+
+    // Repos index: header + a repo card grouping the fixture sessions by repo.
+    expect(screen.getByRole("heading", { name: /repos · index/i })).toBeVisible();
+    const repoCard = screen.getByRole("article");
+    expect(within(repoCard).getByText(/workflowkit/i)).toBeVisible();
+    // Card footer summarizes the whole repo subtree (root + 2 sub-agents).
+    expect(within(repoCard).getByText(/OPEN 3 SESSIONS/i)).toBeVisible();
+
+    // Opening the repo drops into the Sessions dossier scoped to that repo.
+    fireEvent.click(within(repoCard).getByText(/OPEN 3 SESSIONS/i));
+    expect(screen.getByRole("button", { name: /all repos/i })).toBeVisible();
+    expect(screen.getByRole("table", { name: /sessions/i })).toBeVisible();
+
+    // The back affordance returns to the full index.
+    fireEvent.click(screen.getByRole("button", { name: /all repos/i }));
+    expect(screen.getByRole("heading", { name: /repos · index/i })).toBeVisible();
   });
 });
