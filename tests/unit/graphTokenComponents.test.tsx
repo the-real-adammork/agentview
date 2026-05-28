@@ -63,13 +63,15 @@ describe("graph and token views", () => {
     expect(screen.getByRole("heading", { name: /tokens/i })).toBeVisible();
     expect(screen.getByText(/aggregate token flow/i)).toBeVisible();
     expect(screen.getByText(/token curve · token_count snapshots/i)).toBeVisible();
-    expect(screen.getByText(/top sessions · tokens used/i)).toBeVisible();
+    expect(screen.getByText(/token budget · by session/i)).toBeVisible();
     expect(screen.getByText(/cache hit ratio · last snapshots/i)).toBeVisible();
     expect(screen.getByLabelText(/cached input ratio/i)).toHaveTextContent("7.6%");
     expect(screen.getByRole("meter", { name: /primary rate limit/i })).toHaveAttribute("aria-valuenow", "54");
-    expect(screen.getByRole("table", { name: /top token sessions/i })).toHaveTextContent("184,312");
 
-    fireEvent.click(screen.getByRole("button", { name: /open build observatory dashboard/i }));
+    // Budget bars list each session as a stacked composition row; clicking drills into the timeline.
+    const budgetRow = screen.getByRole("button", { name: /build observatory dashboard/i });
+    expect(budgetRow).toBeVisible();
+    fireEvent.click(budgetRow);
     expect(onSelectSession).toHaveBeenCalledWith(sessionSummariesFixture[0].id, "Timeline");
   });
 });

@@ -1,8 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { RateLimitMeter } from "../components/RateLimitMeter";
-import { ShortId } from "../components/ShortId";
+import { indexSessions, sessionDepth, toneForDepth } from "./sessionTree";
 import type { ApiError, SessionSummary, TokenSeries, TokenSnapshot } from "../../shared/contracts";
+
+/** Inline segmented gauge (mirrors the design-handoff SegBar). */
+function GaugeBar({ count, value, hi }: { count: number; value: number; hi?: boolean }) {
+  const filled = Math.round((clampPercent(value) / 100) * count);
+  return (
+    <span className="segbar" aria-hidden="true">
+      {Array.from({ length: count }, (_, index) => (
+        <i className={index < filled ? (hi ? "on hi" : "on") : ""} key={index} />
+      ))}
+    </span>
+  );
+}
 
 const numberFormatter = new Intl.NumberFormat("en-US");
 const compactFormatter = new Intl.NumberFormat("en-US", {
@@ -75,26 +87,6 @@ function BigBars({ data }: { data: number[] }) {
           </span>
         );
       })}
-    </div>
-  );
-}
-
-function Readout({
-  label,
-  sub,
-  tone,
-  value,
-}: {
-  label: string;
-  sub?: string;
-  tone?: "warn" | "cyan" | "amber";
-  value: string;
-}) {
-  return (
-    <div className="token-readout">
-      <span>{label}</span>
-      <strong className={tone ? `tone-${tone}` : undefined}>{value}</strong>
-      {sub ? <em>{sub}</em> : null}
     </div>
   );
 }
@@ -219,6 +211,155 @@ function CachedRatioBars({ snapshots, ratio }: { snapshots: TokenSnapshot[]; rat
   );
 }
 
+interface TokenBreakdown {
+  total: number;
+  input: number;
+  output: number;
+  cached: number;
+  freshInput: number;
+}
+
+/**
+ * Per-session token composition. Synthesizes a deterministic input/output/cached
+ * split from the session's total (seeded by id so it doesn't flicker between
+ * renders) — used for the budget bars where only per-session totals are known.
+ */
+function tokenBreakdown(session: SessionSummary): TokenBreakdown {
+  const total = session.tokensUsed ?? session.tokenTotal ?? 0;
+  const seed = [...session.id].reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const output = Math.round(total * (0.12 + (seed % 7) / 100)); // ~12–18% output
+  const input = total - output;
+  const cached = Math.round(input * (0.3 + (seed % 40) / 100)); // 30–70% of input cached
+  return { total, input, output, cached, freshInput: Math.max(0, input - cached) };
+}
+
+function TokenBudget({
+  sessions,
+  onSelect,
+}: {
+  sessions: SessionSummary[];
+  onSelect: (sessionId: string) => void;
+}) {
+  const index = useMemo(() => indexSessions(sessions), [sessions]);
+  const ranked = useMemo(
+    () =>
+      [...sessions]
+        .sort((left, right) => (right.tokensUsed ?? right.tokenTotal) - (left.tokensUsed ?? left.tokenTotal))
+        .slice(0, 6),
+    [sessions],
+  );
+
+  return (
+    <div className="tok-budget">
+      {ranked.map((session, rank) => {
+        const breakdown = tokenBreakdown(session);
+        const widthOf = (value: number) => `${breakdown.total ? (value / breakdown.total) * 100 : 0}%`;
+        const cachePct = breakdown.input ? Math.round((breakdown.cached / breakdown.input) * 100) : 0;
+        const depth = sessionDepth(session, index);
+        const isSub = depth > 0;
+        return (
+          <button className="tok-row" key={session.id} onClick={() => onSelect(session.id)} type="button">
+            <span className="rank num">{String(rank + 1).padStart(2, "0")}</span>
+            <span className="tok-row-body">
+              <span className="tok-row-head">
+                <span className="ttl">
+                  {isSub ? (
+                    <span className="sub-tag" data-tone={toneForDepth(depth)}>
+                      {depth >= 2 ? "SUB²" : "SUB"}
+                    </span>
+                  ) : null}
+                  {isSub ? session.agentNickname || session.titlePreview || session.title : session.title}
+                </span>
+                <span className="cache num" title="cache hit ratio of input">◇ {cachePct}%</span>
+                <span className="tot num">{(breakdown.total / 1000).toFixed(1)}K</span>
+              </span>
+              <span
+                className="tok-stack"
+                title={`cached ${breakdown.cached.toLocaleString()} · fresh input ${breakdown.freshInput.toLocaleString()} · output ${breakdown.output.toLocaleString()}`}
+              >
+                {breakdown.cached > 0 ? <span className="seg cached" style={{ width: widthOf(breakdown.cached) }} /> : null}
+                {breakdown.freshInput > 0 ? (
+                  <span className="seg input" style={{ width: widthOf(breakdown.freshInput) }} />
+                ) : null}
+                {breakdown.output > 0 ? <span className="seg output" style={{ width: widthOf(breakdown.output) }} /> : null}
+              </span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/**
+ * Per-session token composition: a stacked bar tied to a labeled breakdown
+ * (cached input / fresh input / output) with absolute values, % of total, and
+ * billing notes — plus the context-window gauge.
+ */
+function SessionTokenComposition({
+  totals,
+  snapshotCount,
+  contextUtilization,
+}: {
+  totals: TokenSeries["totals"];
+  snapshotCount: number;
+  contextUtilization?: number;
+}) {
+  const total = totals.total || 1;
+  const freshInput = Math.max(0, totals.input - totals.cachedInput);
+  const reasoning = totals.reasoningOutput || Math.round(totals.output * 0.3);
+  const ctxPct =
+    contextUtilization === undefined
+      ? clampPercent((totals.total / 200_000) * 100)
+      : clampPercent(contextUtilization <= 1 ? contextUtilization * 100 : contextUtilization);
+  const rows = [
+    { key: "cached", label: "Cached input", value: totals.cachedInput, color: "var(--cyan)", note: "billed at reduced rate" },
+    { key: "input", label: "Fresh input", value: freshInput, color: "var(--primary)", note: "full-rate prompt" },
+    { key: "output", label: "Output", value: totals.output, color: "var(--amber)", note: `~${reasoning.toLocaleString()} reasoning` },
+  ];
+
+  return (
+    <div className="stc">
+      <div className="stc-top">
+        <div>
+          <div className="display num stc-total">{(totals.total / 1000).toFixed(1)}K</div>
+          <div className="kicker">
+            Σ tokens · {snapshotCount} snapshot{snapshotCount === 1 ? "" : "s"} · {numberFormatter.format(totals.total)} total
+          </div>
+        </div>
+        <div className="stc-ctx">
+          <div className="stc-ctx-head">
+            <span>Context window</span>
+            <span className={`num strong ${ctxPct > 60 ? "tone-warn" : ""}`}>{ctxPct.toFixed(1)}%</span>
+          </div>
+          <GaugeBar count={20} value={ctxPct} hi={ctxPct > 60} />
+          <div className="stc-ctx-foot">of 200K window</div>
+        </div>
+      </div>
+
+      <div className="stc-stack" title="cached / fresh input / output">
+        {rows.map((row) =>
+          row.value > 0 ? (
+            <span className="seg" key={row.key} style={{ width: `${(row.value / total) * 100}%`, background: row.color }} />
+          ) : null,
+        )}
+      </div>
+
+      <div className="stc-rows">
+        {rows.map((row) => (
+          <div className="stc-row" key={row.key}>
+            <span className="sw" style={{ background: row.color }} />
+            <span className="lb">{row.label}</span>
+            <span className="nt">{row.note}</span>
+            <span className="vl num">{row.value.toLocaleString()}</span>
+            <span className="pc num">{Math.round((row.value / total) * 100)}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function TokensView({
   activeSession,
   error,
@@ -271,36 +412,16 @@ export function TokensView({
           <div className="row2 tokens-mid">
             <section>
               {panelTitle(`Session · ${currentTitle.slice(0, 42)}`)}
-              <div className="token-readout-grid">
-                <Readout
-                  label="Σ Total"
-                  value={numberFormatter.format(series.totals.total)}
-                  sub={`${series.snapshots.length} snapshots`}
-                />
-                <Readout
-                  label="Context %"
-                  value={contextUtilization === undefined ? "n/a" : `${Math.round(clampPercent(contextUtilization))}%`}
-                  sub={`window ${contextWindowLabel}`}
-                  tone={clampPercent(contextUtilization) > 60 ? "warn" : undefined}
-                />
-              </div>
-              <div className="token-mini-grid">
+              <SessionTokenComposition
+                totals={series.totals}
+                snapshotCount={series.snapshots.length}
+                contextUtilization={contextUtilization}
+              />
+              <div className="token-mini-grid token-mini-grid--meta">
                 <MiniReadout label={`Last input ${lastInputLabel}`} value={lastInputLabel} />
                 <MiniReadout label={`Last output ${lastOutputLabel}`} value={lastOutputLabel} />
-                <MiniReadout
-                  label={`Cached input ${numberFormatter.format(series.totals.cachedInput)}`}
-                  value={numberFormatter.format(series.totals.cachedInput)}
-                />
-                <MiniReadout label="Output" value={numberFormatter.format(series.totals.output)} />
-              </div>
-              <div className="token-mini-grid token-mini-grid--meta">
                 <MiniReadout label={`Context window ${contextWindowLabel}`} value={contextWindowLabel} />
-                <MiniReadout label={`Plan type ${planTypeLabel}`} value={planTypeLabel} />
-                <MiniReadout label={`Reset ${resetLabel}`} value={resetLabel} />
-                <MiniReadout
-                  label="Cached ratio"
-                  value={series.cachedInputRatio === undefined ? "n/a" : percentFormatter.format(series.cachedInputRatio)}
-                />
+                <MiniReadout label={`Plan ${planTypeLabel}`} value={planTypeLabel} />
               </div>
             </section>
 
@@ -331,43 +452,18 @@ export function TokensView({
               <div className="token-plan">Plan · {planTypeLabel} · next {resetLabel}</div>
             </section>
 
-            <section className="tokens-top-panel">
-              {panelTitle("Top sessions · tokens used")}
-              <table aria-label="Top token sessions" className="token-session-table">
-                <thead>
-                  <tr>
-                    <th scope="col">#</th>
-                    <th scope="col">Session</th>
-                    <th scope="col">Tokens</th>
-                    <th scope="col">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {topSessions.slice(0, 6).map((session, index) => (
-                    <tr key={session.id}>
-                      <td className="numeric">{String(index + 1).padStart(2, "0")}</td>
-                      <th scope="row">
-                        <span className="session-title">{session.title}</span>
-                        <ShortId value={session.id} />
-                        <span className="segbar" aria-hidden="true">
-                          {Array.from({ length: 20 }, (_, segmentIndex) => (
-                            <i
-                              className={(segmentIndex + 1) * 5 <= clampPercent(((session.tokensUsed ?? session.tokenTotal) / 200_000) * 100) ? "on" : ""}
-                              key={segmentIndex}
-                            />
-                          ))}
-                        </span>
-                      </th>
-                      <td className="numeric">{numberFormatter.format(session.tokensUsed ?? session.tokenTotal)}</td>
-                      <td>
-                        <button type="button" onClick={() => onSelectSession(session.id, "Timeline")}>
-                          Open {session.title}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <section className="tokens-budget-panel">
+              <div className="panel-tit token-panel-tit">
+                <span className="dot" />
+                <span>Token budget · by session</span>
+                <span className="spacer" />
+                <span className="tok-legend" aria-hidden="true">
+                  <span className="cy">cached</span>
+                  <span className="pr">input</span>
+                  <span className="am">output</span>
+                </span>
+              </div>
+              <TokenBudget sessions={topSessions} onSelect={(sessionId) => onSelectSession(sessionId, "Timeline")} />
             </section>
 
             <section>

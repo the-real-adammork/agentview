@@ -4326,3 +4326,154 @@ tbody tr[aria-current="true"] {
     animation: none;
   }
 }
+
+/* ============================================================
+   v0.3 ADDITIONS · TOKENS COMPOSITION (budget bars + breakdown)
+   Ported from the design handoff (workflowkit-evangelion v0.3).
+   ============================================================ */
+.tok-legend {
+  display: flex;
+  gap: 10px;
+  font-family: var(--display);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.tok-legend span { display: flex; align-items: center; gap: 4px; color: var(--ink-dim); }
+.tok-legend span::before { content: ""; width: 8px; height: 8px; }
+.tok-legend .cy::before { background: var(--cyan); }
+.tok-legend .pr::before { background: var(--primary); }
+.tok-legend .am::before { background: var(--amber); }
+
+.tok-budget {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  overflow-y: auto;
+  min-height: 0;
+  align-content: start;
+}
+.tok-row {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 8px;
+  align-items: start;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-left: 2px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  padding: 3px 4px 5px;
+}
+.tok-row:hover { background: rgba(255, 107, 26, 0.05); border-left-color: var(--primary); }
+.tok-row .rank { color: var(--ink-faint); font-size: 11px; padding-top: 1px; }
+.tok-row-body { min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.tok-row-head {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: baseline;
+}
+.tok-row-head .ttl {
+  font-size: 11px;
+  color: var(--ink-strong);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tok-row-head .sub-tag {
+  font-family: var(--display);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  color: var(--amber);
+  border: 1px solid rgba(255, 184, 0, 0.5);
+  padding: 0 3px;
+  margin-right: 5px;
+}
+.tok-row-head .sub-tag[data-tone="cyan"] { color: var(--cyan); border-color: rgba(70, 216, 255, 0.5); }
+.tok-row-head .cache {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--cyan);
+  letter-spacing: 0.02em;
+}
+.tok-row-head .tot {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+.tok-stack {
+  display: flex;
+  height: 8px;
+  width: 100%;
+  background: var(--bg-2);
+  overflow: hidden;
+  border: 1px solid var(--rule-soft);
+}
+.tok-stack .seg { height: 100%; }
+.tok-stack .seg.cached { background: var(--cyan); }
+.tok-stack .seg.input { background: var(--primary); }
+.tok-stack .seg.output { background: var(--amber); }
+
+/* Per-session token composition panel */
+.stc { display: flex; flex-direction: column; gap: 14px; }
+.stc-top {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 20px;
+  align-items: end;
+}
+.stc-total { font-size: 34px; line-height: 0.9; color: var(--ink-strong); }
+.stc-ctx { min-width: 0; }
+.stc-ctx-head {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.stc-ctx-foot {
+  color: var(--ink-dim);
+  font-size: 9px;
+  margin-top: 4px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.stc-stack {
+  display: flex;
+  height: 16px;
+  width: 100%;
+  background: var(--bg-2);
+  border: 1px solid var(--rule-soft);
+  overflow: hidden;
+}
+.stc-stack .seg { height: 100%; }
+.stc-stack .seg + .seg { border-left: 1px solid var(--bg-0); }
+.stc-rows { display: flex; flex-direction: column; }
+.stc-row {
+  display: grid;
+  grid-template-columns: 10px 92px 1fr auto auto;
+  gap: 10px;
+  align-items: baseline;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--rule-soft);
+  font-size: 11px;
+}
+.stc-row:last-child { border-bottom: 0; }
+.stc-row .sw { width: 10px; height: 10px; align-self: center; }
+.stc-row .lb { color: var(--ink-strong); font-weight: 600; }
+.stc-row .nt {
+  color: var(--ink-dim);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stc-row .vl { font-family: var(--mono); color: var(--ink-strong); font-weight: 700; text-align: right; }
+.stc-row .pc { font-family: var(--mono); color: var(--ink-dim); width: 36px; text-align: right; }

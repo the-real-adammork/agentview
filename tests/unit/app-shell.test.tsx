@@ -139,10 +139,15 @@ describe("fixture-backed app shell", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Tokens" }));
     expect(screen.getByRole("heading", { name: /tokens/i })).toBeVisible();
-    expect(screen.getByText(tokenSeriesFixture.totals.total.toLocaleString("en-US"))).toBeVisible();
-    expect(screen.getByText(/cached input/i)).toHaveTextContent(
-      tokenSeriesFixture.totals.cachedInput.toLocaleString("en-US"),
+    // Per-session composition panel: compact total + a labeled "Cached input" row.
+    expect(document.querySelector(".stc-total")).toHaveTextContent(
+      `${(tokenSeriesFixture.totals.total / 1000).toFixed(1)}K`,
     );
+    const cachedRow = screen.getByText("Cached input").closest(".stc-row");
+    expect(cachedRow).not.toBeNull();
+    expect(within(cachedRow as HTMLElement).getByText(tokenSeriesFixture.totals.cachedInput.toLocaleString("en-US"))).toBeVisible();
+    // Token budget bars replace the top-sessions table.
+    expect(screen.getByText(/token budget · by session/i)).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: "Diagnostics" }));
     expect(screen.getByRole("heading", { name: /diagnostics/i })).toBeVisible();
