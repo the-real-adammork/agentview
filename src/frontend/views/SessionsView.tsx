@@ -34,6 +34,17 @@ const uniqueValues = (sessions: SessionSummary[], getValue: (session: SessionSum
 
 const formatTime = (value: string) => new Date(value).toLocaleTimeString("en-US");
 
+// Relative "updated" label, matching the handoff's leading line (minutes /
+// hours / days ago) with the absolute clock time kept as the muted sub-line.
+const formatAgo = (value: string, nowMs: number) => {
+  const mins = Math.round((nowMs - new Date(value).getTime()) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+};
+
 const isSubagent = (session: SessionSummary) => session.threadSource === "subagent" || Boolean(session.agentRole);
 
 // Sub-agents are spawned with prompts that share a long generic preamble, so the
@@ -163,7 +174,7 @@ export function SessionsView({
           <div className="ov-side__head">
             <div className="kicker">▸ Catalog</div>
             <h1 aria-label="Sessions" className="display" id="sessions-title">SESSION INDEX</h1>
-            <div className="muted">state_5.sqlite · threads · {scopedSessions.length} visible</div>
+            <div className="muted">state_5.sqlite · threads · {scopedSessions.length} of {sessions.length} visible</div>
           </div>
         )}
 
@@ -279,7 +290,7 @@ export function SessionsView({
                 <td colSpan={10}>No sessions match the current filters.</td>
               </tr>
             ) : null}
-            {rows.map(({ session, depth }, index) => {
+            {rows.map(({ session, depth, isLastSub, matched }, index) => {
               const diagnostics = diagnosticsByThreadId[session.id];
               const tokenValue = session.tokensUsed ?? session.tokenTotal;
               const branch = session.branch || session.gitBranch || "-";
@@ -300,15 +311,21 @@ export function SessionsView({
                   tabIndex={0}
                   data-active={session.id === activeSessionId ? "true" : undefined}
                   data-depth={depth}
+                  data-last-sub={depth > 0 ? (isLastSub ? "true" : "false") : undefined}
+                  data-dim={!matched ? "true" : undefined}
                 >
                   <td className="muted num">{String(index + 1).padStart(3, "0")}</td>
                   <td className="num">
-                    <time dateTime={session.updatedAt}>{formatTime(session.updatedAt)}</time>
-                    <div className="muted">{new Date(session.updatedAt).toLocaleDateString("en-US")}</div>
+                    <div>{formatAgo(session.updatedAt, nowMs)}</div>
+                    <div className="muted"><time dateTime={session.updatedAt}>{formatTime(session.updatedAt)}</time></div>
                   </td>
-                  <th scope="row" className={depth > 0 ? "session-cell session-cell--sub" : "session-cell"}>
-                    {depth > 0 ? <span className="tree-branch" aria-hidden="true">└</span> : null}
-                    <span className="session-title strong">{sessionTitle(session)}</span>
+                  <th scope="row" className="session-cell">
+                    <div className="tree-title">
+                      {depth > 0 ? (
+                        <span className="tree-connector" aria-hidden="true">{isLastSub ? "└" : "├"}</span>
+                      ) : null}
+                      <span className="session-title strong">{sessionTitle(session)}</span>
+                    </div>
                     <span className="session-brief arr">{sessionBrief(session)}</span>
                     <ShortId value={session.id} />
                   </th>
@@ -316,7 +333,10 @@ export function SessionsView({
                     <div>{repo}</div>
                     <div className="muted"><span className="num">{session.gitSha ?? "—"}</span> · {branch}</div>
                   </td>
-                  <td>{session.model || "-"}</td>
+                  <td>
+                    <div>{session.model || "-"}</div>
+                    {session.reasoningEffort ? <div className="muted session-effort">effort · {session.reasoningEffort}</div> : null}
+                  </td>
                   <td className="numeric">
                     <LiveSessionTokens sessionId={session.id} fallback={tokenValue} live={session.status === "running"} />
                   </td>
