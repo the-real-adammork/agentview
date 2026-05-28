@@ -242,7 +242,7 @@ export function SessionsView({
             />
             <span className="muted">↵ exec</span>
           </label>
-          <div className="chip dim">SORT · updated_at ↓</div>
+          <div className="chip dim">SORT · created_at ↓</div>
           <div className="chip dim">TREE · thread_spawn_edges</div>
           <div className="chip">PROFILE · adam@local</div>
         </div>

@@ -18,6 +18,8 @@ const warningsOf = (session: SessionSummary): number => session.warningCount ?? 
 const failedOf = (session: SessionSummary): number => session.failedToolCount ?? 0;
 export const sessionUpdatedMs = (session: SessionSummary): number =>
   session.updatedAtMs ?? (Date.parse(session.updatedAt) || 0);
+export const sessionCreatedMs = (session: SessionSummary): number =>
+  session.createdAtMs ?? sessionUpdatedMs(session);
 
 /** Walks parentId to the topmost ancestor present in the index (cycle/orphan safe). */
 export const rootOf = (session: SessionSummary, index: SessionIndex): SessionSummary => {
@@ -242,14 +244,14 @@ export const buildSessionRows = (
   const visible = sessions.filter((session) => visibleIds.has(session.id));
   const roots = visible
     .filter((session) => isRoot(session, index))
-    .sort((left, right) => sessionUpdatedMs(right) - sessionUpdatedMs(left));
+    .sort((left, right) => sessionCreatedMs(right) - sessionCreatedMs(left));
 
   const rows: SessionRow[] = [];
   for (const root of roots) {
     rows.push({ session: root, depth: 0, matched: matchedIds.has(root.id), isLastSub: false });
     const subs = visible
       .filter((session) => session.id !== root.id && isDescendantOf(session, root.id, index))
-      .sort((left, right) => sessionUpdatedMs(right) - sessionUpdatedMs(left));
+      .sort((left, right) => sessionCreatedMs(right) - sessionCreatedMs(left));
     subs.forEach((sub, subIndex) => {
       rows.push({ session: sub, depth: 1, matched: matchedIds.has(sub.id), isLastSub: subIndex === subs.length - 1 });
     });
