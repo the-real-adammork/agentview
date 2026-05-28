@@ -398,7 +398,7 @@ export function SessionsView({
                   </td>
                   <td>{session.model || "-"}</td>
                   <td className="numeric">
-                    <LiveSessionTokens sessionId={session.id} fallback={tokenValue} />
+                    <LiveSessionTokens sessionId={session.id} fallback={tokenValue} live={session.status === "running"} />
                     <TokenSegBar tokens={tokenValue} />
                   </td>
                   <td className="badge-cell">

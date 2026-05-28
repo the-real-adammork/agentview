@@ -15,6 +15,7 @@ import {
 } from "@xyflow/react";
 
 import { ShortId } from "../components/ShortId";
+import { toneForDepth } from "./sessionTree";
 import type { AgentGraph, AgentNode, ApiError, SessionSummary } from "../../shared/contracts";
 
 const compactFormatter = new Intl.NumberFormat("en-US", {
@@ -100,6 +101,7 @@ function AgentFlowNodeView({ data, selected }: NodeProps<AgentFlowNode>) {
         className={`node ${node.sourceEdgeStatus === "open" ? "status-open" : ""}`}
         data-open={selected}
         data-status={node.status}
+        data-tone={toneForDepth(node.depth)}
         onClick={onSelect}
         onDoubleClick={onOpenTimeline}
         type="button"
@@ -276,7 +278,7 @@ export function AgentGraphView({
             </div>
             {selectedNode ? (
               <div className="graph-info__body">
-                <span className={selectedNode.depth > 0 ? "haztag amber" : "haztag primary"}>
+                <span className={`haztag ${toneForDepth(selectedNode.depth)}`}>
                   {nodeRole(selectedNode, selectedNode.id === graph.root.id)}
                 </span>
                 <strong className="display graph-info__title">{selectedNode.title}</strong>

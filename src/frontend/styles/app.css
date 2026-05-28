@@ -4526,3 +4526,17 @@ tbody tr[aria-current="true"] {
   margin-bottom: 4px;
 }
 .tkc-meter .k { color: var(--ink-dim); }
+
+/* ============================================================
+   v0.3 ADDITIONS · unified depth tones on Agent Graph + haztag
+   orange root · amber sub · cyan sub-sub (matches toneForDepth()).
+   ============================================================ */
+.haztag.primary { color: var(--primary); }
+.haztag.amber { color: var(--amber); }
+.haztag.cyan { color: var(--cyan); }
+
+/* Graph node depth accent (status-open keeps its warn border/role). */
+.node[data-tone="amber"]:not(.status-open):not([data-status="running"]) { border-color: rgba(255, 184, 0, 0.45); }
+.node[data-tone="amber"]:not(.status-open):not([data-status="running"]) .role { color: var(--amber); }
+.node[data-tone="cyan"]:not(.status-open):not([data-status="running"]) { border-color: rgba(70, 216, 255, 0.45); }
+.node[data-tone="cyan"]:not(.status-open):not([data-status="running"]) .role { color: var(--cyan); }

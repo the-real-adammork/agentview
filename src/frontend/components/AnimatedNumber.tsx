@@ -9,10 +9,13 @@ interface AnimatedNumberProps {
   duration?: number;
 }
 
-const prefersReducedMotion = (): boolean =>
+// Only animate when we can positively confirm motion is allowed. When matchMedia
+// is unavailable (jsdom/SSR) or reduce is preferred, snap straight to the value —
+// keeping tests deterministic and respecting the user's motion preference.
+const canAnimate = (): boolean =>
   typeof window !== "undefined" &&
   typeof window.matchMedia === "function" &&
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /**
  * Tweens the displayed value (easeOutCubic) whenever `value` changes and flashes
@@ -41,7 +44,7 @@ export function AnimatedNumber({
     const direction = value >= prevRef.current ? "up" : "down";
     prevRef.current = value;
 
-    if (prefersReducedMotion()) {
+    if (!canAnimate()) {
       fromRef.current = value;
       setDisplay(value);
       return;
