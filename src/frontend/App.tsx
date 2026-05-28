@@ -28,8 +28,6 @@ const views = ["Sessions", "Timeline", "Agent Graph", "Tokens", "Diagnostics"] a
 
 export type ObservatoryView = (typeof views)[number];
 
-const LIVE_TOKEN_POLL_MS = 5000;
-
 export function App() {
   const fixture = useMemo(() => createFixtureSnapshot(), []);
   const liveTokenStore = useMemo(() => createLiveTokenStore(), []);
@@ -135,27 +133,6 @@ export function App() {
     };
   }, [sessionFilter, liveTokenStore]);
 
-  useEffect(() => {
-    const poll = () => {
-      if (typeof document !== "undefined" && document.hidden) {
-        return;
-      }
-
-      void realApiClient
-        .listSessions(sessionFilter, { limit: 500, offset: 0 })
-        .then((result) => {
-          if (result.ok) {
-            // Writes only to the external store, not React state, so a token
-            // tick re-renders the subscribed token leaves and nothing else.
-            liveTokenStore.setSessions(result.data);
-          }
-        })
-        .catch(() => undefined);
-    };
-
-    const intervalId = setInterval(poll, LIVE_TOKEN_POLL_MS);
-    return () => clearInterval(intervalId);
-  }, [sessionFilter, liveTokenStore]);
 
   const activeSession = sessions.find((session) => session.id === activeSessionId) ?? sessions[0] ?? fixture.sessions[0];
   const warningSessionCount = sessions.filter(
@@ -281,6 +258,9 @@ export function App() {
       callbacks: {
         onSessions: ({ sessions: nextSessions }) => {
           setSessions(nextSessions);
+          // Live token leaves read from the external store; SSE is the single
+          // live source, so feed it here (the standalone poll is gone).
+          liveTokenStore.setSessions(nextSessions);
           setActiveSessionId(
             (current) => nextSessions.find((session) => session.id === current)?.id ?? nextSessions[0]?.id ?? "",
           );
@@ -309,7 +289,7 @@ export function App() {
 
     return () => handle.close();
     // Reopen only when the followed session changes; cursor baseline is read at open time.
-  }, [liveThreadId, liveEnabled]);
+  }, [liveThreadId, liveEnabled, liveTokenStore]);
 
   const fallbackTimeline: TimelinePayload = {
     threadId: activeSession?.id ?? "",
