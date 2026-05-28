@@ -389,11 +389,22 @@ function SessionsView({ selected, setSelected, setView }) {
    02 — TIMELINE
    ============================================================ */
 function TimelineView({ session, setSelected, setView }) {
-  const events = TIMELINES[session.id] || TIMELINES[SESSIONS[0].id];
+  const allEvents = TIMELINES[session.id] || TIMELINES[SESSIONS[0].id];
   const [filter, setFilter] = useState("all");
+  const [windowMs, setWindowMs] = useState(0); // 0 === "all"
   const [expanded, setExpanded] = useState(new Set());
-  const t0 = events[0].ts;
-  const tEnd = events[events.length - 1].ts;
+
+  // Reference time = last event in the full session. Windowing trims earlier events;
+  // the scrubber rail, tab counts and stream all reflect the same windowed slice.
+  const refNow = allEvents[allEvents.length - 1].ts;
+  const events = useMemo(
+    () => (windowMs ? allEvents.filter((e) => refNow - e.ts <= windowMs) : allEvents),
+    [allEvents, windowMs, refNow]
+  );
+
+  // Guard against an empty window (shouldn't happen since refNow is in-range, but safe)
+  const t0 = (events[0] || allEvents[0]).ts;
+  const tEnd = (events[events.length - 1] || allEvents[allEvents.length - 1]).ts;
   const span = Math.max(1, tEnd - t0);
 
   const filtered = events.filter((e) => {
@@ -494,11 +505,29 @@ function TimelineView({ session, setSelected, setView }) {
               {l} <span className="muted">·{n}</span>
             </button>
           ))}
+          <div className="tl-range" role="group" aria-label="Time window">
+            <span className="tl-range-lbl">▸ WINDOW</span>
+            {[
+              [60 * 60 * 1000, "1H"],
+              [4 * 60 * 60 * 1000, "4H"],
+              [12 * 60 * 60 * 1000, "12H"],
+              [0, "ALL"],
+            ].map(([ms, l]) => (
+              <button
+                key={l}
+                data-on={windowMs === ms}
+                onClick={() => setWindowMs(ms)}
+                title={ms ? `Show events from last ${l}` : "Show entire session"}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="tl-scrubber">
           <div className="hdr">
-            <span><Reticle /> TURN 01 · TASK_STARTED → TASK_COMPLETE · DUR {Math.round((tEnd - t0)/1000)}s</span>
+            <span><Reticle /> TURN 01 · {windowMs ? `LAST ${windowMs/3600000|0}H` : "TASK_STARTED → TASK_COMPLETE"} · DUR {Math.round((tEnd - t0)/1000)}s</span>
             <span>TTFT {session.ttft_ms}ms</span>
           </div>
           <div className="track">

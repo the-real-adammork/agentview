@@ -574,6 +574,43 @@ input, select, textarea { font: inherit; color: inherit; }
 }
 .tl-tabs button[data-on="true"] { color: var(--primary); border-bottom: 2px solid var(--primary); }
 
+/* time-window segmented control — right-aligned inside .tl-tabs */
+.tl-tabs .tl-range {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px 0 12px;
+  border-left: 1px solid var(--rule-soft);
+}
+.tl-tabs .tl-range-lbl {
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--ink-dim);
+  padding-right: 4px;
+  text-transform: uppercase;
+}
+.tl-tabs .tl-range button {
+  padding: 4px 8px;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  border: 1px solid var(--rule);
+  border-right: 1px solid var(--rule); /* override tabs' soft right border */
+  color: var(--ink-dim);
+  background: var(--bg-0);
+  min-width: 32px;
+  text-align: center;
+}
+.tl-tabs .tl-range button:hover { color: var(--ink); border-color: var(--rule-strong); }
+.tl-tabs .tl-range button[data-on="true"] {
+  color: var(--bg-0);
+  background: var(--primary);
+  border-color: var(--primary);
+  border-bottom: 1px solid var(--primary); /* cancel the 2px underline from generic .tl-tabs rule */
+  box-shadow: 0 0 8px rgba(255,107,26,0.5);
+}
+
 .tl-scrubber {
   position: relative;
   height: 64px;
@@ -760,3 +797,200 @@ input, select, textarea { font: inherit; color: inherit; }
 
 /* tweaks panel: keep above scanlines */
 .tweaks-panel { z-index: 300 !important; }
+
+/* ============================================================
+   RESPONSIVE
+   ------------------------------------------------------------
+   Progressive degradation. The dashboard is designed for ≥1600px
+   but stays readable down to ~640px by:
+     1) tightening sidebars/padding,
+     2) dropping non-essential header chrome and table columns,
+     3) collapsing 3-pane views to 2-pane then 1-pane,
+     4) compacting nav to index-only at the narrowest sizes.
+   ============================================================ */
+
+/* ---------- ≤1440 — tighten ---------- */
+@media (max-width: 1440px) {
+  .header { grid-template-columns: 280px 1fr auto; }
+  .header .brand { padding: 0 12px; gap: 10px; }
+  .header .brand .mark { width: 32px; height: 32px; }
+  .header .brand .mark::after { font-size: 14px; }
+  .header .brand .name { font-size: 16px; letter-spacing: 0.14em; }
+  .nav button { padding: 0 14px; letter-spacing: 0.14em; }
+  .top-hazard .center { padding: 0 14px; letter-spacing: 0.28em; font-size: 13px; gap: 12px; }
+
+  .overview  { grid-template-columns: 280px 1fr; }
+  .timeline  { grid-template-columns: 320px 1fr 300px; }
+  .diag      { grid-template-columns: 240px 1fr 260px; }
+  .graph     { grid-template-columns: 1fr 300px; }
+}
+
+/* ---------- ≤1280 — drop JP + low-priority header stats ---------- */
+@media (max-width: 1280px) {
+  .top-hazard .center .jp { display: none; }
+  .header .brand .sub { display: none; }
+  /* keep only Sessions + Clock in header right */
+  .header .right .stat:nth-child(2),
+  .header .right .stat:nth-child(3) { display: none; }
+  .header .right { gap: 12px; padding: 0 12px; }
+}
+
+/* ---------- ≤1100 — collapse right panels, drop table cols ---------- */
+@media (max-width: 1100px) {
+  /* Sessions table: hide Source & Child columns */
+  .tbl thead th:nth-child(7),
+  .tbl tbody td:nth-child(7),
+  .tbl thead th:nth-child(8),
+  .tbl tbody td:nth-child(8) { display: none; }
+
+  /* Timeline: drop the right vitals pane */
+  .timeline   { grid-template-columns: 300px 1fr; }
+  .tl-side-r  { display: none; }
+
+  /* Diagnostics: drop the right runtime pane */
+  .diag                { grid-template-columns: 240px 1fr; }
+  .diag aside.right    { display: none; }
+
+  /* Tokens: 3-col internal rows become 2 */
+  .tokens .row2 { grid-template-columns: 1fr 1fr; }
+  .tokens .row2 > section[style*="span 2"] { grid-column: 1 / -1 !important; }
+
+  .ov-toolbar .chip:nth-child(3) { display: none; } /* JOIN chip */
+}
+
+/* ---------- ≤960 — stack to single column ---------- */
+@media (max-width: 960px) {
+  /* main grid rows: a touch shorter */
+  .shell { grid-template-rows: 32px 52px 1fr 22px; }
+  .top-hazard .stripe { height: 10px; }
+  .top-hazard .center { font-size: 11px; letter-spacing: 0.22em; }
+
+  .header { grid-template-columns: auto 1fr; }
+  .header .right { display: none; }
+  .header .brand .name { font-size: 14px; }
+  .nav button { padding: 0 10px; font-size: 10px; }
+
+  /* Sessions: filters become a top bar */
+  .overview { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .ov-side {
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+    grid-template-rows: auto auto auto;
+    max-height: 240px;
+    overflow-y: auto;
+  }
+  .ov-side > .filter-grp:nth-child(3) { display: none; } /* hide sparkline group */
+  .ov-side > .side-stat { grid-template-columns: repeat(4, 1fr); }
+  .side-stat .cell .v { font-size: 18px; }
+
+  /* drop Model column too */
+  .tbl thead th:nth-child(5),
+  .tbl tbody td:nth-child(5) { display: none; }
+
+  /* Timeline: hide left meta panel too (nav handles return) */
+  .timeline { grid-template-columns: 1fr; }
+  .tl-side  { display: none; }
+  .tl-tabs { overflow-x: auto; }
+  .tl-tabs button { white-space: nowrap; padding: 10px 12px; }
+  .tl-tabs .tl-range { margin-left: 0; border-left: 0; padding-left: 8px; }
+  .tl-tabs .tl-range-lbl { display: none; }
+
+  /* Graph: stack canvas + inspector */
+  .graph { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+  .graph-info {
+    border-left: 0;
+    border-top: 1px solid var(--rule);
+    max-height: 280px;
+  }
+
+  /* Diagnostics: stack filter sidebar above log stream */
+  .diag { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .diag aside {
+    border-right: 0;
+    border-bottom: 1px solid var(--rule);
+    max-height: 220px;
+    overflow: auto;
+  }
+  .log-row { grid-template-columns: 80px 56px 1fr; }
+  .log-row .tgt { display: none; }
+
+  /* Status footer: drop $CODEX_HOME + LINK badges */
+  .status { grid-template-columns: auto 1fr auto; gap: 12px; padding: 0 10px; }
+  .status > span:nth-child(3),
+  .status > span:nth-child(4) { display: none; }
+}
+
+/* ---------- ≤720 — minimum-viable ---------- */
+@media (max-width: 720px) {
+  html, body { overflow: hidden auto; }
+  .shell { min-height: 100vh; }
+
+  /* Nav becomes code-only chips: 00 01 02 03 04 */
+  .nav button { padding: 0 10px; }
+  .nav button > span:not(.idx) { display: none; }
+  .nav button .idx { font-size: 13px; color: var(--ink-dim); letter-spacing: 0.08em; }
+  .nav button[data-active="true"] .idx { color: var(--bg-0); }
+
+  /* Brand: mark only */
+  .header .brand > div { display: none; }
+  .header .brand { padding: 0 10px; border-right: 1px solid var(--rule); }
+  .header .brand .mark { width: 28px; height: 28px; }
+  .header .brand .mark::after { font-size: 12px; }
+
+  /* Top hazard: drop blink LIVE, keep wordmark only */
+  .top-hazard .center .blink { display: none; }
+  .top-hazard .center { font-size: 10px; letter-spacing: 0.18em; gap: 8px; }
+  .top-hazard .center > span:first-child { display: none; } /* SYS: */
+
+  /* Status: ticker only */
+  .status { font-size: 9px; letter-spacing: 0.1em; }
+  .status > span:last-child { display: none; } /* clock — already in nowhere */
+
+  /* Sessions filters tighter */
+  .ov-side { max-height: 200px; }
+  .ov-side > .side-stat { grid-template-columns: repeat(2, 1fr); }
+  .ov-toolbar { padding: 8px 10px; flex-wrap: wrap; }
+  .ov-toolbar .chip { display: none; }
+  .ov-toolbar .ov-search { width: 100%; }
+
+  /* Tokens collapses to single column entirely */
+  .tokens .row2 { grid-template-columns: 1fr; }
+  .tokens > section { padding: 12px 14px; }
+
+  /* Drop Repo column too — leaves Updated / Title / Tokens / Warn */
+  .tbl thead th:nth-child(4),
+  .tbl tbody td:nth-child(4) { display: none; }
+
+  /* Events: tighten timestamp column */
+  .ev { grid-template-columns: 64px 1fr; gap: 8px; padding: 6px 0 6px 10px; }
+  .ev .ts { font-size: 10px; }
+  .ev pre { font-size: 11px; }
+
+  /* Log rows: drop level chip column to just dot */
+  .log-row { grid-template-columns: 72px 36px 1fr; gap: 6px; padding: 4px 10px; font-size: 10px; }
+
+  /* Background grid: reduce density */
+  .grid-bg { background-size: 36px 36px; }
+}
+
+/* ---------- portrait phones ≤520 ---------- */
+@media (max-width: 520px) {
+  .top-hazard .center { display: none; } /* let stripes fill */
+  .nav button { padding: 0 8px; }
+  .nav button .idx { font-size: 11px; }
+
+  /* Sessions table → drop Updated col too: just Title + Tokens + Warn */
+  .tbl thead th:nth-child(2),
+  .tbl tbody td:nth-child(2) { display: none; }
+  .tbl tbody td:nth-child(3) { font-size: 11px; }
+
+  .side-stat .cell .v { font-size: 16px; }
+  .tl-tabs button { font-size: 10px; padding: 8px 8px; letter-spacing: 0.12em; }
+}
+
+/* ---------- short viewports ---------- */
+@media (max-height: 640px) {
+  .shell { grid-template-rows: 28px 48px 1fr 22px; }
+  .top-hazard .stripe { height: 8px; }
+  .tl-scrubber { height: 52px; }
+}
