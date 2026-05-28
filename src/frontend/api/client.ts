@@ -161,13 +161,44 @@ const buildLogQuery = (query: RuntimeLogQuery = {}) => {
   return queryString ? `?${queryString}` : "";
 };
 
-async function getJson<T>(path: string): Promise<ApiResult<T>> {
-  const response = await fetch(`${apiBaseUrl}${path}`, {
-    headers: {
-      accept: "application/json",
-    },
-  });
-  const body = (await response.json()) as ApiResult<T>;
+async function requestJson<T>(path: string, init?: RequestInit): Promise<ApiResult<T>> {
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}${path}`, {
+      ...init,
+      headers: {
+        accept: "application/json",
+        ...(init?.headers ?? {}),
+      },
+    });
+  } catch {
+    // fetch only rejects on a transport failure (server down, DNS, CORS). Surface
+    // an actionable message instead of the browser's bare "Failed to fetch".
+    return {
+      ok: false,
+      source: "client",
+      warnings: [],
+      error: {
+        code: "API_UNREACHABLE",
+        message: `Cannot reach the AgentView API at ${apiBaseUrl}. Is the API server running (npm run api)?`,
+      },
+    };
+  }
+
+  let body: ApiResult<T>;
+  try {
+    body = (await response.json()) as ApiResult<T>;
+  } catch {
+    return {
+      ok: false,
+      source: "client",
+      warnings: [],
+      error: {
+        code: "INVALID_RESPONSE",
+        message: `The AgentView API returned a non-JSON response (HTTP ${response.status}).`,
+      },
+    };
+  }
 
   if (!response.ok && body.ok) {
     return {
@@ -183,6 +214,15 @@ async function getJson<T>(path: string): Promise<ApiResult<T>> {
 
   return body;
 }
+
+const getJson = <T>(path: string): Promise<ApiResult<T>> => requestJson<T>(path);
+
+const postJson = <T>(path: string, payload: unknown): Promise<ApiResult<T>> =>
+  requestJson<T>(path, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
 
 export const realApiClient: ObservatoryApi = {
   getHealth() {
@@ -215,15 +255,13 @@ export const realApiClient: ObservatoryApi = {
     return getJson<RuntimeLogPage>(`/api/logs${buildLogQuery(query)}`);
   },
   getDiagnosticsSummary(options) {
-    const params = new URLSearchParams();
-    for (const threadId of options?.threadIds ?? []) {
-      if (threadId.trim()) {
-        params.append("threadId", threadId);
-      }
-    }
-    appendParam(params, "targetLimit", options?.targetLimit);
-    const queryString = params.toString();
-    return getJson(`/api/diagnostics/summary${queryString ? `?${queryString}` : ""}`);
+    // POST so the (potentially hundreds of) thread ids travel in the body instead
+    // of an over-length query string that the server would reject.
+    const threadIds = (options?.threadIds ?? []).filter((threadId) => threadId.trim());
+    return postJson("/api/diagnostics/summary", {
+      threadIds,
+      ...(options?.targetLimit !== undefined ? { targetLimit: options.targetLimit } : {}),
+    });
   },
   tailRawTuiLog(options) {
     const params = new URLSearchParams();

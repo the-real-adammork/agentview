@@ -9,7 +9,7 @@ import { parseRolloutFile } from "../rollout/jsonlStream";
 import { resolveRolloutPath } from "./timeline";
 import { openStateStore } from "../sqlite/stateStore";
 import { LogStoreError, openLogStore } from "../sqlite/logStore";
-import { fail, ok, writeJson } from "./http";
+import { fail, ok, readJsonBody, writeJson } from "./http";
 
 const levelValues = new Set<RuntimeLogLevel>(["TRACE", "DEBUG", "INFO", "WARN", "ERROR"]);
 
@@ -255,13 +255,17 @@ export const handleDiagnosticsApiRequest = async (request: IncomingMessage, resp
     return false;
   }
 
-  if (request.method !== "GET") {
+  // The summary also accepts POST: the thread list can run to hundreds of ids,
+  // which overflows the URL/header length limit as GET query params.
+  const isSummaryPost = url.pathname === "/api/diagnostics/summary" && request.method === "POST";
+
+  if (request.method !== "GET" && !isSummaryPost) {
     writeJson(
       response,
       405,
       fail("logs-db", {
         code: "METHOD_NOT_ALLOWED",
-        message: "Diagnostics API only supports GET requests.",
+        message: "Diagnostics API only supports GET requests (POST for /api/diagnostics/summary).",
       }),
       origin,
     );
@@ -328,18 +332,39 @@ export const handleDiagnosticsApiRequest = async (request: IncomingMessage, resp
     }
   }
 
-  const parsed = parseSummaryQuery(url);
-  if (!parsed.ok) {
-    writeJson(
-      response,
-      400,
-      fail("logs-db", {
-        code: "INVALID_FILTER",
-        message: parsed.message,
-      }),
-      origin,
-    );
-    return true;
+  let threadIds: string[];
+  let targetLimit: number | undefined;
+  if (isSummaryPost) {
+    let body: unknown;
+    try {
+      body = await readJsonBody(request);
+    } catch {
+      writeJson(response, 400, fail("logs-db", { code: "INVALID_BODY", message: "Request body must be valid JSON." }), origin);
+      return true;
+    }
+    const payload = (body ?? {}) as { threadIds?: unknown; targetLimit?: unknown };
+    threadIds = Array.isArray(payload.threadIds)
+      ? payload.threadIds.filter((threadId): threadId is string => typeof threadId === "string" && threadId.trim() !== "")
+      : [];
+    targetLimit = typeof payload.targetLimit === "number" && Number.isSafeInteger(payload.targetLimit) && payload.targetLimit >= 1
+      ? payload.targetLimit
+      : undefined;
+  } else {
+    const parsed = parseSummaryQuery(url);
+    if (!parsed.ok) {
+      writeJson(
+        response,
+        400,
+        fail("logs-db", {
+          code: "INVALID_FILTER",
+          message: parsed.message,
+        }),
+        origin,
+      );
+      return true;
+    }
+    threadIds = parsed.threadIds;
+    targetLimit = parsed.targetLimit;
   }
 
   const codexHome = await resolveCodexHome();
@@ -347,10 +372,10 @@ export const handleDiagnosticsApiRequest = async (request: IncomingMessage, resp
   try {
     const store = await openLogStore({ codexHome });
     try {
-      const summary = await store.getDiagnosticsSummary({ threadIds: parsed.threadIds, targetLimit: parsed.targetLimit });
+      const summary = await store.getDiagnosticsSummary({ threadIds, targetLimit });
       const failedCommands =
-        parsed.threadIds.length > 0
-          ? await failedCommandsFromRolloutCache({ codexHome, threadIds: parsed.threadIds })
+        threadIds.length > 0
+          ? await failedCommandsFromRolloutCache({ codexHome, threadIds })
           : [];
       writeJson(
         response,
@@ -364,7 +389,7 @@ export const handleDiagnosticsApiRequest = async (request: IncomingMessage, resp
     }
   } catch (error) {
     if (error instanceof LogStoreError && error.code === "LOGS_DB_MISSING") {
-      const summary = await fallbackSummaryFromRolloutCache({ codexHome, threadIds: parsed.threadIds });
+      const summary = await fallbackSummaryFromRolloutCache({ codexHome, threadIds });
       writeJson(response, 200, ok("rollout-cache", summary, [error.message]), origin);
       return true;
     }

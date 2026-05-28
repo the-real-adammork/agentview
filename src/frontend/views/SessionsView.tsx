@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 
 import { ShortId } from "../components/ShortId";
 import { LiveSessionTokens, LiveTokenTotal } from "../live/LiveTokens";
+import { formatTokens } from "./formatTokens";
 import { countActiveSessions, tokensByHour } from "./sessionStats";
 import {
   REPO_ACTIVE_WINDOW_MS,
@@ -32,7 +33,6 @@ const uniqueValues = (sessions: SessionSummary[], getValue: (session: SessionSum
   );
 
 const formatTime = (value: string) => new Date(value).toLocaleTimeString("en-US");
-const tokensK = (value: number) => `${Math.round(value / 1000)}K`;
 
 const isSubagent = (session: SessionSummary) => session.threadSource === "subagent" || Boolean(session.agentRole);
 
@@ -171,7 +171,7 @@ export function SessionsView({
           <StatCell label="Active" value={activeSessions} sub={repoFilter ? "updated < 12h" : "updated < 1h"} />
           <StatCell label="Sub-agents" value={subagentSessions} sub="subagent threads" />
           <StatCell label="Open child" value={openChildren} tone="warn" sub="awaiting" />
-          <StatCell label="Σ Tokens" value={repoFilter ? tokensK(tokenTotal) : <LiveTokenTotal fallback={tokenTotal} />} sub={repoFilter ? "this repo" : "all sessions"} />
+          <StatCell label="Σ Tokens" value={repoFilter ? formatTokens(tokenTotal) : <LiveTokenTotal fallback={tokenTotal} />} sub={repoFilter ? "this repo" : "all sessions"} />
         </div>
 
         <div className="filter-grp">

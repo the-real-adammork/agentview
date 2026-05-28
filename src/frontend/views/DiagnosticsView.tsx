@@ -379,9 +379,15 @@ export function DiagnosticsView({ logs: fallbackLogs, sessions }: DiagnosticsVie
             ) : (
               <section className="raw-tail" aria-label="Raw TUI log">
                 {rawError ? (
-                  <div className="inline-alert" role="alert">
-                    {rawError.message}
-                  </div>
+                  rawError.code === "RAW_TUI_LOG_MISSING" ? (
+                    <p className="empty-state">
+                      No raw TUI log on this host (~/.codex/log/codex-tui.log not found).
+                    </p>
+                  ) : (
+                    <div className="inline-alert" role="alert">
+                      {rawError.message}
+                    </div>
+                  )
                 ) : null}
                 <pre>{rawTail?.textPreview ?? ""}</pre>
                 <div className="raw-tail__actions">

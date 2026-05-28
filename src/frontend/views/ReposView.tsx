@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 
 import type { SessionSummary } from "../../shared/contracts";
+import { formatTokens } from "./formatTokens";
 import { type RepoGroup, type RepoRoot, groupSessionsByRepo, sessionUpdatedMs } from "./sessionTree";
 
 interface ReposViewProps {
@@ -10,8 +11,6 @@ interface ReposViewProps {
 }
 
 const pad2 = (value: number) => String(value).padStart(2, "0");
-const tokensK = (value: number) => `${Math.round(value / 1000)}K`;
-const tokensK1 = (value: number) => `${(value / 1000).toFixed(1)}K`;
 
 const ago = (ms: number, nowMs: number) => {
   const minutes = Math.max(0, Math.round((nowMs - ms) / 60000));
@@ -33,13 +32,13 @@ function SubChip({ sub, nowMs, onSelectSession }: { sub: SessionSummary; nowMs: 
         event.stopPropagation();
         onSelectSession(sub.id);
       }}
-      title={`${sub.agentNickname ?? "agent"} · ${sub.agentRole ?? "worker"} · ${tokensK1(sessionTokens(sub))} tok · ${ago(sessionUpdatedMs(sub), nowMs)} ago`}
+      title={`${sub.agentNickname ?? "agent"} · ${sub.agentRole ?? "worker"} · ${formatTokens(sessionTokens(sub))} tok · ${ago(sessionUpdatedMs(sub), nowMs)} ago`}
       type="button"
     >
       <span className="sub-chip-tab" aria-hidden="true" />
       <span className="sub-chip-nick">{sub.agentNickname ?? "agent"}</span>
       <span className="sub-chip-role">{roleInitial(sub)}</span>
-      <span className="sub-chip-tok num">{tokensK1(sessionTokens(sub))}</span>
+      <span className="sub-chip-tok num">{formatTokens(sessionTokens(sub))}</span>
       {isOpen ? <span className="sub-chip-dot" aria-label="open" /> : null}
     </button>
   );
@@ -77,7 +76,7 @@ function RepoTreeRow({
           <div className="repo-row-title">{root.title}</div>
           <div className="repo-row-meta">
             <span className="chip">USER · ROOT</span>
-            <span className="num">{tokensK1(sessionTokens(root))}</span>
+            <span className="num">{formatTokens(sessionTokens(root))}</span>
             <span className="muted">·</span>
             <span className="muted num">{ago(sessionUpdatedMs(root), nowMs)} ago</span>
             {(root.warningCount ?? 0) > 0 ? <span className="chip warn">▲ {root.warningCount}</span> : null}
@@ -141,7 +140,7 @@ function RepoCard({
             <span className="l">Active 12h</span>
           </div>
           <div className="stat">
-            <span className="v num">{tokensK(group.totalTokens)}</span>
+            <span className="v num">{formatTokens(group.totalTokens)}</span>
             <span className="l">Σ Tokens</span>
           </div>
           <div className="stat">

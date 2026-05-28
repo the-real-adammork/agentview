@@ -1,4 +1,4 @@
-export type ApiSource = "fixture" | "state-db" | "rollout-cache" | "logs-db" | "raw-log";
+export type ApiSource = "fixture" | "state-db" | "rollout-cache" | "logs-db" | "raw-log" | "client";
 
 export type ApiResult<T> =
   | {

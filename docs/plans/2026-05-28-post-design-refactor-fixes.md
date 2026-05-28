@@ -109,6 +109,19 @@ the sub-agent row shows the *parent's* text. Two hypotheses to confirm against t
 
 ## 3. "Failed to fetch" error in the Diagnostics panel
 
+**Status: ✅ Fixed 2026-05-28.** Three parts:
+1. `getJson` (now `requestJson`) in `client.ts` wraps `fetch` and JSON parsing in
+   try/catch, returning a typed `API_UNREACHABLE` / `INVALID_RESPONSE` error with an
+   actionable message instead of the browser's bare "Failed to fetch" — for every view.
+2. `DiagnosticsView` renders `RAW_TUI_LOG_MISSING` as an empty-state ("No raw TUI log on
+   this host") rather than a red error alert.
+3. **Deeper root cause found during verification:** the diagnostics summary was a GET
+   with one `threadId` query param per session — with ~500 sessions the URL ran to
+   ~13 KB and the server rejected it (the actual "Failed to fetch"). The summary now
+   accepts **POST** with the ids in the JSON body (`http.readJsonBody`, `diagnostics.ts`
+   allows POST, `client.postJson`); GET is retained for small lists + the existing test.
+   Verified live: summary returns `200 POST`, no alert; integration test added.
+
 **Symptom:** The Diagnostics panel shows a "Failed to fetch" error.
 
 **Root cause (two distinct things):**
@@ -144,6 +157,13 @@ API up and no `codex-tui.log`, the raw-tail section shows an empty-state, not an
 ---
 
 ## 4. Token counts only abbreviate to "K" — need M/B (and T) abbreviations
+
+**Status: ✅ Fixed 2026-05-28.** Added a shared `formatTokens` (`views/formatTokens.ts`)
+using compact `Intl.NumberFormat` and replaced the bespoke `tokensK`/`tokensK1` in
+`ReposView` and the `SessionsView` Σ Tokens stat. Verified live: repo totals now read
+e.g. `297.7M` / `300.1M` and sub-chips `6.2M` (was inflated "K"). Unit test added.
+(The already-correct compact formatters in Timeline/AgentGraph/LiveTokens/Tokens views
+were left as-is to limit churn; full consolidation onto `formatTokens` can follow later.)
 
 **Symptom:** Token values render like `93953K` (i.e. ~94 billion shown as "93953K")
 instead of a readable `~94B`. The "K" suffix is applied at every magnitude regardless of
@@ -185,6 +205,14 @@ formatter the rest of the app uses.
 ---
 
 ## 5. SSE live-stream write-after-end crashes the whole API process  ⚠️ stability
+
+**Status: ✅ Fixed 2026-05-28.** In `stream.ts`, all SSE writes go through `safeWrite`,
+which no-ops when `response.writableEnded || response.destroyed` and tears the connection
+down (via `cleanup`) on a write error; `close` is guarded too. Added
+`request/response` `"error"` listeners so a transport error can never escalate to an
+uncaught exception. Verified live: a connect/disconnect storm and the browser closing
+mid-stream no longer kill the API (`/api/sessions` keeps returning 200); the client's
+`ERR_ABORTED` on navigation is the expected, now-handled disconnect.
 
 **Symptom:** The API process exits (taking down the dashboard) with
 `Error [ERR_STREAM_WRITE_AFTER_END]: write after end`. Observed when an SSE client
@@ -266,6 +294,7 @@ local use. Note: a "Failed to fetch" in *any* view (Timeline, Diagnostics, …) 
 downstream symptom of #5 — once the API process dies, every fetch to `:4317` fails until
 it's restarted.
 
-**Done so far:** #1 (worktrees), #2 (sub-agent titles), and #6 (duplicate token bar) are
-fixed on `main`. Remaining: #5 (crash), #4 (token M/B/T formatter), #3 (diagnostics
-empty-states), #7 (origin-capture repo split — needs its own plan).
+**Done:** #1 (worktrees), #2 (sub-agent titles), #3 (diagnostics: friendly errors +
+raw-log empty-state + summary POST), #4 (token M/B/T formatter), #5 (SSE crash), and #6
+(duplicate token bar) are all fixed on `main`. **Remaining:** #7 (origin-capture repo
+split — needs its own plan).
