@@ -381,11 +381,63 @@ input, select, textarea { font: inherit; color: inherit; }
 /* header bar with nav */
 .header {
   display: grid;
-  grid-template-columns: 320px 1fr auto;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   border-bottom: 1px solid var(--rule);
   background: var(--bg-1);
 }
+
+/* REPOS button — replaces the brand text; click goes to Repos view */
+.repos-btn {
+  display: flex; align-items: center; gap: 10px;
+  height: 100%;
+  padding: 0 18px;
+  border: 0;
+  border-right: 1px solid var(--rule);
+  background: var(--bg-1);
+  cursor: pointer;
+  color: var(--ink-strong);
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-size: 14px;
+  position: relative;
+}
+.repos-btn .mark {
+  width: 30px; height: 30px;
+  background: var(--primary);
+  clip-path: polygon(0 0, 100% 0, 100% 70%, 70% 100%, 0 100%);
+  box-shadow: 0 0 12px rgba(255, 107, 26, 0.55);
+  position: relative;
+  display: grid; place-items: center;
+}
+.repos-btn .mark::after {
+  content: "▦";
+  color: var(--bg-0);
+  font-size: 16px;
+  line-height: 1;
+}
+.repos-btn .lbl { color: var(--ink-strong); }
+.repos-btn .caret {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--primary);
+  letter-spacing: 0;
+  opacity: 0.6;
+  transition: transform 80ms, opacity 80ms;
+}
+.repos-btn:hover { background: rgba(255, 107, 26, 0.08); }
+.repos-btn:hover .caret { opacity: 1; transform: translateX(2px); }
+.repos-btn[data-active="true"] {
+  background: var(--primary);
+  color: var(--bg-0);
+}
+.repos-btn[data-active="true"] .mark { background: var(--bg-0); box-shadow: none; }
+.repos-btn[data-active="true"] .mark::after { color: var(--primary); }
+.repos-btn[data-active="true"] .lbl,
+.repos-btn[data-active="true"] .caret { color: var(--bg-0); opacity: 1; }
+.repos-btn:focus-visible { outline: 1px solid var(--primary); outline-offset: -2px; }
 .header .brand {
   display: flex; align-items: center; gap: 12px;
   height: 100%;
@@ -409,10 +461,68 @@ input, select, textarea { font: inherit; color: inherit; }
   letter-spacing: 0;
   font-size: 16px;
 }
-.header .brand .name { font-family: var(--display); font-weight: 700; font-size: 18px; letter-spacing: 0.18em; color: var(--ink-strong); }
-.header .brand .sub { font-size: 10px; letter-spacing: 0.24em; color: var(--ink-dim); text-transform: uppercase; }
+.header .brand .name { font-family: var(--display); font-weight: 700; font-size: 18px; letter-spacing: 0.18em; color: var(--ink-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.header .brand .sub { font-size: 10px; letter-spacing: 0.24em; color: var(--ink-dim); text-transform: uppercase; white-space: nowrap; }
 
-.nav { display: flex; height: 100%; align-items: stretch; }
+/* Active-agent badge — identifies the loaded thread, visible across all views */
+.active-agent {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  padding: 0 16px;
+  border: 0;
+  border-right: 1px solid var(--rule);
+  background: var(--bg-1);
+  font-family: var(--display);
+  text-transform: uppercase;
+  color: var(--ink);
+  cursor: pointer;
+  position: relative;
+}
+.active-agent .tab {
+  width: 4px; height: 26px;
+  background: var(--primary);
+  box-shadow: 0 0 8px var(--primary);
+}
+.active-agent[data-tone="amber"] .tab {
+  background: var(--amber);
+  box-shadow: 0 0 8px var(--amber);
+}
+.active-agent .meta { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1; }
+.active-agent .kicker {
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  color: var(--ink-dim);
+}
+.active-agent[data-tone="amber"] .kicker { color: var(--amber); }
+.active-agent .name {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--ink-strong);
+  margin-top: 2px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.active-agent .arrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--primary);
+  letter-spacing: 0;
+  margin-left: 4px;
+  opacity: 0;
+  transition: opacity 80ms;
+}
+.active-agent:hover { background: rgba(255, 107, 26, 0.06); }
+.active-agent:hover .arrow { opacity: 1; }
+.active-agent[data-tone="amber"]:hover { background: rgba(255, 184, 0, 0.06); }
+.active-agent[data-tone="amber"]:hover .arrow { color: var(--amber); }
+.active-agent:focus-visible { outline: 1px solid var(--primary); outline-offset: -2px; }
+
+.nav { display: flex; height: 100%; align-items: stretch; min-width: 0; }
 .nav button {
   position: relative;
   padding: 0 18px;
@@ -424,6 +534,7 @@ input, select, textarea { font: inherit; color: inherit; }
   color: var(--ink-dim);
   border-right: 1px solid var(--rule-soft);
   display: flex; align-items: center; gap: 8px;
+  white-space: nowrap;
 }
 .nav button .idx {
   font-family: var(--mono);
@@ -541,7 +652,7 @@ input, select, textarea { font: inherit; color: inherit; }
 /* TIMELINE */
 .timeline {
   display: grid;
-  grid-template-columns: 360px 1fr 320px;
+  grid-template-columns: 320px 1fr;
   height: 100%;
   min-height: 0;
 }
@@ -550,7 +661,124 @@ input, select, textarea { font: inherit; color: inherit; }
   border-right: 1px solid var(--rule);
   overflow: hidden;
 }
-.tl-side-r { border-right: 0; border-left: 1px solid var(--rule); }
+/* Timeline sidebar now leads with the Thread Navigator (auto), then vitals title (auto),
+   then the scrollable vitals body (1fr). */
+.tl-side-r {
+  order: -1;
+  border-right: 1px solid var(--rule);
+  border-left: 0;
+  grid-template-rows: auto 1fr;
+}
+/* vitals scroll independently below the Thread Navigator */
+.tl-vitals {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Thread Navigator (Timeline sidebar) — full agent tree ──────────── */
+.thread-nav {
+  border-bottom: 1px solid var(--rule);
+  background: linear-gradient(to bottom, rgba(255,107,26,0.05), transparent);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  min-height: 0;
+}
+.thread-nav-body {
+  padding: 6px 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.thread-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-left: 2px solid transparent;
+  background: transparent;
+  padding: 6px 8px;
+  padding-left: calc(8px + var(--depth, 0) * 16px);
+  cursor: pointer;
+  font-family: inherit;
+  color: var(--ink);
+}
+.thread-row[onclick], .thread-row:not([data-here="true"]):hover {
+  background: rgba(255,255,255,0.02);
+}
+.thread-row:not([data-here="true"]):hover { background: rgba(255,107,26,0.06); }
+.thread-row[data-tone="amber"]:not([data-here="true"]):hover { background: rgba(255,184,0,0.08); }
+.thread-row .tn-connector {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--amber);
+  opacity: 0.55;
+  flex-shrink: 0;
+}
+.thread-row .tn-tab {
+  width: 4px;
+  height: 24px;
+  flex-shrink: 0;
+  background: var(--ink-faint);
+}
+.thread-row .tn-tab[data-tone="primary"] { background: var(--primary); box-shadow: 0 0 6px var(--primary); }
+.thread-row .tn-tab[data-tone="amber"] { background: var(--amber); box-shadow: 0 0 6px var(--amber); }
+.thread-row .tn-text { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.thread-row .tn-kicker {
+  font-family: var(--display);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.thread-row[data-tone="amber"] .tn-kicker { color: var(--amber); }
+.thread-row[data-tone="primary"] .tn-kicker { color: var(--primary); }
+.thread-row .tn-name {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.thread-row .tn-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-dim);
+}
+.thread-row .tn-here {
+  font-family: var(--display);
+  font-size: 8px;
+  letter-spacing: 0.16em;
+  white-space: nowrap;
+  color: var(--primary);
+}
+.thread-row[data-tone="amber"] .tn-here { color: var(--amber); }
+.thread-row .tn-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--warn);
+  box-shadow: 0 0 5px var(--warn);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+/* current (you-are-here) row */
+.thread-row[data-here="true"] {
+  background: var(--bg-2);
+  border-left-color: var(--primary);
+  cursor: default;
+}
+.thread-row[data-here="true"][data-tone="amber"] { border-left-color: var(--amber); }
+.thread-row[data-here="true"] .tn-name { font-weight: 700; }
 .tl-main { display: grid; grid-template-rows: auto auto 1fr; min-height: 0; }
 .tl-stream { overflow: auto; padding: 0 14px 24px; }
 
@@ -699,7 +927,31 @@ input, select, textarea { font: inherit; color: inherit; }
   background:
     radial-gradient(60% 60% at 50% 50%, rgba(255,107,26,0.05), transparent 70%);
 }
-.graph-info { border-left: 1px solid var(--rule); display: grid; grid-template-rows: auto 1fr; overflow: hidden; }
+.graph-info { border-left: 1px solid var(--rule); display: grid; grid-template-rows: auto auto 1fr; overflow: hidden; }
+
+/* Graph inspector hint — teaches the double-click affordance */
+.graph-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--rule-soft);
+  background: linear-gradient(to right, rgba(255,107,26,0.08), transparent);
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+.graph-hint .kbd {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--primary);
+  border: 1px solid var(--rule);
+  background: var(--bg-2);
+  padding: 1px 6px;
+  letter-spacing: 0;
+}
 
 .node {
   position: absolute;
@@ -811,16 +1063,17 @@ input, select, textarea { font: inherit; color: inherit; }
 
 /* ---------- ≤1440 — tighten ---------- */
 @media (max-width: 1440px) {
-  .header { grid-template-columns: 280px 1fr auto; }
-  .header .brand { padding: 0 12px; gap: 10px; }
-  .header .brand .mark { width: 32px; height: 32px; }
-  .header .brand .mark::after { font-size: 14px; }
-  .header .brand .name { font-size: 16px; letter-spacing: 0.14em; }
+  .header { grid-template-columns: auto 1fr auto; }
+  .repos-btn { padding: 0 14px; gap: 8px; font-size: 13px; letter-spacing: 0.18em; }
+  .repos-btn .mark { width: 28px; height: 28px; }
+  .repos-btn .mark::after { font-size: 14px; }
   .nav button { padding: 0 14px; letter-spacing: 0.14em; }
   .top-hazard .center { padding: 0 14px; letter-spacing: 0.28em; font-size: 13px; gap: 12px; }
+  .active-agent { padding: 0 12px; gap: 8px; }
+  .active-agent .name { font-size: 13px; max-width: 130px; }
 
   .overview  { grid-template-columns: 280px 1fr; }
-  .timeline  { grid-template-columns: 320px 1fr 300px; }
+  .timeline  { grid-template-columns: 1fr 300px; }
   .diag      { grid-template-columns: 240px 1fr 260px; }
   .graph     { grid-template-columns: 1fr 300px; }
 }
@@ -828,7 +1081,6 @@ input, select, textarea { font: inherit; color: inherit; }
 /* ---------- ≤1280 — drop JP + low-priority header stats ---------- */
 @media (max-width: 1280px) {
   .top-hazard .center .jp { display: none; }
-  .header .brand .sub { display: none; }
   /* keep only Sessions + Clock in header right */
   .header .right .stat:nth-child(2),
   .header .right .stat:nth-child(3) { display: none; }
@@ -843,9 +1095,33 @@ input, select, textarea { font: inherit; color: inherit; }
   .tbl thead th:nth-child(8),
   .tbl tbody td:nth-child(8) { display: none; }
 
-  /* Timeline: drop the right vitals pane */
-  .timeline   { grid-template-columns: 300px 1fr; }
-  .tl-side-r  { display: none; }
+  /* Timeline: drop the right vitals pane — but KEEP the Thread Navigator
+     as a horizontal strip above the stream so identity + switching survive */
+  .timeline   { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .tl-side-r  { display: block; border-right: 0; border-bottom: 1px solid var(--rule); overflow: visible; }
+  .tl-vitals  { display: none; }
+  .thread-nav { border-bottom: 0; }
+  .thread-nav .panel-tit { display: none; }
+  .thread-nav-body {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-height: none;
+    gap: 6px;
+    padding: 8px 12px;
+  }
+  .thread-row {
+    width: auto;
+    flex: 0 0 auto;
+    gap: 6px;
+    padding: 6px 10px !important;
+    border: 1px solid var(--rule-soft);
+    border-left-width: 2px;
+    background: var(--bg-1);
+  }
+  .thread-row .tn-connector { display: none; }
+  .thread-row .tn-name { max-width: 120px; }
 
   /* Diagnostics: drop the right runtime pane */
   .diag                { grid-template-columns: 240px 1fr; }
@@ -867,8 +1143,20 @@ input, select, textarea { font: inherit; color: inherit; }
 
   .header { grid-template-columns: auto 1fr; }
   .header .right { display: none; }
-  .header .brand .name { font-size: 14px; }
-  .nav button { padding: 0 10px; font-size: 10px; }
+  .nav button { padding: 0 10px; font-size: 10px; white-space: nowrap; }
+
+  /* Brand collapses to mark-only here — free up horizontal room for badge + nav */
+  .repos-btn { padding: 0 10px; gap: 6px; font-size: 0; letter-spacing: 0; }
+  .repos-btn .lbl { font-size: 11px; letter-spacing: 0.16em; }
+  .repos-btn .caret { display: none; }
+  .repos-btn .mark { width: 26px; height: 26px; }
+  .repos-btn .mark::after { font-size: 13px; }
+
+  /* Agent badge: drop kicker so tab + name fit on one tight line */
+  .active-agent { padding: 0 10px; gap: 8px; }
+  .active-agent .kicker { display: none; }
+  .active-agent .tab { height: 22px; width: 3px; }
+  .active-agent .name { font-size: 12px; max-width: 140px; letter-spacing: 0.1em; }
 
   /* Sessions: filters become a top bar */
   .overview { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
@@ -931,11 +1219,15 @@ input, select, textarea { font: inherit; color: inherit; }
   .nav button .idx { font-size: 13px; color: var(--ink-dim); letter-spacing: 0.08em; }
   .nav button[data-active="true"] .idx { color: var(--bg-0); }
 
-  /* Brand: mark only */
-  .header .brand > div { display: none; }
-  .header .brand { padding: 0 10px; border-right: 1px solid var(--rule); }
-  .header .brand .mark { width: 28px; height: 28px; }
-  .header .brand .mark::after { font-size: 12px; }
+  /* REPOS btn already compact from ≤960; keep at ≤720 */
+  .repos-btn .lbl { display: none; } /* mark-only */
+  .repos-btn { padding: 0 8px; }
+  .repos-btn .mark { width: 24px; height: 24px; }
+  .repos-btn .mark::after { font-size: 12px; }
+
+  /* Agent badge: tighter — colored tab + short nickname */
+  .active-agent { padding: 0 8px; gap: 6px; }
+  .active-agent .name { font-size: 11px; max-width: 96px; }
 
   /* Top hazard: drop blink LIVE, keep wordmark only */
   .top-hazard .center .blink { display: none; }
@@ -978,6 +1270,8 @@ input, select, textarea { font: inherit; color: inherit; }
   .top-hazard .center { display: none; } /* let stripes fill */
   .nav button { padding: 0 8px; }
   .nav button .idx { font-size: 11px; }
+  .active-agent { padding: 0 6px; }
+  .active-agent .name { max-width: 70px; font-size: 10px; }
 
   /* Sessions table → drop Updated col too: just Title + Tokens + Warn */
   .tbl thead th:nth-child(2),
@@ -993,4 +1287,551 @@ input, select, textarea { font: inherit; color: inherit; }
   .shell { grid-template-rows: 28px 48px 1fr 22px; }
   .top-hazard .stripe { height: 8px; }
   .tl-scrubber { height: 52px; }
+}
+
+/* ============================================================
+   REPOS VIEW
+   ------------------------------------------------------------
+   A directory of all repos. Each card is clickable to filter
+   Sessions by that repo; rows inside show active parents + nested
+   sub-agents.
+   ============================================================ */
+
+.repos {
+  height: 100%;
+  overflow: auto;
+  padding: 18px 24px 40px;
+}
+
+/* Top stats bar */
+.repos-head {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 6px 0 18px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 18px;
+}
+.repos-head-stats {
+  display: flex;
+  gap: 32px;
+  margin-left: auto;
+}
+.repos-head-stats > div {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.repos-head-stats .kicker {
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+}
+.repos-head-stats .num.strong {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--ink-strong);
+  line-height: 1;
+}
+.repos-head-stats .num.faint {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+  letter-spacing: 0.12em;
+}
+
+/* Card grid — 2-up at wide widths, single column at narrow */
+.repos-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+/* Individual card */
+.repo-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--rule);
+  background: var(--bg-1);
+  transition: border-color 80ms, transform 80ms;
+}
+.repo-card[data-has-active="true"] {
+  border-color: var(--rule-strong);
+}
+.repo-card:hover {
+  border-color: var(--primary);
+}
+
+/* Card header (clickable) */
+.repo-card-head {
+  display: grid;
+  grid-template-columns: 4px 1fr auto;
+  gap: 14px;
+  padding: 14px 16px 14px 0;
+  cursor: pointer;
+  border-bottom: 1px solid var(--rule-soft);
+  background: linear-gradient(to bottom, rgba(255,107,26,0.04), transparent);
+}
+.repo-card[data-has-active="true"] .repo-card-head {
+  background: linear-gradient(to bottom, rgba(255,107,26,0.08), transparent);
+}
+.repo-tab {
+  background: var(--ink-faint);
+  margin-left: 0;
+}
+.repo-card[data-has-active="true"] .repo-tab {
+  background: var(--primary);
+  box-shadow: 0 0 10px var(--primary);
+}
+.repo-id { min-width: 0; }
+.repo-name {
+  display: flex;
+  align-items: baseline;
+  font-family: var(--mono);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.repo-name .parent-dir { color: var(--ink-faint); }
+.repo-name .leaf {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 0.06em;
+  color: var(--ink-strong);
+  text-transform: uppercase;
+  margin-left: 2px;
+}
+.repo-branch {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-dim);
+  flex-wrap: wrap;
+}
+.repo-branch .num { color: var(--primary); letter-spacing: 0; }
+.repo-branch .sep { color: var(--ink-faint); }
+
+.repo-stats {
+  display: grid;
+  grid-template-columns: repeat(4, auto);
+  gap: 18px;
+  padding-right: 4px;
+}
+.repo-stats .stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  min-width: 50px;
+}
+.repo-stats .stat .v {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--ink-strong);
+  line-height: 1;
+}
+.repo-stats .stat.hot .v { color: var(--primary); }
+.repo-stats .stat .l {
+  font-family: var(--display);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+}
+
+/* Card body */
+.repo-body { padding: 12px 16px 16px; }
+.repo-empty {
+  display: flex;
+  align-items: baseline;
+  padding: 14px 0;
+  letter-spacing: 0.12em;
+  font-size: 11px;
+}
+.repo-section-lbl {
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--ink-dim);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+/* Tree of parent + sub-agent rows */
+.repo-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.repo-tree-row {
+  display: flex;
+  flex-direction: column;
+}
+.repo-row {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: 8px;
+  padding: 6px 8px 6px 6px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+}
+.repo-row:hover {
+  background: rgba(255, 107, 26, 0.05);
+  border-left-color: var(--primary);
+}
+.repo-row-bullet {
+  color: var(--primary);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.3;
+}
+.repo-row-connector {
+  color: var(--ink-faint);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: center;
+  padding-left: 4px;
+}
+.repo-row-body { min-width: 0; }
+.repo-row-title {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-strong);
+  font-weight: 500;
+  line-height: 1.35;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.repo-row-sub .repo-row-title { font-size: 11px; }
+.repo-row-sub .sub-nick {
+  font-family: var(--display);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+.repo-row-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  flex-wrap: wrap;
+}
+.repo-row-meta .num { font-family: var(--mono); color: var(--ink); letter-spacing: 0.04em; }
+.repo-row-meta .muted { color: var(--ink-dim); }
+.repo-row-sub {
+  padding-left: 18px;
+}
+
+/* Card footer */
+.repo-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-top: 1px solid var(--rule-soft);
+  background: var(--bg-2);
+  cursor: pointer;
+  font-family: var(--display);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: var(--primary);
+  text-transform: uppercase;
+  font-weight: 700;
+  transition: background 80ms;
+}
+.repo-card-foot:hover {
+  background: var(--primary);
+  color: var(--bg-0);
+}
+.repo-card-foot .arrow { font-family: var(--mono); font-size: 16px; line-height: 1; }
+
+/* Sub-agents row — wrap horizontally as compact chips under each parent */
+.repo-subs-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 0 4px 28px;
+  margin-bottom: 2px;
+  position: relative;
+}
+.repo-subs-row::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 0;
+  bottom: 8px;
+  width: 1px;
+  background: var(--amber);
+  opacity: 0.35;
+}
+
+.sub-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px 4px 0;
+  border: 1px solid var(--rule-soft);
+  background: rgba(255, 184, 0, 0.05);
+  cursor: pointer;
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  color: var(--ink);
+  text-transform: uppercase;
+  position: relative;
+}
+.sub-chip:hover {
+  border-color: var(--amber);
+  background: rgba(255, 184, 0, 0.12);
+}
+.sub-chip-tab {
+  width: 3px;
+  align-self: stretch;
+  background: var(--amber);
+}
+.sub-chip[data-status="open"] .sub-chip-tab {
+  background: var(--warn);
+  box-shadow: 0 0 5px var(--warn);
+}
+.sub-chip-nick {
+  font-weight: 700;
+  color: var(--amber);
+  letter-spacing: 0.12em;
+}
+.sub-chip-role {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--ink-dim);
+  border: 1px solid var(--rule-soft);
+  padding: 0 4px;
+  letter-spacing: 0.06em;
+}
+.sub-chip-tok {
+  font-family: var(--mono);
+  color: var(--ink-strong);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.sub-chip-dot {
+  width: 6px; height: 6px;
+  background: var(--warn);
+  box-shadow: 0 0 5px var(--warn);
+  border-radius: 50%;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+/* ============================================================
+   SESSIONS LEFT PANEL — repo dossier mode
+   Switches in when a repoFilter is active. Identifies the
+   current repo, scopes stats + filters to it, exposes branch
+   picker + back-to-repos.
+   ============================================================ */
+
+.ov-repo-head {
+  padding: 12px 14px 14px;
+  border-bottom: 1px solid var(--rule);
+  background: linear-gradient(to bottom, rgba(255,107,26,0.06), transparent);
+}
+.ov-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--rule);
+  background: var(--bg-0);
+  color: var(--ink-dim);
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 4px 10px 4px 8px;
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+.ov-back .arrow { font-family: var(--mono); color: var(--primary); font-size: 14px; letter-spacing: 0; }
+.ov-back:hover { color: var(--primary); border-color: var(--primary); }
+
+.ov-repo-name {
+  display: block;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.1;
+  margin-bottom: 6px;
+  word-break: break-all;
+}
+.ov-repo-name .parent-dir { color: var(--ink-faint); }
+.ov-repo-name .leaf {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  color: var(--ink-strong);
+  text-transform: uppercase;
+}
+.ov-repo-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-dim);
+  flex-wrap: wrap;
+}
+.ov-repo-meta .num { color: var(--primary); letter-spacing: 0; }
+.ov-repo-meta .sep { color: var(--ink-faint); }
+
+/* in dossier mode, the .side-stat block sits directly under the header */
+.ov-side .ov-repo-head + .side-stat {
+  border-top: 0;
+}
+
+/* --- parent rows --- */
+/* Group separator: a thin rule + breathing room above each parent that follows another row */
+.tbl tbody tr[data-depth="0"]:not(:first-child) > td {
+  border-top: 1px solid var(--rule);
+  padding-top: 12px;
+}
+/* lift parent row visually with a left-edge accent */
+.tbl tbody tr[data-depth="0"] > td:first-child {
+  background: linear-gradient(to right, rgba(255,107,26,0.10), transparent 60%);
+  position: relative;
+}
+.tbl tbody tr[data-depth="0"]:not(:first-child) > td:first-child::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 12px; bottom: 0;
+  width: 2px;
+  background: var(--primary);
+}
+.tbl tbody tr[data-depth="0"] > td:nth-child(3) .tree-title > span:last-child {
+  color: var(--ink-strong);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* --- sub-agent rows --- */
+.tbl tbody tr[data-depth="1"] {
+  background: rgba(255, 184, 0, 0.05);
+}
+.tbl tbody tr[data-depth="1"]:hover {
+  background: rgba(255, 184, 0, 0.12);
+}
+/* dim the leading idx col so it visually steps back */
+.tbl tbody tr[data-depth="1"] > td:first-child {
+  color: var(--ink-faint);
+  font-size: 10px;
+}
+/* dashed top divider between consecutive sub rows for read rhythm */
+.tbl tbody tr[data-depth="1"] + tr[data-depth="1"] > td {
+  border-top: 1px dashed rgba(255,184,0,0.18);
+}
+.tbl tbody tr[data-dim="true"] td { opacity: 0.55; }
+
+/* --- title-column tree art --- */
+/* indent the title cell on sub rows + paint a vertical rail */
+.tbl tbody tr[data-depth="1"] > td:nth-child(3) {
+  padding-left: 36px;
+  position: relative;
+}
+/* vertical rail running down through the indent column */
+.tbl tbody tr[data-depth="1"] > td:nth-child(3)::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--amber);
+  opacity: 0.45;
+}
+/* rail stops half-way through the LAST sub of a group */
+.tbl tbody tr[data-depth="1"][data-last-sub="true"] > td:nth-child(3)::before {
+  bottom: 50%;
+}
+/* horizontal arm into the row from the rail */
+.tbl tbody tr[data-depth="1"] > td:nth-child(3)::after {
+  content: "";
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  width: 12px;
+  height: 2px;
+  background: var(--amber);
+  opacity: 0.45;
+}
+
+.tree-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+/* hide the inline glyph since the CSS rail handles it visually, but keep for a11y */
+.tree-connector {
+  display: none;
+}
+
+/* Repo-filter banner */
+.repo-filter-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--rule);
+  background: linear-gradient(to right, rgba(255,107,26,0.14), rgba(255,107,26,0.02));
+  font-family: var(--display);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.repo-filter-banner .kicker {
+  color: var(--primary);
+  font-weight: 700;
+  letter-spacing: 0.22em;
+}
+.repo-filter-banner .path {
+  font-family: var(--mono);
+  color: var(--ink-strong);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  font-size: 12px;
+}
+.repo-filter-banner .clear {
+  border: 1px solid var(--rule);
+  background: var(--bg-0);
+  color: var(--ink-dim);
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.repo-filter-banner .clear:hover { color: var(--warn); border-color: var(--warn); }
+
+/* Repos view responsive */
+@media (max-width: 960px) {
+  .repos { padding: 12px 14px 30px; }
+  .repos-head { flex-wrap: wrap; gap: 14px; }
+  .repos-head-stats { margin-left: 0; gap: 18px; }
+  .repos-grid { grid-template-columns: 1fr; gap: 10px; }
+  .repo-stats { gap: 12px; }
+  .repo-stats .stat .v { font-size: 16px; }
+  .repo-card-head { padding: 12px 12px 12px 0; gap: 10px; }
+}
+@media (max-width: 520px) {
+  .repo-name .leaf { font-size: 16px; }
+  .repo-stats { grid-template-columns: repeat(2, auto); gap: 8px 14px; }
 }

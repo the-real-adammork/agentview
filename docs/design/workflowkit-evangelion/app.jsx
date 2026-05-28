@@ -23,6 +23,7 @@ const DEFAULTS = /*EDITMODE-BEGIN*/{
 function App() {
   const [view, setView] = useState("sessions");
   const [selected, setSelected] = useState(SESSIONS[0].id);
+  const [repoFilter, setRepoFilter] = useState(null);   // cwd string or null
   const [clock, setClock] = useState(NOW);
 
   // tweaks
@@ -47,13 +48,16 @@ function App() {
       <TopHazardStrip clock={clock} />
 
       <header className="header">
-        <div className="brand">
-          <div className="mark"></div>
-          <div>
-            <div className="name">WORKFLOWKIT</div>
-            <div className="sub">// Observatory · 観測</div>
-          </div>
-        </div>
+        <button
+          className="repos-btn"
+          data-active={view === "repos"}
+          onClick={() => setView("repos")}
+          title="Browse all repos"
+        >
+          <span className="mark" aria-hidden="true"></span>
+          <span className="lbl">REPOS</span>
+          <span className="caret" aria-hidden="true">▸</span>
+        </button>
 
         <nav className="nav">
           {VIEWS.map((v) => (
@@ -85,8 +89,21 @@ function App() {
       </header>
 
       <main className="main">
+        {view === "repos" && (
+          <ReposView
+            setRepoFilter={setRepoFilter}
+            setSelected={setSelected}
+            setView={setView}
+          />
+        )}
         {view === "sessions" && (
-          <SessionsView selected={selected} setSelected={setSelected} setView={setView} />
+          <SessionsView
+            selected={selected}
+            setSelected={setSelected}
+            setView={setView}
+            repoFilter={repoFilter}
+            setRepoFilter={setRepoFilter}
+          />
         )}
         {view === "timeline" && (
           <TimelineView session={session} setSelected={setSelected} setView={setView} />
@@ -127,6 +144,91 @@ function App() {
       <div className="crt-vignette"></div>
       {tweaks.showWatermark && <Watermark />}
     </div>
+  );
+}
+
+/* --- Thread Navigator — lives in the Timeline sidebar.
+   Renders the FULL agent tree rooted at the current session's root, so from
+   any sub-agent you can still see (and jump to) the parent, siblings and any
+   other node. The active thread is marked HERE. ---- */
+function ThreadNav({ session, onSelect }) {
+  const root = getRootSession(session);
+  const rows = [];
+  const walk = (node, depth) => {
+    rows.push({ node, depth });
+    SESSIONS.filter((s) => s.parent_id === node.id)
+      .sort((a, b) => a.created_at - b.created_at)
+      .forEach((c) => walk(c, depth + 1));
+  };
+  walk(root, 0);
+
+  const edgeStatus = (id) => EDGES.find((e) => e.child === id)?.status;
+  const idLabel = (s) => s.thread_source === "subagent"
+    ? `SUB · ${(s.agent_role || "worker").toUpperCase()}`
+    : "USER · ROOT";
+  const nameLabel = (s) => s.thread_source === "subagent" ? s.agent_nickname : s.title;
+
+  return (
+    <div className="thread-nav">
+      <div className="panel-tit">
+        <span className="dot"></span><span>Agent Tree</span>
+        <span className="spacer"></span>
+        <span className="meta">{rows.length} thread{rows.length === 1 ? "" : "s"}</span>
+      </div>
+      <div className="thread-nav-body">
+        {rows.map(({ node, depth }) => {
+          const here = node.id === session.id;
+          const isSub = node.thread_source === "subagent";
+          const open = edgeStatus(node.id) === "open";
+          return (
+            <button
+              key={node.id}
+              className="thread-row"
+              data-here={here}
+              data-depth={depth}
+              data-tone={isSub ? "amber" : "primary"}
+              onClick={here ? undefined : () => onSelect(node.id)}
+              style={{ "--depth": depth }}
+              title={here ? "Current thread" : `Open ${nameLabel(node)}'s timeline`}
+            >
+              {depth > 0 && <span className="tn-connector" aria-hidden="true">└</span>}
+              <span className="tn-tab" data-tone={isSub ? "amber" : "primary"}></span>
+              <span className="tn-text">
+                <span className="tn-kicker">{idLabel(node)}</span>
+                <span className="tn-name">{nameLabel(node)}</span>
+              </span>
+              <span className="tn-meta">
+                {here && <span className="tn-here">● HERE</span>}
+                {!here && open && <span className="tn-dot" aria-label="open" />}
+                {!here && <span className="num">{(node.tokens_used / 1000).toFixed(1)}K</span>}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* --- Active Agent badge in header — identifies which thread is loaded ---- */
+function ActiveAgentBadge({ session, onClick }) {
+  const isSub = session.thread_source === "subagent";
+  const role = isSub ? (session.agent_role || "worker") : "root";
+  const name = isSub ? (session.agent_nickname || "—") : "ADAM";
+  return (
+    <button
+      className="active-agent"
+      data-tone={isSub ? "amber" : "primary"}
+      onClick={onClick}
+      title={`Active thread — ${isSub ? "sub-agent" : "user root"} — click to open its Timeline`}
+    >
+      <span className="tab" aria-hidden="true"></span>
+      <span className="meta">
+        <span className="kicker">{isSub ? "SUB · " + role.toUpperCase() : "USER · ROOT"}</span>
+        <span className="name">{name}</span>
+      </span>
+      <span className="arrow" aria-hidden="true">▸</span>
+    </button>
   );
 }
 
@@ -204,87 +306,432 @@ function Watermark() {
 }
 
 /* ============================================================
+   00 — REPOS OVERVIEW
+   ============================================================ */
+
+// Walk parent chain to find the root user session (the one with no parent_id)
+function getRootSession(s) {
+  let cur = s;
+  while (cur && cur.parent_id) {
+    const p = SESSIONS.find((x) => x.id === cur.parent_id);
+    if (!p) break;
+    cur = p;
+  }
+  return cur;
+}
+
+function isDescendantOf(s, p) {
+  let cur = s;
+  while (cur && cur.parent_id) {
+    if (cur.parent_id === p.id) return true;
+    cur = SESSIONS.find((x) => x.id === cur.parent_id);
+  }
+  return false;
+}
+
+const TWELVE_H_MS = 12 * 60 * 60 * 1000;
+
+function ReposView({ setRepoFilter, setSelected, setView }) {
+  const repoCards = useMemo(() => {
+    // Group by the cwd of the ROOT parent — subagents inherit their parent's repo
+    const m = new Map();
+    for (const s of SESSIONS) {
+      if (s.parent_id) continue;
+      const key = s.cwd;
+      if (!m.has(key)) {
+        m.set(key, {
+          cwd: key,
+          branch: s.git_branch,
+          sha: s.git_sha,
+          origin: s.git_origin_url,
+          parents: [],
+        });
+      }
+      m.get(key).parents.push(s);
+    }
+
+    return Array.from(m.values()).map((repo) => {
+      const tree = repo.parents.map((p) => {
+        const subs = SESSIONS.filter((s) => isDescendantOf(s, p));
+        const lastTs = Math.max(p.updated_at.getTime(), ...subs.map((s) => s.updated_at.getTime()));
+        return { parent: p, subs, lastTs };
+      }).sort((a, b) => b.lastTs - a.lastTs);
+
+      const allSessions = tree.flatMap(({ parent, subs }) => [parent, ...subs]);
+      const active = tree.filter((t) => NOW.getTime() - t.lastTs <= TWELVE_H_MS);
+      const totalTokens = allSessions.reduce((a, s) => a + s.tokens_used, 0);
+      const totalWarn = allSessions.reduce((a, s) => a + s.warnings, 0);
+      const openChildren = allSessions.reduce((a, s) => a + s.children_open, 0);
+      const lastActivity = Math.max(...allSessions.map((s) => s.updated_at.getTime()));
+
+      return {
+        ...repo,
+        tree,
+        active,
+        totalTokens,
+        totalWarn,
+        openChildren,
+        sessionCount: allSessions.length,
+        lastActivity,
+      };
+    }).sort((a, b) => b.active.length - a.active.length || b.lastActivity - a.lastActivity);
+  }, []);
+
+  const totalRepos = repoCards.length;
+  const totalActive = repoCards.reduce((a, r) => a + r.active.length, 0);
+  const totalSessions = repoCards.reduce((a, r) => a + r.sessionCount, 0);
+
+  return (
+    <div className="repos">
+      <div className="repos-head">
+        <HazardTag tone="primary">REPOS · INDEX</HazardTag>
+        <div className="repos-head-stats">
+          <div><span className="kicker">Repos</span><span className="num strong">{pad(totalRepos, 2)}</span></div>
+          <div><span className="kicker">Active</span><span className="num strong">{totalActive}</span></div>
+          <div><span className="kicker">Sessions</span><span className="num strong">{totalSessions}</span></div>
+          <div><span className="kicker">Active = 12h</span><span className="num faint">window</span></div>
+        </div>
+      </div>
+
+      <div className="repos-grid">
+        {repoCards.map((r) => (
+          <RepoCard
+            key={r.cwd}
+            r={r}
+            onOpen={() => { setRepoFilter(r.cwd); setView("sessions"); }}
+            onJump={(id) => { setSelected(id); setView("timeline"); }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function RepoCard({ r, onOpen, onJump }) {
+  const repoName = r.cwd.split("/").pop();
+  const parentDir = r.cwd.split("/").slice(0, -1).join("/") + "/";
+  const ago = (t) => {
+    const diff = Math.round((NOW - new Date(t)) / 60000);
+    if (diff < 60) return `${diff}m`;
+    if (diff < 1440) return `${Math.round(diff/60)}h`;
+    return `${Math.round(diff/1440)}d`;
+  };
+
+  return (
+    <article className="repo-card" data-has-active={r.active.length > 0}>
+      <header className="repo-card-head" onClick={onOpen}>
+        <div className="repo-tab" aria-hidden="true"></div>
+        <div className="repo-id">
+          <div className="repo-name">
+            <span className="parent-dir">{parentDir}</span>
+            <span className="leaf">{repoName}</span>
+          </div>
+          <div className="repo-branch">
+            <span>{r.branch}</span>
+            <span className="sep">·</span>
+            <span className="num">{r.sha}</span>
+            {r.origin && <><span className="sep">·</span><span className="muted">{r.origin.replace(/.*[:/]/, "")}</span></>}
+          </div>
+        </div>
+        <div className="repo-stats">
+          <div className={r.active.length > 0 ? "stat hot" : "stat"}>
+            <span className="v num">{r.active.length}</span>
+            <span className="l">Active 12h</span>
+          </div>
+          <div className="stat">
+            <span className="v num">{(r.totalTokens / 1000).toFixed(0)}K</span>
+            <span className="l">Σ Tokens</span>
+          </div>
+          <div className="stat">
+            <span className={r.totalWarn > 0 ? "v num warn-c" : "v num"}>{r.totalWarn}</span>
+            <span className="l">Warn</span>
+          </div>
+          <div className="stat">
+            <span className={r.openChildren > 0 ? "v num warn-c blink" : "v num"}>{r.openChildren}</span>
+            <span className="l">Open ◌</span>
+          </div>
+        </div>
+      </header>
+
+      <div className="repo-body">
+        {r.active.length === 0 ? (
+          <div className="repo-empty">
+            <span className="faint">—— no activity in last 12h ——</span>
+            <span className="muted" style={{ fontSize: 10, marginLeft: 8 }}>last seen {ago(r.lastActivity)} ago</span>
+          </div>
+        ) : (
+          <>
+            <div className="repo-section-lbl">▸ Active sessions <span className="muted">· last 12h</span></div>
+            <div className="repo-tree">
+              {r.active.map(({ parent, subs }) => (
+                <div key={parent.id} className="repo-tree-row">
+                  <div className="repo-row repo-row-parent" onClick={(e) => { e.stopPropagation(); onJump(parent.id); }}>
+                    <span className="repo-row-bullet">▸</span>
+                    <div className="repo-row-body">
+                      <div className="repo-row-title">{parent.title}</div>
+                      <div className="repo-row-meta">
+                        <span className="chip" style={{ borderColor: "var(--primary)", color: "var(--primary)" }}>USER · ROOT</span>
+                        <span className="num">{(parent.tokens_used / 1000).toFixed(1)}K</span>
+                        <span className="muted">·</span>
+                        <span className="muted num">{ago(parent.updated_at)} ago</span>
+                        {parent.warnings > 0 && <span className="chip warn">▲ {parent.warnings}</span>}
+                      </div>
+                    </div>
+                  </div>
+                  {subs.length > 0 && (
+                    <div className="repo-subs-row">
+                      {subs.map((sub) => {
+                        const isOpen = EDGES.find((e) => e.child === sub.id)?.status === "open";
+                        return (
+                          <button
+                            key={sub.id}
+                            type="button"
+                            className="sub-chip"
+                            data-status={isOpen ? "open" : "closed"}
+                            onClick={(e) => { e.stopPropagation(); onJump(sub.id); }}
+                            title={`${sub.agent_nickname} · ${sub.agent_role} · ${(sub.tokens_used/1000).toFixed(1)}K tok · ${ago(sub.updated_at)} ago`}
+                          >
+                            <span className="sub-chip-tab" aria-hidden="true"></span>
+                            <span className="sub-chip-nick">{sub.agent_nickname}</span>
+                            <span className="sub-chip-role">{sub.agent_role?.[0]?.toUpperCase() || "W"}</span>
+                            <span className="sub-chip-tok num">{(sub.tokens_used/1000).toFixed(1)}K</span>
+                            {isOpen && <span className="sub-chip-dot" aria-label="open" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      <footer className="repo-card-foot" onClick={onOpen}>
+        <span>▸ OPEN {r.sessionCount} SESSION{r.sessionCount === 1 ? "" : "S"}</span>
+        <span className="arrow">›</span>
+      </footer>
+    </article>
+  );
+}
+
+/* ============================================================
    01 — SESSIONS OVERVIEW
    ============================================================ */
-function SessionsView({ selected, setSelected, setView }) {
+function SessionsView({ selected, setSelected, setView, repoFilter, setRepoFilter }) {
   const [q, setQ] = useState("");
   const [filterSource, setFilterSource] = useState("all");
   const [filterRepo, setFilterRepo] = useState("all");
   const [filterFlag, setFilterFlag] = useState("all");
+  const [filterBranch, setFilterBranch] = useState("all");
 
   const repos = useMemo(() => Array.from(new Set(SESSIONS.map((s) => s.cwd))), []);
 
-  const filtered = SESSIONS.filter((s) => {
+  // Repo context — populated when `repoFilter` (inbound from Repos view) is set.
+  // Swaps the left panel from global catalog → repo dossier.
+  const repoCtx = useMemo(() => {
+    if (!repoFilter) return null;
+    const inRepo = SESSIONS.filter((s) => getRootSession(s).cwd === repoFilter);
+    const parents = inRepo.filter((s) => !s.parent_id);
+    const branches = Array.from(new Set(parents.map((p) => p.git_branch)));
+    const sample = parents[0] || inRepo[0];
+    return {
+      cwd: repoFilter,
+      branches,
+      sample,
+      sessions: inRepo,
+      parents,
+      active12h: inRepo.filter((s) => NOW.getTime() - s.updated_at.getTime() <= TWELVE_H_MS).length,
+      tokens: inRepo.reduce((a, s) => a + s.tokens_used, 0),
+      warnings: inRepo.reduce((a, s) => a + s.warnings, 0),
+      openChildren: inRepo.reduce((a, s) => a + s.children_open, 0),
+    };
+  }, [repoFilter]);
+
+  const matchPredicate = (s) => {
     if (q && !(`${s.title} ${s.first_user_message} ${s.id}`.toLowerCase().includes(q.toLowerCase()))) return false;
     if (filterSource !== "all" && s.thread_source !== filterSource) return false;
     if (filterRepo !== "all" && s.cwd !== filterRepo) return false;
+    // Inbound repo filter (from Repos view): match the ROOT parent's cwd so subagents follow their owner.
+    if (repoFilter && getRootSession(s).cwd !== repoFilter) return false;
+    // Branch filter: scopes by the root parent's branch — only meaningful when inside a repo.
+    if (filterBranch !== "all" && getRootSession(s).git_branch !== filterBranch) return false;
     if (filterFlag === "warnings" && s.warnings === 0) return false;
     if (filterFlag === "failed" && s.failed_tools === 0) return false;
     if (filterFlag === "open-child" && s.children_open === 0) return false;
     return !s.archived || filterFlag === "archived";
-  }).sort((a, b) => b.updated_at - a.updated_at);
+  };
+
+  // Build a tree-grouped display order: parents at root, subagents nested under their parent.
+  // Always include the parent of any visible sub so the tree connects upward.
+  const { displayRows, matchedCount } = useMemo(() => {
+    const matched = SESSIONS.filter(matchPredicate);
+    const visibleIds = new Set(matched.map((s) => s.id));
+    for (const s of matched) {
+      let cur = s;
+      while (cur && cur.parent_id) {
+        visibleIds.add(cur.parent_id);
+        cur = SESSIONS.find((x) => x.id === cur.parent_id);
+      }
+    }
+    const visible = SESSIONS.filter((s) => visibleIds.has(s.id));
+    const parents = visible.filter((s) => !s.parent_id).sort((a, b) => b.updated_at - a.updated_at);
+    const rows = [];
+    for (const p of parents) {
+      rows.push({ s: p, depth: 0, matched: visibleIds.has(p.id) && matched.includes(p), isLastSub: false });
+      const subs = visible
+        .filter((s) => isDescendantOf(s, p))
+        .sort((a, b) => b.updated_at - a.updated_at);
+      subs.forEach((sub, i) => {
+        rows.push({ s: sub, depth: 1, matched: matched.includes(sub), isLastSub: i === subs.length - 1 });
+      });
+    }
+    // Orphan subs (parent absent from SESSIONS) — render flat
+    const orphans = visible.filter((s) => s.parent_id && !SESSIONS.find((x) => x.id === s.parent_id));
+    for (const o of orphans) rows.push({ s: o, depth: 0, matched: matched.includes(o), isLastSub: false });
+    return { displayRows: rows, matchedCount: matched.length };
+  }, [q, filterSource, filterRepo, filterFlag, repoFilter, filterBranch]);
 
   const tokensByHour = useMemo(() => {
-    // approx token usage in the last 12 hours
+    // Token usage by hour over the last 12h. Scoped to the repo when one is active.
     const buckets = new Array(12).fill(0);
-    SESSIONS.forEach((s) => {
+    const pool = repoFilter
+      ? SESSIONS.filter((s) => getRootSession(s).cwd === repoFilter)
+      : SESSIONS;
+    pool.forEach((s) => {
       const hoursAgo = Math.min(11, Math.floor((NOW - s.updated_at) / (1000 * 60 * 60)));
       buckets[11 - hoursAgo] += s.tokens_used;
     });
     return buckets;
-  }, []);
+  }, [repoFilter]);
 
   return (
     <div className="overview">
-      {/* SIDE: filters & stats */}
+      {/* SIDE: contextual — dossier when scoped to a repo, global catalog otherwise */}
       <aside className="ov-side">
-        <div style={{ padding: "14px 14px 10px", borderBottom: "1px solid var(--rule)" }}>
-          <div className="kicker" style={{ color: "var(--primary)" }}>▸ Catalog</div>
-          <div className="display" style={{ fontSize: 24, color: "var(--ink-strong)", marginTop: 4 }}>SESSION INDEX</div>
-          <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>state_5.sqlite · threads · {SESSIONS.length} of 673 visible</div>
-        </div>
+        {repoCtx ? (
+          <>
+            {/* ── header: repo identity + back-to-repos ─────────────────────── */}
+            <div className="ov-repo-head">
+              <button className="ov-back" onClick={() => setView("repos")} title="Back to Repos">
+                <span className="arrow">‹</span><span>ALL REPOS</span>
+              </button>
+              <div className="ov-repo-name">
+                <span className="parent-dir">{repoCtx.cwd.split("/").slice(0, -1).join("/")}/</span>
+                <span className="leaf">{repoCtx.cwd.split("/").pop()}</span>
+              </div>
+              <div className="ov-repo-meta">
+                <span>{repoCtx.sample?.git_branch || "—"}</span>
+                <span className="sep">·</span>
+                <span className="num">{repoCtx.sample?.git_sha || "—"}</span>
+                {repoCtx.sample?.git_origin_url && (
+                  <>
+                    <span className="sep">·</span>
+                    <span className="muted">{repoCtx.sample.git_origin_url.replace(/.*[:/]/, "")}</span>
+                  </>
+                )}
+              </div>
+            </div>
 
-        <div className="side-stat">
-          <Stat label="Active" value={SESSIONS.filter((s) => !s.archived).length} sub="not archived" />
-          <Stat label="Sub-agents" value={SESSIONS.filter((s) => s.thread_source === "subagent").length} sub="subagent threads" />
-          <Stat label="Open child" value={SESSIONS.reduce((a, s) => a + s.children_open, 0)} tone="warn" sub="awaiting" />
-          <Stat label="Σ Tokens" value={(SESSIONS.reduce((a, s) => a + s.tokens_used, 0) / 1000).toFixed(0) + "K"} sub="all sessions" />
-        </div>
+            {/* ── scoped stats ──────────────────────────────────────────────── */}
+            <div className="side-stat">
+              <Stat label="Active 12h" value={repoCtx.active12h} sub="recent" />
+              <Stat label="Sessions" value={repoCtx.sessions.length} sub="in repo" />
+              <Stat label="Open ◌" value={repoCtx.openChildren} tone="warn" sub="awaiting" />
+              <Stat label="Σ Tokens" value={(repoCtx.tokens / 1000).toFixed(0) + "K"} sub="repo total" />
+            </div>
 
-        <div className="filter-grp">
-          <div className="lbl">Token usage · last 12h</div>
-          <VBars data={tokensByHour} h={42} />
-          <div className="flex between mt-1" style={{ fontSize: 10, color: "var(--ink-dim)", letterSpacing: "0.18em" }}>
-            <span>-12H</span><span>NOW</span>
-          </div>
-        </div>
+            <div className="filter-grp">
+              <div className="lbl">Token usage · last 12h <span className="muted">· this repo</span></div>
+              <VBars data={tokensByHour} h={42} />
+              <div className="flex between mt-1" style={{ fontSize: 10, color: "var(--ink-dim)", letterSpacing: "0.18em" }}>
+                <span>-12H</span><span>NOW</span>
+              </div>
+            </div>
 
-        <div className="filter-grp" style={{ flex: 1, overflowY: "auto" }}>
-          <div className="lbl">Thread source</div>
-          <div className="row mb-2">
-            {[["all", "All"], ["user", "User"], ["subagent", "Sub-agent"]].map(([v, l]) => (
-              <button key={v} className="opt" data-on={filterSource === v} onClick={() => setFilterSource(v)}>{l}</button>
-            ))}
-          </div>
-          <div className="lbl">Repo · cwd</div>
-          <div className="row mb-2">
-            <button className="opt" data-on={filterRepo === "all"} onClick={() => setFilterRepo("all")}>All</button>
-            {repos.map((r) => (
-              <button key={r} className="opt" data-on={filterRepo === r} onClick={() => setFilterRepo(r)}>{r.split("/").pop()}</button>
-            ))}
-          </div>
-          <div className="lbl">Flag</div>
-          <div className="row">
-            {[["all", "Any"], ["warnings", "Has warn"], ["failed", "Failed tool"], ["open-child", "Open child"], ["archived", "Archived"]].map(([v, l]) => (
-              <button key={v} className="opt" data-on={filterFlag === v} onClick={() => setFilterFlag(v)}>{l}</button>
-            ))}
-          </div>
-        </div>
+            <div className="filter-grp" style={{ flex: 1, overflowY: "auto" }}>
+              {repoCtx.branches.length > 1 && (
+                <>
+                  <div className="lbl">Branch</div>
+                  <div className="row mb-2">
+                    <button className="opt" data-on={filterBranch === "all"} onClick={() => setFilterBranch("all")}>All</button>
+                    {repoCtx.branches.map((b) => (
+                      <button key={b} className="opt" data-on={filterBranch === b} onClick={() => setFilterBranch(b)}>{b}</button>
+                    ))}
+                  </div>
+                </>
+              )}
+              <div className="lbl">Thread source</div>
+              <div className="row mb-2">
+                {[["all", "All"], ["user", "User"], ["subagent", "Sub-agent"]].map(([v, l]) => (
+                  <button key={v} className="opt" data-on={filterSource === v} onClick={() => setFilterSource(v)}>{l}</button>
+                ))}
+              </div>
+              <div className="lbl">Flag</div>
+              <div className="row">
+                {[["all", "Any"], ["warnings", "Has warn"], ["failed", "Failed tool"], ["open-child", "Open child"], ["archived", "Archived"]].map(([v, l]) => (
+                  <button key={v} className="opt" data-on={filterFlag === v} onClick={() => setFilterFlag(v)}>{l}</button>
+                ))}
+              </div>
+            </div>
 
-        <div style={{ padding: "10px 14px", borderTop: "1px solid var(--rule)", display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--ink-dim)", letterSpacing: "0.18em" }}>
-          <span>RESULTS · {filtered.length}</span>
-          <span className="warn-c blink">▸ LIVE INDEX</span>
-        </div>
+            <div style={{ padding: "10px 14px", borderTop: "1px solid var(--rule)", display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--ink-dim)", letterSpacing: "0.18em" }}>
+              <span>RESULTS · {matchedCount}<span className="faint"> / {repoCtx.sessions.length}</span></span>
+              <span className="warn-c blink">▸ LIVE</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{ padding: "14px 14px 10px", borderBottom: "1px solid var(--rule)" }}>
+              <div className="kicker" style={{ color: "var(--primary)" }}>▸ Catalog</div>
+              <div className="display" style={{ fontSize: 24, color: "var(--ink-strong)", marginTop: 4 }}>SESSION INDEX</div>
+              <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>state_5.sqlite · threads · {SESSIONS.length} of 673 visible</div>
+            </div>
+
+            <div className="side-stat">
+              <Stat label="Active" value={SESSIONS.filter((s) => !s.archived).length} sub="not archived" />
+              <Stat label="Sub-agents" value={SESSIONS.filter((s) => s.thread_source === "subagent").length} sub="subagent threads" />
+              <Stat label="Open child" value={SESSIONS.reduce((a, s) => a + s.children_open, 0)} tone="warn" sub="awaiting" />
+              <Stat label="Σ Tokens" value={(SESSIONS.reduce((a, s) => a + s.tokens_used, 0) / 1000).toFixed(0) + "K"} sub="all sessions" />
+            </div>
+
+            <div className="filter-grp">
+              <div className="lbl">Token usage · last 12h</div>
+              <VBars data={tokensByHour} h={42} />
+              <div className="flex between mt-1" style={{ fontSize: 10, color: "var(--ink-dim)", letterSpacing: "0.18em" }}>
+                <span>-12H</span><span>NOW</span>
+              </div>
+            </div>
+
+            <div className="filter-grp" style={{ flex: 1, overflowY: "auto" }}>
+              <div className="lbl">Thread source</div>
+              <div className="row mb-2">
+                {[["all", "All"], ["user", "User"], ["subagent", "Sub-agent"]].map(([v, l]) => (
+                  <button key={v} className="opt" data-on={filterSource === v} onClick={() => setFilterSource(v)}>{l}</button>
+                ))}
+              </div>
+              <div className="lbl">Repo · cwd</div>
+              <div className="row mb-2">
+                <button className="opt" data-on={filterRepo === "all"} onClick={() => setFilterRepo("all")}>All</button>
+                {repos.map((r) => (
+                  <button key={r} className="opt" data-on={filterRepo === r} onClick={() => setFilterRepo(r)}>{r.split("/").pop()}</button>
+                ))}
+              </div>
+              <div className="lbl">Flag</div>
+              <div className="row">
+                {[["all", "Any"], ["warnings", "Has warn"], ["failed", "Failed tool"], ["open-child", "Open child"], ["archived", "Archived"]].map(([v, l]) => (
+                  <button key={v} className="opt" data-on={filterFlag === v} onClick={() => setFilterFlag(v)}>{l}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ padding: "10px 14px", borderTop: "1px solid var(--rule)", display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--ink-dim)", letterSpacing: "0.18em" }}>
+              <span>RESULTS · {matchedCount}</span>
+              <span className="warn-c blink">▸ LIVE INDEX</span>
+            </div>
+          </>
+        )}
       </aside>
 
       {/* MAIN TABLE */}
@@ -321,18 +768,28 @@ function SessionsView({ selected, setSelected, setView }) {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((s, idx) => {
+              {displayRows.map(({ s, depth, matched, isLastSub }, idx) => {
                 const ago = Math.round((NOW - s.updated_at) / 60000);
                 const active = s.id === selected;
                 return (
-                  <tr key={s.id} data-active={active} onClick={() => { setSelected(s.id); setView("timeline"); }}>
+                  <tr
+                    key={s.id}
+                    data-active={active}
+                    data-depth={depth}
+                    data-dim={!matched}
+                    data-last-sub={depth === 1 ? isLastSub : undefined}
+                    onClick={() => { setSelected(s.id); setView("timeline"); }}
+                  >
                     <td className="muted num">{pad(idx + 1, 3)}</td>
                     <td className="num">
                       <div>{ago < 60 ? `${ago}m ago` : `${Math.round(ago/60)}h ago`}</div>
                       <div className="muted" style={{ fontSize: 10 }}>{fmtTime(s.updated_at)}</div>
                     </td>
                     <td>
-                      <div className="strong" style={{ fontWeight: 600, marginBottom: 2 }}>{s.title}</div>
+                      <div className="strong tree-title" style={{ fontWeight: 600, marginBottom: 2 }}>
+                        {depth > 0 && <span className="tree-connector" aria-hidden="true">{isLastSub ? "└" : "├"}</span>}
+                        <span>{s.title}</span>
+                      </div>
                       <div className="muted" style={{ fontSize: 11 }}>
                         <span className="arr">{s.first_user_message.slice(0, 92)}{s.first_user_message.length > 92 ? "…" : ""}</span>
                       </div>
@@ -438,58 +895,6 @@ function TimelineView({ session, setSelected, setView }) {
 
   return (
     <div className="timeline">
-      {/* LEFT — session meta + nav */}
-      <aside className="tl-side">
-        <div className="tl-meta">
-          <HazardTag tone={session.thread_source === "subagent" ? "amber" : "primary"} style={{ marginBottom: 12 }}>
-            {session.thread_source === "subagent" ? `SUB · ${session.agent_nickname}` : "USER · ROOT"}
-          </HazardTag>
-          <div className="title">{session.title}</div>
-          <div className="sub">{session.preview}</div>
-
-          <div className="row">
-            <span className="k">Session</span>
-            <span className="v num"><ShortId id={session.id} /></span>
-            <span className="k">Rollout</span>
-            <span className="v" style={{ fontSize: 10 }}>{session.rollout_path.split("/").slice(-2).join("/")}</span>
-            <span className="k">Repo</span>
-            <span className="v">{session.cwd}</span>
-            <span className="k">Branch</span>
-            <span className="v">{session.git_branch} · {session.git_sha}</span>
-            <span className="k">Model</span>
-            <span className="v">{session.model} <span className="muted">· effort {session.reasoning_effort}</span></span>
-            <span className="k">Sandbox</span>
-            <span className="v">{session.sandbox} <span className="muted">· approval {session.approval}</span></span>
-            <span className="k">Started</span>
-            <span className="v num">{fmtTime(session.created_at)}</span>
-            <span className="k">Updated</span>
-            <span className="v num">{fmtTime(session.updated_at)}</span>
-          </div>
-        </div>
-
-        <div style={{ overflow: "auto" }}>
-          <div className="panel-tit"><span className="dot"></span><span>Other Sessions</span></div>
-          {SESSIONS.slice(0, 14).map((s) => (
-            <div
-              key={s.id}
-              onClick={() => setSelected(s.id)}
-              style={{
-                padding: "8px 14px",
-                borderBottom: "1px dashed var(--rule-soft)",
-                cursor: "pointer",
-                background: s.id === session.id ? "rgba(255,107,26,0.12)" : "transparent",
-              }}
-            >
-              <div className="flex between" style={{ alignItems: "baseline" }}>
-                <div className="strong" style={{ fontSize: 11 }}>{s.title.slice(0, 38)}{s.title.length > 38 ? "…" : ""}</div>
-                <div className="muted num" style={{ fontSize: 10 }}>{fmtTime(s.updated_at)}</div>
-              </div>
-              <div className="muted" style={{ fontSize: 10 }}>{s.thread_source === "subagent" ? `SUB · ${s.agent_nickname}` : "USER"} · {(s.tokens_used / 1000).toFixed(1)}K tok</div>
-            </div>
-          ))}
-        </div>
-      </aside>
-
       {/* CENTER */}
       <section className="tl-main">
         <div className="tl-tabs">
@@ -570,6 +975,8 @@ function TimelineView({ session, setSelected, setView }) {
 
       {/* RIGHT — summary panels */}
       <aside className="tl-side-r">
+        <ThreadNav session={session} onSelect={setSelected} />
+        <div className="tl-vitals">
         <div className="panel-tit"><span className="dot"></span><span>Turn 01 · Vitals</span><span className="spacer"></span><span className="meta">live</span></div>
         <div style={{ padding: 14, overflow: "auto" }}>
           <div className="display" style={{ fontSize: 28, color: "var(--ink-strong)" }}>
@@ -608,27 +1015,13 @@ function TimelineView({ session, setSelected, setView }) {
             ))}
           </div>
 
-          <div style={{ marginTop: 20, borderTop: "1px solid var(--rule)", paddingTop: 12 }}>
-            <div className="kicker mb-2">▸ Spawned Agents</div>
-            {SESSIONS.filter((s) => s.parent_id === session.id).map((c) => (
-              <div key={c.id} onClick={() => setSelected(c.id)} style={{ padding: "8px 0", borderBottom: "1px dashed var(--rule-soft)", cursor: "pointer" }}>
-                <div className="flex between"><span className="strong" style={{ fontFamily: "var(--display)", fontWeight: 700, letterSpacing: "0.1em" }}>{c.agent_nickname}</span>
-                  <span className={EDGES.find((e) => e.child === c.id)?.status === "open" ? "chip warn" : "chip good"}>
-                    {EDGES.find((e) => e.child === c.id)?.status?.toUpperCase()}
-                  </span>
-                </div>
-                <div className="muted" style={{ fontSize: 10, marginTop: 2 }}>{c.agent_role} · {(c.tokens_used/1000).toFixed(1)}K tok</div>
-              </div>
-            ))}
-            {SESSIONS.filter((s) => s.parent_id === session.id).length === 0 && <div className="faint" style={{ fontSize: 11 }}>—— no sub-agents ——</div>}
-          </div>
-
           <button
             onClick={() => setView("graph")}
             style={{ marginTop: 16, width: "100%", padding: "10px 12px", border: "1px solid var(--primary)", color: "var(--primary)", fontFamily: "var(--display)", letterSpacing: "0.18em", textTransform: "uppercase", fontSize: 11, fontWeight: 700 }}
           >
             ▸ Open Agent Graph
           </button>
+        </div>
         </div>
       </aside>
     </div>
@@ -881,7 +1274,11 @@ function GraphView({ selected, setSelected, setView }) {
 
       {/* INFO PANEL */}
       <aside className="graph-info">
-        <div className="panel-tit"><span className="dot"></span><span>Node · Inspector</span></div>
+        <div className="panel-tit"><span className="dot"></span><span>Node · Inspector</span><span className="spacer"></span><span className="meta">click = select</span></div>
+        <div className="graph-hint">
+          <span className="kbd">▸▸</span>
+          <span>Double-click a node to open its Timeline</span>
+        </div>
         <div style={{ padding: 14, overflow: "auto" }}>
           <HazardTag tone={focusNode.thread_source === "subagent" ? "amber" : "primary"} style={{ marginBottom: 12 }}>
             {focusNode.thread_source === "subagent" ? `SUB · ${focusNode.agent_nickname}` : "USER · ROOT"}
