@@ -1,9 +1,10 @@
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
+import { AnimatedNumber } from "../components/AnimatedNumber";
 import { ShortId } from "../components/ShortId";
 import { TimelineEventRow } from "../components/TimelineEventRow";
 import { TimelineScrubber } from "../components/TimelineScrubber";
-import { flattenAgentTree } from "./sessionTree";
+import { flattenAgentTree, toneForDepth } from "./sessionTree";
 import type { AgentEdgeStatus, ApiError, SessionSummary, TimelinePayload } from "../../shared/contracts";
 import {
   TIME_WINDOWS,
@@ -54,10 +55,14 @@ const threadName = (session: SessionSummary) =>
 function ThreadNav({
   current,
   sessions,
+  statusByChild,
+  liveTotal,
   onSelect,
 }: {
   current: SessionSummary;
   sessions: SessionSummary[];
+  statusByChild: Map<string, AgentEdgeStatus>;
+  liveTotal: number;
   onSelect: (sessionId: string) => void;
 }) {
   const rows = flattenAgentTree(current, sessions);
@@ -73,7 +78,9 @@ function ThreadNav({
       <div className="thread-nav-body" role="list" aria-label="Agent tree">
         {rows.map(({ session, depth }) => {
           const here = session.id === current.id;
-          const tone = isSubagent(session) ? "amber" : "primary";
+          // Unified depth semantics: orange root · amber sub · cyan sub-sub.
+          const tone = toneForDepth(depth);
+          const open = statusByChild.get(session.id) === "open";
           return (
             <button
               aria-current={here ? "true" : undefined}
@@ -89,7 +96,7 @@ function ThreadNav({
               title={here ? "Current thread" : `Open ${threadName(session)}'s timeline`}
               type="button"
             >
-              {depth > 0 ? <span className="tn-connector" aria-hidden="true">└</span> : null}
+              {depth > 0 ? <span className="tn-connector" data-tone={tone} aria-hidden="true">└</span> : null}
               <span className="tn-tab" data-tone={tone} aria-hidden="true" />
               <span className="tn-text">
                 <span className="tn-kicker">{threadKicker(session)}</span>
@@ -97,9 +104,19 @@ function ThreadNav({
               </span>
               <span className="tn-meta">
                 {here ? (
-                  <span className="tn-here">● HERE</span>
+                  <>
+                    <AnimatedNumber
+                      className="tn-tok num"
+                      value={liveTotal}
+                      format={(value) => compactFormatter.format(value)}
+                    />
+                    <span className="tn-here">● HERE</span>
+                  </>
                 ) : (
-                  <span className="num">{compactFormatter.format(sessionTokens(session))}</span>
+                  <>
+                    {open ? <span className="tn-dot" aria-label="open" /> : null}
+                    <span className="num">{compactFormatter.format(sessionTokens(session))}</span>
+                  </>
                 )}
               </span>
             </button>
@@ -145,6 +162,10 @@ export function TimelineView({
   onOpenGraph,
 }: TimelineViewProps) {
   const [windowMs, setWindowMs] = useState(0); // 0 === "ALL"
+  // Live tail: when on, new events stream in with the feed-enter animation and
+  // the toggle pulses. The real stream is SSE-driven (App owns it); turning this
+  // on also pulls the newest bytes immediately.
+  const [live, setLive] = useState(false);
   const events = payload?.events ?? [];
   const facts = payload?.facts;
   const summary = facts?.summary;
@@ -177,6 +198,41 @@ export function TimelineView({
   // Newest first: the stream renders most-recent events at the top. filter()
   // returns a fresh array, so reversing it does not mutate shared data.
   const visibleEvents = filterTimelineEvents(windowedEvents, activeKind).reverse();
+
+  // Δ-since-last for token_count rows: chronological pass over the renderable
+  // events records how much each snapshot's total grew over the previous one.
+  const tokenDeltaById = (() => {
+    const deltas = new Map<string, number>();
+    let previousTotal: number | undefined;
+    for (const event of renderableEvents) {
+      if (event.kind === "token_snapshot" && event.tokenSnapshot) {
+        if (previousTotal !== undefined) {
+          deltas.set(event.id, event.tokenSnapshot.total - previousTotal);
+        }
+        previousTotal = event.tokenSnapshot.total;
+      }
+    }
+    return deltas;
+  })();
+
+  // Feed-enter animation: while live, events that weren't present at the last
+  // commit slide+fade in. Snapshot the seen ids after each commit.
+  const seenEventIdsRef = useRef<Set<string> | null>(null);
+  const enteringIds = new Set<string>();
+  if (live && seenEventIdsRef.current) {
+    for (const event of visibleEvents) {
+      if (!seenEventIdsRef.current.has(event.id)) {
+        enteringIds.add(event.id);
+      }
+    }
+  }
+  useEffect(() => {
+    const seen = seenEventIdsRef.current ?? new Set<string>();
+    for (const event of visibleEvents) {
+      seen.add(event.id);
+    }
+    seenEventIdsRef.current = seen;
+  }, [visibleEvents]);
 
   const latestSnapshot = facts?.tokenSnapshots.at(-1);
   const tokenTotal = activeSession?.tokensUsed ?? activeSession?.tokenTotal ?? latestSnapshot?.total ?? 0;
@@ -265,6 +321,8 @@ export function TimelineView({
             <ThreadNav
               current={activeSession}
               sessions={sessions}
+              statusByChild={statusByChild}
+              liveTotal={tokenTotal}
               onSelect={(sessionId) => onSelectSession(sessionId, "Timeline")}
             />
           ) : (
@@ -302,8 +360,22 @@ export function TimelineView({
               </button>
             ))}
           </div>
+          <button
+            className="tl-live-btn"
+            type="button"
+            data-on={live ? "true" : "false"}
+            aria-pressed={live}
+            onClick={() => {
+              const next = !live;
+              setLive(next);
+              if (next) onTail();
+            }}
+            title={live ? "Live — new events stream in" : "Tail — follow new events as they arrive"}
+          >
+            <span className="dot" aria-hidden="true" />
+            {live ? "Live" : "Tail"}
+          </button>
           <button className="tl-tabs__aux" type="button" onClick={onRefresh}>Refresh</button>
-          <button className="tl-tabs__aux" type="button" onClick={onTail}>Tail</button>
         </div>
 
         {error ? <div role="alert" className="inline-alert">{error.message}</div> : null}
@@ -334,6 +406,8 @@ export function TimelineView({
                 event={event}
                 key={event.id}
                 meta={meta}
+                delta={tokenDeltaById.get(event.id)}
+                isNew={enteringIds.has(event.id)}
                 onOpenThread={(threadId) => onSelectSession(threadId, "Timeline")}
               />
             );
@@ -342,9 +416,13 @@ export function TimelineView({
       </section>
 
       <aside className="tl-side-r" aria-label="Turn vitals">
-        <div className="panel-tit"><span className="dot"></span><span>Turn 01 · Vitals</span><span className="spacer" /><span className="meta">live</span></div>
+        <div className="panel-tit"><span className="dot"></span><span>Turn 01 · Vitals</span><span className="spacer" /><span className={`meta${live ? " blink" : ""}`}>{live ? "● live" : "live"}</span></div>
         <div className="tl-vitals">
-          <div className="display tl-token-total">{compactFormatter.format(tokenTotal)}</div>
+          <AnimatedNumber
+            className="display tl-token-total"
+            value={tokenTotal}
+            format={(value) => compactFormatter.format(value)}
+          />
           <div className="kicker">Σ tokens · used</div>
 
           <div className="tl-meter">

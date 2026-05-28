@@ -4477,3 +4477,52 @@ tbody tr[aria-current="true"] {
 }
 .stc-row .vl { font-family: var(--mono); color: var(--ink-strong); font-weight: 700; text-align: right; }
 .stc-row .pc { font-family: var(--mono); color: var(--ink-dim); width: 36px; text-align: right; }
+
+/* ============================================================
+   v0.3 ADDITIONS · token_count event row (composition snapshot)
+   ============================================================ */
+.tkc { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
+.tkc-total { display: flex; align-items: baseline; gap: 8px; }
+.tkc-total .v { font-family: var(--display); font-size: 20px; color: var(--ink-strong); }
+.tkc-total .muted { font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-dim); }
+.tkc-stack {
+  display: flex;
+  height: 12px;
+  width: 100%;
+  background: var(--bg-2);
+  border: 1px solid var(--rule-soft);
+  overflow: hidden;
+}
+.tkc-stack .seg { height: 100%; }
+.tkc-stack .seg + .seg { border-left: 1px solid var(--bg-0); }
+.tkc-stack .seg.cached { background: var(--cyan); }
+.tkc-stack .seg.input { background: var(--primary); }
+.tkc-stack .seg.output { background: var(--amber); }
+.tkc-legend {
+  display: flex;
+  gap: 14px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-dim);
+}
+.tkc-legend span { display: flex; align-items: center; gap: 5px; }
+.tkc-legend span::before { content: ""; width: 8px; height: 8px; }
+.tkc-legend .cy::before { background: var(--cyan); }
+.tkc-legend .pr::before { background: var(--primary); }
+.tkc-legend .am::before { background: var(--amber); }
+.tkc-meters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 2px;
+}
+.tkc-meter .flex.between {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.tkc-meter .k { color: var(--ink-dim); }

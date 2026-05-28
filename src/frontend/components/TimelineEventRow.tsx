@@ -61,32 +61,76 @@ const presentationFor = (event: TimelineEvent): KindPresentation => {
   }
 };
 
-function TokenGrid({ snapshot }: { snapshot: NonNullable<TimelineEvent["tokenSnapshot"]> }) {
-  const cells: Array<{ k: string; v: string; tone?: "primary" | "warn" }> = [
-    { k: "Σ", v: numberFormatter.format(snapshot.total) },
-    { k: "IN", v: numberFormatter.format(snapshot.input) },
-    { k: "OUT", v: numberFormatter.format(snapshot.output) },
-    { k: "CACHED", v: numberFormatter.format(snapshot.cachedInput) },
-  ];
-  if (snapshot.contextUtilization !== undefined) {
-    cells.push({ k: "CTX %", v: snapshot.contextUtilization.toFixed(1), tone: "primary" });
-  }
-  if (snapshot.rateLimitPrimaryPercent !== undefined) {
-    cells.push({
-      k: "RATE %",
-      v: `${Math.round(snapshot.rateLimitPrimaryPercent)}`,
-      tone: snapshot.rateLimitPrimaryPercent > 60 ? "warn" : "primary",
-    });
-  }
+const compact1 = (value: number) => `${(value / 1000).toFixed(1)}K`;
+
+/** Inline segmented gauge for the token-row meters (handoff SegBar). */
+function MeterBar({ count, value, hi }: { count: number; value: number; hi?: boolean }) {
+  const clamped = Math.max(0, Math.min(100, value));
+  const filled = Math.round((clamped / 100) * count);
+  return (
+    <div className="segbar" aria-hidden="true">
+      {Array.from({ length: count }, (_, index) => (
+        <i className={index < filled ? (hi ? "on hi" : "on") : undefined} key={index} />
+      ))}
+    </div>
+  );
+}
+
+/**
+ * token_count snapshot row: total + cache-hit %, a stacked composition bar
+ * (cached / fresh input / output) with a legend, and context/rate meters.
+ */
+function TokenComposition({
+  snapshot,
+}: {
+  snapshot: NonNullable<TimelineEvent["tokenSnapshot"]>;
+}) {
+  const total = snapshot.total || 1;
+  const fresh = Math.max(0, snapshot.input - snapshot.cachedInput);
+  const cachePct = snapshot.input ? Math.round((snapshot.cachedInput / snapshot.input) * 100) : 0;
+  const ctxPct =
+    snapshot.contextUtilization ??
+    (snapshot.modelContextWindow ? (snapshot.total / snapshot.modelContextWindow) * 100 : (snapshot.total / 200_000) * 100);
+  const ratePct = snapshot.rateLimitPrimaryPercent;
+  const widthOf = (value: number) => `${(value / total) * 100}%`;
 
   return (
-    <div className="ev-token-grid">
-      {cells.map((cell) => (
-        <div className="ev-token-grid__cell" key={cell.k}>
-          <span className="k">{cell.k}</span>
-          <span className="v num" data-tone={cell.tone}>{cell.v}</span>
+    <div className="tkc">
+      <div className="tkc-total">
+        <span className="num strong v">{compact1(snapshot.total)}</span>
+        <span className="muted">total · {cachePct}% of input cached</span>
+      </div>
+      <div
+        className="tkc-stack"
+        title={`cached ${numberFormatter.format(snapshot.cachedInput)} · fresh input ${numberFormatter.format(fresh)} · output ${numberFormatter.format(snapshot.output)}`}
+      >
+        {snapshot.cachedInput > 0 ? <span className="seg cached" style={{ width: widthOf(snapshot.cachedInput) }} /> : null}
+        {fresh > 0 ? <span className="seg input" style={{ width: widthOf(fresh) }} /> : null}
+        {snapshot.output > 0 ? <span className="seg output" style={{ width: widthOf(snapshot.output) }} /> : null}
+      </div>
+      <div className="tkc-legend">
+        <span className="cy">cached {compact1(snapshot.cachedInput)}</span>
+        <span className="pr">input {compact1(fresh)}</span>
+        <span className="am">output {compact1(snapshot.output)}</span>
+      </div>
+      <div className="tkc-meters">
+        <div className="tkc-meter">
+          <div className="flex between">
+            <span className="k">Context window</span>
+            <span className={`num ${ctxPct > 60 ? "tone-warn" : "strong"}`}>{ctxPct.toFixed(1)}%</span>
+          </div>
+          <MeterBar count={18} value={ctxPct} hi={ctxPct > 60} />
         </div>
-      ))}
+        {ratePct !== undefined ? (
+          <div className="tkc-meter">
+            <div className="flex between">
+              <span className="k">Rate limit</span>
+              <span className={`num ${ratePct > 60 ? "tone-warn" : "strong"}`}>{Math.round(ratePct)}%</span>
+            </div>
+            <MeterBar count={18} value={ratePct} hi={ratePct > 60} />
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -94,10 +138,14 @@ function TokenGrid({ snapshot }: { snapshot: NonNullable<TimelineEvent["tokenSna
 interface TimelineEventRowProps {
   event: TimelineEvent;
   meta?: string;
+  /** Token total gained since the previous token_count snapshot (Δ chip). */
+  delta?: number;
+  /** Whether this row just entered the live stream (feed-enter animation). */
+  isNew?: boolean;
   onOpenThread?(threadId: string): void;
 }
 
-export function TimelineEventRow({ event, meta, onOpenThread }: TimelineEventRowProps) {
+export function TimelineEventRow({ event, meta, delta, isNew, onOpenThread }: TimelineEventRowProps) {
   const present = presentationFor(event);
   const durationMs = event.joinedDurationMs ?? event.durationMs;
   const exitCode = event.joinedExitCode ?? event.exitCode;
@@ -113,13 +161,21 @@ export function TimelineEventRow({ event, meta, onOpenThread }: TimelineEventRow
       : undefined);
 
   return (
-    <li className={`ev ${present.evClass}`.trim()} data-kind={event.kind} data-severity={event.severity}>
+    <li
+      className={`ev ${present.evClass}${isNew ? " ev-enter" : ""}`.trim()}
+      data-kind={event.kind}
+      data-severity={event.severity}
+    >
       <div className="ts num">{formatTime(event.timestamp)}</div>
       <div className="body" style={{ borderColor: present.border }}>
         <div className="head">
           <span className={`who tone-${present.whoTone}`}>{present.who}</span>
+          {event.kind === "token_snapshot" ? <span>snapshot</span> : null}
           {event.phase ? <span>{event.phase}</span> : null}
           {event.callId ? <span>call_id {event.callId}</span> : null}
+          {event.kind === "token_snapshot" && delta !== undefined ? (
+            <span className="chip cyan ev__right">Δ +{compact1(delta)} since last</span>
+          ) : null}
           {isTool && exitCode !== undefined ? (
             <span className={`chip ${failed ? "warn" : "good"}`}>
               exit {exitCode}
@@ -143,7 +199,7 @@ export function TimelineEventRow({ event, meta, onOpenThread }: TimelineEventRow
         {args ? <div className="args">$ {args}</div> : null}
 
         {event.kind === "token_snapshot" && event.tokenSnapshot ? (
-          <TokenGrid snapshot={event.tokenSnapshot} />
+          <TokenComposition snapshot={event.tokenSnapshot} />
         ) : isTool ? null : (
           <pre className={present.whoTone === "warn" ? "tone-warn" : undefined}>{event.previewText}</pre>
         )}
