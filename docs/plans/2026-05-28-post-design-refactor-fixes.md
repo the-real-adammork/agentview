@@ -125,7 +125,49 @@ API up and no `codex-tui.log`, the raw-tail section shows an empty-state, not an
 
 ---
 
+## 4. Token counts only abbreviate to "K" — need M/B (and T) abbreviations
+
+**Symptom:** Token values render like `93953K` (i.e. ~94 billion shown as "93953K")
+instead of a readable `~94B`. The "K" suffix is applied at every magnitude regardless of
+size, so millions and billions are shown as inflated thousands.
+
+**Root cause (confirmed):** The Repos and Sessions views use bespoke divide-by-1000
+helpers that hardcode the `K` suffix:
+- `src/frontend/views/ReposView.tsx:13` — `tokensK = v => \`${Math.round(v / 1000)}K\``
+- `src/frontend/views/ReposView.tsx:14` — `tokensK1 = v => \`${(v / 1000).toFixed(1)}K\``
+- `src/frontend/views/SessionsView.tsx:35` — `tokensK = v => \`${Math.round(v / 1000)}K\``
+
+Meanwhile, other views already format compactly and correctly (they produce `94B`,
+`1.2M`, etc.) via `Intl.NumberFormat(..., { notation: "compact" })`:
+- `src/frontend/live/LiveTokens.tsx:7` — `compactNumberFormatter`
+- `src/frontend/views/TimelineView.tsx:30`, `AgentGraphView.tsx:20`,
+  `TokensView.tsx` — `compactFormatter`
+
+So this is an inconsistency: the naive helpers should adopt the same compact-notation
+formatter the rest of the app uses.
+
+**Affected code:** `ReposView.tsx` (`tokensK`, `tokensK1`, used at lines 36, 42, 80,
+144), `SessionsView.tsx` (`tokensK`, used at line 180).
+
+**Proposed fix direction:**
+- Replace `tokensK`/`tokensK1` with a shared compact token formatter (e.g. lift the
+  existing `Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 })`
+  into one place — `sessionTree.ts` or a small `formatTokens.ts` — and import it in
+  ReposView, SessionsView, TimelineView, AgentGraphView, LiveTokens, TokensView so the
+  whole app shares one definition). This yields `K`/`M`/`B`/`T` automatically and removes
+  three duplicated formatters.
+- Keep the existing per-call precision intent (the sub-chip used one decimal; card/stat
+  totals used whole numbers) — a single formatter with `maximumFractionDigits: 1` covers
+  both acceptably; confirm the look in the cards once applied.
+
+**Verification:** a repo total of ~94e9 renders as `94B` (not `93953K`); a session of
+1,234,567 renders as `1.2M`. Visually check Repos cards, sub-chips, and the Sessions
+Σ Tokens stat.
+
+---
+
 ## Sequencing
 
 Do these **after** the design refactor merges. Suggested order: #1 (self-contained,
-shared helper + test), then #3 (UI empty-states), then #2 (needs a repro from Adam first).
+shared helper + test), #4 (shared formatter, low-risk), then #3 (UI empty-states), then
+#2 (needs a repro from Adam first).
