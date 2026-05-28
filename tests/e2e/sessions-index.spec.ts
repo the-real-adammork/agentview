@@ -110,10 +110,10 @@ test.describe("real Sessions index @sessions", () => {
     await expect(page.getByRole("table", { name: /sessions/i })).not.toContainText("UI fixture archived");
     await expect(page.getByRole("table", { name: /sessions/i })).not.toContainText("/repo/agentview");
     expect(
-      sessionRequestUrls.some((requestUrl) => new URL(requestUrl).searchParams.get("cwd") === "agentview"),
+      sessionRequestUrls.some((requestUrl) => new URL(requestUrl).searchParams.get("repo") === "agentview"),
     ).toBe(true);
     expect(
-      sessionRequestUrls.some((requestUrl) => new URL(requestUrl).searchParams.get("cwd")?.startsWith("/repo/")),
+      sessionRequestUrls.some((requestUrl) => new URL(requestUrl).searchParams.get("cwd") !== null),
     ).toBe(false);
   });
 

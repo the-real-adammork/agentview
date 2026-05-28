@@ -424,11 +424,10 @@
       <div class="mark"></div>
       <div>
         <h1>ENGINEERING<br>HANDOFF</h1>
-        <div class="sub">// Observatory Dashboard · v0.2 · Build &amp; Wiring Spec</div>
+        <div class="sub">// Observatory Dashboard · v0.1 · Build &amp; Wiring Spec</div>
       </div>
       <div class="meta">
-        <div><b>VERSION</b> 2026.05.28 · v0.2</div>
-        <div><b>PREV</b> <a class="anchor" href="Engineering Handoff v0.1.html">v0.1 · 2026.05.26</a></div>
+        <div><b>VERSION</b> 2026.05.26</div>
         <div><b>OWNER</b> design — adam</div>
         <div><b>FOR</b> frontend · ingest team</div>
         <div><b>SOURCE</b> Observatory.html<br>&nbsp;&nbsp;Component Library.html</div>
@@ -874,7 +873,7 @@
           <h2>Composite Patterns</h2>
           <div class="d">Higher-order arrangements assembled from atoms. These are the recurring "scenes" of the dashboard.</div>
         </div>
-        <div class="tag">6 patterns</div>
+        <div class="tag">5 patterns</div>
       </header>
 
       <!-- session row -->
@@ -1002,103 +1001,7 @@
             <div class="k">CSS</div><div class="v">.tl-scrubber · .tl-scrubber .track</div>
             <div class="k">Glyphs</div><div class="v">2px line for token_count, 4px line for events; height 14–28px; color by kind</div>
           </div>
-          <p>Axis ticks at 0/25/50/75/100%. Each event becomes a single absolutely-positioned tick on the track. Header above shows turn id and duration. The track reflects the active <a class="anchor" href="#comp-06">window filter</a> (COMP/06): when a window is set, dots/duration represent the windowed slice, and the header swaps from <code class="inline">TASK_STARTED → TASK_COMPLETE</code> to <code class="inline">LAST {N}H</code>. Click-to-jump on the track is still v0.2+.</p>
-        </div>
-      </div>
-
-      <!-- time window filter — NEW in v0.2 -->
-      <div class="comp" id="comp-06">
-        <header>
-          <div class="name">Timeline Window Filter <span style="font-family: var(--mono); color: var(--good); font-size: 10px; letter-spacing: 0.06em; margin-left: 6px;">● NEW · v0.2</span></div>
-          <div class="desc">Right-aligned segmented control. Trims Timeline events to a time window relative to the most recent event.</div>
-          <div class="id">COMP/06</div>
-        </header>
-        <div class="body">
-          <div class="kv">
-            <div class="k">Location</div><div class="v">Right side of <code class="inline">.tl-tabs</code> — separated from kind tabs by a soft vertical rule</div>
-            <div class="k">CSS hooks</div><div class="v">.tl-tabs .tl-range · .tl-range-lbl · .tl-range button[data-on]</div>
-            <div class="k">React</div><div class="v">inline inside <code class="inline">TimelineView</code> (app.jsx) — state: <code class="inline">windowMs</code></div>
-            <div class="k">Atoms used</div><div class="v">Chip (terminal-bordered variant) · Kicker label</div>
-            <div class="k">Options</div><div class="v">1H · 4H · 12H · ALL  (4 segments, fixed order)</div>
-            <div class="k">Default</div><div class="v">ALL  (<code class="inline">windowMs === 0</code>)</div>
-          </div>
-
-          <h3 class="block" style="margin-top: 18px;"><span>▸</span> Behavior <span class="meta">SINGLE SOURCE OF TRUTH</span></h3>
-          <p>The window is applied to the <em>events array itself</em>, not the rendered list — so the entire Timeline view derives from one filtered slice. This guarantees the scrubber rail, the tab badge counts, the duration in the scrubber header, and the event stream stay mutually consistent.</p>
-          <table class="spec-tbl">
-            <thead><tr><th>Surface</th><th>What changes when a window is active</th></tr></thead>
-            <tbody>
-              <tr><td>Scrubber rail</td><td>Dots reduce; <code class="inline">t0</code>/<code class="inline">tEnd</code> recompute against the slice, so dots re-spread across 0–100%</td></tr>
-              <tr><td>Scrubber header</td><td>Label swaps to <code class="inline">LAST {N}H</code>; duration recomputed from windowed span</td></tr>
-              <tr><td>Kind tabs</td><td>Per-kind counts recompute from windowed events (e.g. "Tools · 4" not session total)</td></tr>
-              <tr><td>Event stream</td><td>Renders the windowed × kind-filtered intersection</td></tr>
-              <tr><td>Right rail (vitals, tool usage)</td><td><strong>Not</strong> windowed — these are session totals from <code class="inline">session.*</code> fields</td></tr>
-            </tbody>
-          </table>
-
-          <h3 class="block" style="margin-top: 18px;"><span>▸</span> Reference time</h3>
-          <p>The reference "now" is the timestamp of the last event in the full session, not the wall clock. Rationale: sessions in this product are historical artifacts on disk — using the wall clock would hide everything in any non-live session.</p>
-          <div class="callout">
-            <div class="label">Live mode</div>
-            <div>When live-tail (P3) ships, switch <code class="inline">refNow</code> to <code class="inline">Date.now()</code> only when the session is the active tail target. Detect via the ingest worker's <code class="inline">tailThread</code> RPC state. Don't make this a user-visible setting.</div>
-          </div>
-
-          <h3 class="block" style="margin-top: 18px;"><span>▸</span> Implementation</h3>
-<pre class="code"><span class="c">// 1. State — singular, ms-based; 0 means "no window"</span>
-<span class="k">const</span> [windowMs, setWindowMs] = useState(<span class="v">0</span>);
-
-<span class="c">// 2. Derive the windowed events ONCE, memoized.</span>
-<span class="c">//    Everything downstream (counts, scrubDots, t0/tEnd, filtered) reads from this.</span>
-<span class="k">const</span> refNow = allEvents[allEvents.length - <span class="v">1</span>].ts;
-<span class="k">const</span> events = useMemo(
-  () =&gt; (windowMs ? allEvents.filter(e =&gt; refNow - e.ts &lt;= windowMs) : allEvents),
-  [allEvents, windowMs, refNow]
-);
-
-<span class="c">// 3. UI — segmented chips inside .tl-tabs, margin-left: auto pushes right.</span>
-<span class="k">const</span> WINDOWS = [
-  [<span class="v">3_600_000</span>,        <span class="s">"1H"</span>],
-  [<span class="v">14_400_000</span>,       <span class="s">"4H"</span>],
-  [<span class="v">43_200_000</span>,       <span class="s">"12H"</span>],
-  [<span class="v">0</span>,                <span class="s">"ALL"</span>],
-];</pre>
-
-          <h3 class="block" style="margin-top: 18px;"><span>▸</span> Style spec</h3>
-          <table class="spec-tbl">
-            <thead><tr><th>Token</th><th>Value</th><th>Where</th></tr></thead>
-            <tbody>
-              <tr><td>Group separator</td><td class="val">1px solid var(--rule-soft) · left only</td><td>.tl-range</td></tr>
-              <tr><td>Group left padding</td><td class="val">12px</td><td>.tl-range</td></tr>
-              <tr><td>Chip gap</td><td class="val">4px</td><td>.tl-range</td></tr>
-              <tr><td>Chip padding</td><td class="val">4px 8px</td><td>.tl-range button</td></tr>
-              <tr><td>Chip min-width</td><td class="val">32px</td><td>so 1H/4H/12H/ALL all align</td></tr>
-              <tr><td>Chip border (idle)</td><td class="val">1px solid var(--rule)</td><td>matches other terminal chips</td></tr>
-              <tr><td>Chip color (idle)</td><td class="val">var(--ink-dim) on var(--bg-0)</td><td></td></tr>
-              <tr><td>Chip on hover</td><td class="val">color → var(--ink), border → var(--rule-strong)</td><td></td></tr>
-              <tr><td>Chip on active</td><td class="val">bg var(--primary), color var(--bg-0), glow 0 0 8px rgba(255,107,26,.5)</td><td>matches "selected primary action"</td></tr>
-              <tr><td>Label "▸ WINDOW"</td><td class="val">Big Shoulders 10px · 0.22em · dim · UPPER</td><td>hidden ≤ 960px</td></tr>
-            </tbody>
-          </table>
-
-          <h3 class="block" style="margin-top: 18px;"><span>▸</span> Responsive</h3>
-          <ul class="bul">
-            <li>At <code class="inline">≤ 960px</code> the <code class="inline">.tl-tabs</code> row gains <code class="inline">overflow-x: auto</code>; the range chips scroll inline with the kind tabs.</li>
-            <li>The <code class="inline">▸ WINDOW</code> label is hidden below 960px; the four chips alone are self-explanatory.</li>
-            <li>The left border of <code class="inline">.tl-range</code> is dropped below 960px so the group doesn't read as a separate region while scrolling.</li>
-          </ul>
-
-          <h3 class="block" style="margin-top: 18px;"><span>▸</span> Edge cases</h3>
-          <ul class="bul">
-            <li><strong>Empty window</strong> · if a 1H window contains zero events (rare — the last event always sits at <code class="inline">refNow</code>), fall back to the full session for <code class="inline">t0</code>/<code class="inline">tEnd</code> to avoid <code class="inline">undefined.ts</code>.</li>
-            <li><strong>Kind tab + window interaction</strong> · they multiply. "Tools · 0" is a legitimate state — render the empty list with a kicker, not a hidden tab.</li>
-            <li><strong>URL state</strong> · persist <code class="inline">window</code> as a query param (<code class="inline">?w=1h</code>) when deeplink/share lands in v0.3.</li>
-            <li><strong>Telemetry</strong> · v0.1 has no telemetry; <em>do not</em> add window-selection events without an opt-in pass.</li>
-          </ul>
-
-          <div class="callout warn">
-            <div class="label">A11y</div>
-            <div>Wrap the four chips in a <code class="inline">role="group" aria-label="Time window"</code>. Use <code class="inline">aria-pressed</code> mirroring <code class="inline">data-on</code>. Keyboard: native Tab navigation between chips; Enter/Space activates. Don't override arrow-key behavior — the surrounding tab row is not a tablist.</div>
-          </div>
+          <p>Axis ticks at 0/25/50/75/100%. Each event becomes a single absolutely-positioned tick on the track. Header above shows turn id and duration. Not interactive in v0.1 — click-to-jump is a v0.2 ask.</p>
         </div>
       </div>
     </section>
@@ -1289,8 +1192,6 @@
         <li><b>P2</b> Tool output collapses past 4KB; click to expand.</li>
         <li><b>P2</b> Scrubber shows ≥ 20 events with correct kind-by-color.</li>
         <li><b>P2</b> Tab filter (All / Messages / Tools / Agent / Tokens / Warnings) only re-renders the visible list.</li>
-        <li class="done"><b>v0.2</b> Window filter (1H / 4H / 12H / ALL) trims scrubber, tab counts, scrubber duration, and event stream from the same windowed slice. Header swaps to "LAST {N}H" when set.</li>
-        <li class="done"><b>v0.2</b> Window control responsive: label hides at ≤ 960px, chips scroll inline with the kind tabs.</li>
       </ul>
 
       <h3 class="block">Agent Graph</h3>
@@ -1364,7 +1265,7 @@
     <div class="doc-footer">
       <div>// WORKFLOWKIT · OBSERVATORY</div>
       <div class="center">END OF HANDOFF · 引渡終わり</div>
-      <div style="text-align: right;">v0.2 · 2026.05.28</div>
+      <div style="text-align: right;">v0.1 · 2026.05.26</div>
     </div>
   </div>
 

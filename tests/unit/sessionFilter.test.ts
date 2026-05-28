@@ -27,6 +27,10 @@ describe("session filter query serialization", () => {
     );
   });
 
+  it("serializes the repo filter as its own query param", () => {
+    expect(buildSessionQuery({ repo: "agentview", archived: "include" })).toBe("?repo=agentview&archived=include");
+  });
+
   it("omits empty strings and undefined values", () => {
     expect(
       buildSessionQuery(

@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import type { HealthStatus } from "../../shared/contracts";
 import type { ObservatoryView } from "../App";
+import { LiveTokenTotal } from "../live/LiveTokens";
 
 interface ChromeProps {
   children: ReactNode;
@@ -20,13 +21,6 @@ function formatClock(checkedAt: string) {
     minute: "2-digit",
     second: "2-digit",
   });
-}
-
-function formatCompactNumber(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    maximumFractionDigits: 1,
-    notation: "compact",
-  }).format(value);
 }
 
 export function Chrome({
@@ -88,7 +82,7 @@ export function Chrome({
             <div className="l">w/ Warn</div>
           </div>
           <div className="stat">
-            <div className="v num">{formatCompactNumber(tokenTotal)}</div>
+            <div className="v num"><LiveTokenTotal fallback={tokenTotal} /></div>
             <div className="l">Tokens</div>
           </div>
           <div className="stat">

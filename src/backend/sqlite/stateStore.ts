@@ -1,5 +1,5 @@
 import { access } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 import type {
@@ -9,6 +9,7 @@ import type {
   SessionSummary,
   ThreadSource,
 } from "../../shared/contracts";
+import { deriveRepoName } from "../../shared/repoName";
 
 export class StateStoreError extends Error {
   code: string;
@@ -142,7 +143,7 @@ const normalizeThread = (row: ThreadRow): SessionSummary => {
     rolloutPath: row.rollout_path,
     createdAtMs,
     updatedAtMs,
-    repoLabel: basename(row.cwd),
+    repoLabel: deriveRepoName(row.git_origin_url, row.cwd),
     titlePreview,
     firstUserMessagePreview,
     preview,
@@ -282,10 +283,7 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
       const limit = page.limit ?? 100;
       const offset = page.offset ?? 0;
       const conditions: string[] = [];
-      const parameters: Record<string, string | number> = {
-        limit,
-        offset,
-      };
+      const parameters: Record<string, string | number> = {};
 
       if (archived === "exclude") {
         conditions.push("t.archived = 0");
@@ -293,20 +291,9 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
         conditions.push("t.archived = 1");
       }
 
-      if (filter.cwd) {
-        const cwdFilter = filter.cwd.trim();
-
-        if (cwdFilter.includes("/") || cwdFilter.includes("\\")) {
-          conditions.push("t.cwd = :cwd");
-          parameters.cwd = cwdFilter;
-        } else {
-          conditions.push(
-            "(rtrim(t.cwd, '/\\') = :repo OR rtrim(t.cwd, '/\\') LIKE :repoSuffixUnix OR rtrim(t.cwd, '/\\') LIKE :repoSuffixWindows)",
-          );
-          parameters.repo = cwdFilter;
-          parameters.repoSuffixUnix = `%/${cwdFilter}`;
-          parameters.repoSuffixWindows = `%\\${cwdFilter}`;
-        }
+      if (filter.cwd?.trim()) {
+        conditions.push("t.cwd = :cwd");
+        parameters.cwd = filter.cwd.trim();
       }
 
       if (filter.threadSource) {
@@ -370,14 +357,27 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
       }
 
       const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+      const orderBy = "ORDER BY COALESCE(t.updated_at_ms, t.updated_at * 1000) DESC, t.id DESC";
+      const repoFilter = filter.repo?.trim();
+
+      if (repoFilter) {
+        // Repo identity is derived in JS (git origin URL -> repo name, with a cwd
+        // basename fallback), so it can't be expressed in SQL. Narrow by every other
+        // condition in SQL, then filter + paginate in memory so the filter always
+        // agrees with the repoLabel shown in the UI.
+        const rows = db
+          .prepare(`${selectThreadSql} ${where} ${orderBy}`)
+          .all(parameters) as unknown as ThreadRow[];
+
+        return rows
+          .map(normalizeThread)
+          .filter((session) => session.repoLabel === repoFilter)
+          .slice(offset, offset + limit);
+      }
+
       const rows = db
-        .prepare(`
-          ${selectThreadSql}
-          ${where}
-          ORDER BY COALESCE(t.updated_at_ms, t.updated_at * 1000) DESC, t.id DESC
-          LIMIT :limit OFFSET :offset
-        `)
-        .all(parameters) as unknown as ThreadRow[];
+        .prepare(`${selectThreadSql} ${where} ${orderBy} LIMIT :limit OFFSET :offset`)
+        .all({ ...parameters, limit, offset }) as unknown as ThreadRow[];
 
       return rows.map(normalizeThread);
     },

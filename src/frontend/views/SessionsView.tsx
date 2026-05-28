@@ -1,5 +1,9 @@
+import type { ReactNode } from "react";
+
 import { ShortId } from "../components/ShortId";
-import { TOKEN_BAR_CELLS, tokenBarFill } from "./tokenBar";
+import { deriveRepoName } from "../../shared/repoName";
+import { LiveSessionTokens, LiveTokenTotal } from "../live/LiveTokens";
+import { countActiveSessions, tokensByHour } from "./sessionStats";
 import type { ApiError, ArchivedFilter, DiagnosticsSummary, SessionFilter, SessionSummary, ThreadSource } from "../../shared/contracts";
 
 interface SessionsViewProps {
@@ -13,22 +17,15 @@ interface SessionsViewProps {
   error: ApiError | null;
 }
 
-const numberFormatter = new Intl.NumberFormat("en-US");
-const compactNumberFormatter = new Intl.NumberFormat("en-US", {
-  maximumFractionDigits: 1,
-  notation: "compact",
-});
-
 const uniqueValues = (sessions: SessionSummary[], getValue: (session: SessionSummary) => string | null | undefined) =>
   Array.from(new Set(sessions.map(getValue).filter((value): value is string => Boolean(value)))).sort((a, b) =>
     a.localeCompare(b),
   );
 
 const formatTime = (value: string) => new Date(value).toLocaleTimeString("en-US");
-const shortRepo = (cwd: string) => cwd.split("/").filter(Boolean).at(-1) ?? cwd;
-const repoName = (session: SessionSummary) => session.repoLabel || shortRepo(session.cwd);
+const repoName = (session: SessionSummary) => session.repoLabel || deriveRepoName(undefined, session.cwd);
 
-function StatCell({ label, sub, tone, value }: { label: string; sub: string; tone?: "warn"; value: string | number }) {
+function StatCell({ label, sub, tone, value }: { label: string; sub: string; tone?: "warn"; value: ReactNode }) {
   return (
     <div className="cell">
       <div className="l">{label}</div>
@@ -56,19 +53,6 @@ function VBars({ data }: { data: number[] }) {
   );
 }
 
-function TokenSegBar({ value }: { value: number }) {
-  const { filled, hi } = tokenBarFill(value);
-  const cells = Array.from({ length: TOKEN_BAR_CELLS }, (_, index) => index < filled);
-
-  return (
-    <div className="segbar" aria-hidden="true">
-      {cells.map((on, index) => (
-        <i className={on ? (hi ? "hi" : "on") : undefined} key={index} />
-      ))}
-    </div>
-  );
-}
-
 export function SessionsView({
   activeSessionId,
   onFilterChange,
@@ -83,20 +67,11 @@ export function SessionsView({
   const modelOptions = uniqueValues(sessions, (session) => session.model);
   const repoOptions = uniqueValues(sessions, repoName);
   const updateFilter = (patch: Partial<SessionFilter>) => onFilterChange({ ...filter, ...patch });
-  const activeSessions = sessions.filter((session) => !session.archived).length;
+  const activeSessions = countActiveSessions(sessions, Date.now());
   const subagentSessions = sessions.filter((session) => session.threadSource === "subagent" || session.agentRole).length;
   const openChildren = sessions.reduce((total, session) => total + session.openChildCount, 0);
   const tokenTotal = sessions.reduce((total, session) => total + (session.tokensUsed ?? session.tokenTotal), 0);
-  const latestUpdateMs = Math.max(...sessions.map((session) => Date.parse(session.updatedAt)).filter(Number.isFinite), Date.now());
-  const tokensByHour = sessions.reduce(
-    (buckets, session) => {
-      const updatedAtMs = Date.parse(session.updatedAt);
-      const hour = Number.isFinite(updatedAtMs) ? Math.min(11, Math.max(0, Math.floor((latestUpdateMs - updatedAtMs) / 3_600_000))) : 11;
-      buckets[11 - hour] += session.tokensUsed ?? session.tokenTotal;
-      return buckets;
-    },
-    Array.from({ length: 12 }, () => 0),
-  );
+  const hourlyTokens = tokensByHour(sessions, Date.now());
   const selectSource = (source?: ThreadSource) => updateFilter({ threadSource: source });
   const selectArchive = (archived: ArchivedFilter) => updateFilter({ archived });
 
@@ -110,15 +85,15 @@ export function SessionsView({
         </div>
 
         <div className="side-stat">
-          <StatCell label="Active" value={activeSessions} sub="not archived" />
+          <StatCell label="Active" value={activeSessions} sub="updated < 1h" />
           <StatCell label="Sub-agents" value={subagentSessions} sub="subagent threads" />
           <StatCell label="Open child" value={openChildren} tone="warn" sub="awaiting" />
-          <StatCell label="Σ Tokens" value={compactNumberFormatter.format(tokenTotal)} sub="all sessions" />
+          <StatCell label="Σ Tokens" value={<LiveTokenTotal fallback={tokenTotal} />} sub="all sessions" />
         </div>
 
         <div className="filter-grp">
           <div className="lbl">Token usage · last 12h</div>
-          <VBars data={tokensByHour} />
+          <VBars data={hourlyTokens} />
           <div className="filter-grp__range">
             <span>-12H</span>
             <span>NOW</span>
@@ -150,9 +125,9 @@ export function SessionsView({
 
           <div className="lbl">Repo</div>
           <div className="row" role="group" aria-label="Repository quick filters">
-            <button className="opt" data-on={!filter.cwd} onClick={() => updateFilter({ cwd: undefined })} type="button">All</button>
+            <button className="opt" data-on={!filter.repo} onClick={() => updateFilter({ repo: undefined })} type="button">All</button>
             {repoOptions.slice(0, 5).map((repo) => (
-              <button className="opt" data-on={filter.cwd === repo} key={repo} onClick={() => updateFilter({ cwd: repo })} type="button">
+              <button className="opt" data-on={filter.repo === repo} key={repo} onClick={() => updateFilter({ repo })} type="button">
                 {repo}
               </button>
             ))}
@@ -318,8 +293,7 @@ export function SessionsView({
                   </td>
                   <td>{session.model || "-"}</td>
                   <td className="numeric">
-                    <div>{numberFormatter.format(tokenValue)}</div>
-                    <TokenSegBar value={tokenValue} />
+                    <LiveSessionTokens sessionId={session.id} fallback={tokenValue} />
                   </td>
                   <td className="badge-cell">
                     <span className={source === "subagent" ? "chip amber" : "chip"}>{source === "subagent" ? `SUB · ${(session.agentRole ?? "worker").charAt(0).toUpperCase()}` : "USER"}</span>

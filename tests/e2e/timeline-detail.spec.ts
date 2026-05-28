@@ -10,7 +10,7 @@ function appBaseUrl(testInfo: TestInfo) {
 }
 
 test.describe("real Timeline detail @timeline", () => {
-  test("renders parsed rollout rows, redacted previews, collapsed output, scrubber ticks, filters, and tail updates", async ({
+  test("renders parsed rollout rows, redacted previews, collapsed output, scrubber dots, grouped filters, and tail updates", async ({
     page,
     }, testInfo) => {
     await writeLegacyE2eRolloutFixtures();
@@ -26,10 +26,28 @@ test.describe("real Timeline detail @timeline", () => {
     await expect(page.getByText("OPENAI_API_KEY=[REDACTED]")).toBeVisible();
     await expect(page.getByText("sk-test")).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Expand \d+KB output/ })).toBeVisible();
-    await expect(page.getByLabel("Timeline scrubber").locator("a")).toHaveCount(32);
 
-    await page.getByRole("button", { name: "tool result" }).click();
-    await expect(page.getByLabel("Timeline events").locator("li")).toHaveCount(1);
+    // Scrubber renders one positioned dot per event plus five axis ticks.
+    await expect(page.getByLabel("Timeline scrubber").locator(".timeline-scrubber__axis")).toHaveCount(5);
+    expect(await page.getByLabel("Timeline scrubber").locator(".timeline-scrubber__dot").count()).toBeGreaterThan(0);
+
+    // Time window control (handoff COMP/06): four segments, ALL default, header swaps to LAST {N}H.
+    const windowGroup = page.getByRole("group", { name: "Time window" });
+    await expect(windowGroup.getByRole("button")).toHaveCount(4);
+    await expect(windowGroup.getByRole("button", { name: "ALL" })).toHaveAttribute("aria-pressed", "true");
+    const scrubberHeader = page.locator(".tl-scrubber-wrap .hdr span").first();
+    await expect(scrubberHeader).toContainText("TASK_STARTED");
+    await windowGroup.getByRole("button", { name: "1H" }).click();
+    await expect(windowGroup.getByRole("button", { name: "1H" })).toHaveAttribute("aria-pressed", "true");
+    await expect(scrubberHeader).toContainText("LAST 1H");
+    await windowGroup.getByRole("button", { name: "ALL" }).click();
+    await expect(scrubberHeader).toContainText("TASK_STARTED");
+
+    // The grouped "Tools" filter shows only tool_call rows (results are inlined).
+    await page.getByRole("button", { name: /^Tools/ }).click();
+    const events = page.getByLabel("Timeline events");
+    expect(await events.locator("li").count()).toBeGreaterThan(0);
+    await expect(events.locator('li:not([data-kind="tool_call"])')).toHaveCount(0);
 
     const rolloutPath = initialTimelineBody.data.facts.rolloutPath;
     expect(rolloutPath).toBeTruthy();
@@ -40,7 +58,7 @@ test.describe("real Timeline detail @timeline", () => {
     })}\n`;
     await appendFile(rolloutPath, tailLine, "utf8");
 
-    await page.getByRole("button", { name: "all", exact: true }).click();
+    await page.getByRole("button", { name: /^All Events/ }).click();
     const tailResponsePromise = page.waitForResponse((response) => response.url().includes("/api/timeline") && response.url().includes("fromByte="));
     await page.getByRole("button", { name: "Tail" }).click();
     const tailResponse = await tailResponsePromise;
@@ -122,22 +140,25 @@ test.describe("real Timeline detail @timeline", () => {
     });
 
     const timeline = page.getByLabel("Timeline events");
-    await expect(timeline).toContainText("task started");
-    await expect(timeline).toContainText("turn context");
-    await expect(timeline).toContainText("user message");
-    await expect(timeline).toContainText("assistant message");
-    await expect(timeline).toContainText("tool call");
-    await expect(timeline).toContainText("tool result");
-    await expect(timeline).toContainText("token snapshot");
-    await expect(timeline).toContainText("agent launch");
-    await expect(timeline).toContainText("agent wait");
+    // Every design event kind is present (tool results are inlined on their call).
+    await expect(timeline.locator('[data-kind="task_started"]')).not.toHaveCount(0);
+    await expect(timeline.locator('[data-kind="turn_context"]')).not.toHaveCount(0);
+    await expect(timeline.locator('[data-kind="user_message"]')).not.toHaveCount(0);
+    await expect(timeline.locator('[data-kind="assistant_message"]')).not.toHaveCount(0);
+    await expect(timeline.locator('[data-kind="tool_call"]')).not.toHaveCount(0);
+    await expect(timeline.locator('[data-kind="token_snapshot"]')).not.toHaveCount(0);
+    await expect(timeline.locator('[data-kind="agent_launch"]')).not.toHaveCount(0);
+    await expect(timeline.locator('[data-kind="agent_wait"]')).not.toHaveCount(0);
 
+    // Design who-labels and inlined tool output.
+    await expect(timeline.getByText("USER", { exact: true })).toBeVisible();
+    await expect(timeline.getByText("⊕ SPAWN_AGENT")).toBeVisible();
     await expect.soft(timeline).toContainText("observed joined shell output", { timeout: 1_000 });
     await expect.soft(timeline).toContainText("exit 7", { timeout: 1_000 });
     await expect.soft(timeline).toContainText("1.234s", { timeout: 1_000 });
-    await expect.soft(timeline).toContainText("last input 111", { timeout: 1_000 });
-    await expect.soft(timeline).toContainText("last output 222", { timeout: 1_000 });
-    await expect.soft(timeline).toContainText("128,000 context", { timeout: 1_000 });
+    // token_count KV grid surfaces the snapshot totals.
+    await expect.soft(timeline).toContainText("8,420", { timeout: 1_000 });
+    await expect.soft(timeline).toContainText("7,200", { timeout: 1_000 });
     await expect.soft(timeline).toContainText("Observed agent report row", { timeout: 1_000 });
     await expect
       .soft(page.getByRole("button", { name: /open thread-subagent-implementation in timeline/i }))

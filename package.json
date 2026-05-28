@@ -23,6 +23,7 @@
     "@fontsource/jetbrains-mono": "5.2.8",
     "@fontsource/shippori-mincho": "5.2.8",
     "@vitejs/plugin-react": "^5.0.0",
+    "@xyflow/react": "12.10.2",
     "concurrently": "^9.2.1",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",

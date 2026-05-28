@@ -1,4 +1,17 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Background,
+  Controls,
+  Handle,
+  MiniMap,
+  Position,
+  ReactFlow,
+  useEdgesState,
+  useNodesState,
+  type Edge,
+  type Node,
+  type NodeProps,
+} from "@xyflow/react";
 
 import { ShortId } from "../components/ShortId";
 import type { AgentGraph, AgentNode, ApiError, SessionSummary } from "../../shared/contracts";
@@ -24,8 +37,8 @@ const statusSummaryText = (graph: AgentGraph) =>
 
 const formatTimestamp = (value?: string) => (value ? new Date(value).toLocaleString("en-US") : "n/a");
 
-const nodeRole = (node: AgentNode, rootId?: string) => {
-  if (node.id === rootId || node.depth === 0) {
+const nodeRole = (node: AgentNode, isRoot: boolean) => {
+  if (isRoot || node.depth === 0) {
     return "ROOT · USER";
   }
 
@@ -42,9 +55,7 @@ const openChildCountFor = (graph: AgentGraph, nodeId: string) =>
 const parentFor = (graph: AgentGraph, nodeId: string) =>
   graph.edges.find((edge) => edge.childId === nodeId)?.parentId ?? null;
 
-const buildGraphLayout = (graph: AgentGraph) => {
-  const nodeWidth = 220;
-  const nodeHeight = 104;
+const buildPositions = (graph: AgentGraph) => {
   const columnGap = 320;
   const positions = new Map<string, { x: number; y: number }>();
   const depths = [...new Set(graph.nodes.map((node) => node.depth))].sort((a, b) => a - b);
@@ -55,8 +66,8 @@ const buildGraphLayout = (graph: AgentGraph) => {
     const startY = depth === 0 ? 280 : 70;
 
     nodesAtDepth.forEach((node, index) => {
-      const parentPosition = parentFor(graph, node.id);
-      const parentY = parentPosition ? positions.get(parentPosition)?.y : undefined;
+      const parentId = parentFor(graph, node.id);
+      const parentY = parentId ? positions.get(parentId)?.y : undefined;
       const siblingOffset = (index - (nodesAtDepth.length - 1) / 2) * step;
       positions.set(node.id, {
         x: 54 + depth * columnGap,
@@ -65,17 +76,58 @@ const buildGraphLayout = (graph: AgentGraph) => {
     });
   }
 
-  const maxX = Math.max(...[...positions.values()].map((position) => position.x), 54) + nodeWidth + 80;
-  const maxY = Math.max(...[...positions.values()].map((position) => position.y), 280) + nodeHeight + 80;
-
-  return {
-    height: Math.max(620, maxY),
-    nodeHeight,
-    nodeWidth,
-    positions,
-    width: Math.max(980, maxX),
-  };
+  return positions;
 };
+
+interface GraphNodeData extends Record<string, unknown> {
+  node: AgentNode;
+  isRoot: boolean;
+  onSelect(): void;
+  onOpenTimeline(): void;
+}
+
+type AgentFlowNode = Node<GraphNodeData, "agent">;
+
+function AgentFlowNodeView({ data, selected }: NodeProps<AgentFlowNode>) {
+  const { node, isRoot, onSelect, onOpenTimeline } = data;
+
+  return (
+    <>
+      <Handle type="target" position={Position.Left} isConnectable={false} />
+      <button
+        aria-pressed={selected}
+        className={`node ${node.sourceEdgeStatus === "open" ? "status-open" : ""}`}
+        data-open={selected}
+        data-status={node.status}
+        onClick={onSelect}
+        onDoubleClick={onOpenTimeline}
+        type="button"
+      >
+        <span className="corner-tl" />
+        <span className="corner-br" />
+        <span className="role">{nodeRole(node, isRoot)}</span>
+        <strong className="nick">{nodeCallsign(node)}</strong>
+        <span className="node-title">{node.title}</span>
+        <span className="id">
+          <ShortId value={node.id} />
+        </span>
+        <span className="row">
+          <span className="chip dim">{compactFormatter.format(node.tokenTotal)} tok</span>
+          <span className={node.sourceEdgeStatus === "open" ? "chip warn" : "chip good"}>
+            {node.sourceEdgeStatus ?? node.status}
+          </span>
+          {node.metadataMissing ? <span className="chip warn">meta</span> : null}
+        </span>
+      </button>
+      <Handle type="source" position={Position.Right} isConnectable={false} />
+    </>
+  );
+}
+
+const nodeTypes = { agent: AgentFlowNodeView };
+
+const minimapNodeColor = (node: AgentFlowNode) =>
+  node.data.node.sourceEdgeStatus === "open" ? "var(--warn)" : "var(--primary)";
 
 export function AgentGraphView({
   error,
@@ -87,145 +139,123 @@ export function AgentGraphView({
   onSelectSession,
 }: AgentGraphViewProps) {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [nodes, setNodes, onNodesChange] = useNodesState<AgentFlowNode>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+
   const selectedNode = graph?.nodes.find((node) => node.id === selectedNodeId) ?? graph?.root;
-  const selectTimeline = (node: AgentNode) => onSelectSession(node.id, "Timeline");
-  const layout = useMemo(() => (graph ? buildGraphLayout(graph) : null), [graph]);
+
+  const selectedNodeIdRef = useRef<string | null>(selectedNodeId);
+  selectedNodeIdRef.current = selectedNodeId;
+  const onSelectSessionRef = useRef(onSelectSession);
+  onSelectSessionRef.current = onSelectSession;
+
+  const positions = useMemo(() => (graph ? buildPositions(graph) : null), [graph]);
+
+  useEffect(() => {
+    if (!graph || !positions) {
+      setNodes([]);
+      setEdges([]);
+      return;
+    }
+
+    const activeId = selectedNodeIdRef.current ?? graph.root.id;
+    setNodes(
+      graph.nodes.map((node) => ({
+        id: node.id,
+        type: "agent",
+        position: positions.get(node.id) ?? { x: 0, y: 0 },
+        selected: node.id === activeId,
+        data: {
+          node,
+          isRoot: node.id === graph.root.id,
+          onSelect: () => setSelectedNodeId(node.id),
+          onOpenTimeline: () => onSelectSessionRef.current(node.id, "Timeline"),
+        },
+      })),
+    );
+    setEdges(
+      graph.edges.map((edge) => ({
+        id: `${edge.parentId}-${edge.childId}`,
+        source: edge.parentId,
+        target: edge.childId,
+        type: "default",
+        animated: edge.status === "open",
+        label: edge.status,
+        className: `graph-flow-edge graph-flow-edge--${edge.status}`,
+      })),
+    );
+  }, [graph, positions, setNodes, setEdges]);
+
+  useEffect(() => {
+    const activeId = selectedNodeId ?? graph?.root.id;
+    setNodes((current) => current.map((node) => ({ ...node, selected: node.id === activeId })));
+  }, [selectedNodeId, graph, setNodes]);
 
   return (
     <section className="graph-view" aria-labelledby="agent-graph-title">
       {error ? <div className="inline-alert" role="alert">{error.message}</div> : null}
       {isLoading ? <div role="status">Loading graph</div> : null}
       {!graph ? <div className="empty-state">No graph loaded.</div> : null}
-      {graph && layout ? (
+      {graph ? (
         <div className="graph">
           <div className="graph-canvas" data-testid="agent-graph-canvas">
             <div className="graph-head">
               <h1 id="agent-graph-title">
                 <span className="dot" /> Agent Graph
               </h1>
-              <span>
-                Agent Tree · thread_spawn_edges
-              </span>
+              <span>Agent Tree · thread_spawn_edges</span>
               <span>
                 Depth {maxDepth} · {graph.nodes.length} nodes · {graph.edges.length} edges
               </span>
             </div>
 
-            <div className="graph-toolbar" aria-label="Graph controls">
-              <label className="field field--compact">
-                <span>Depth</span>
-                <input
-                  aria-label="Graph depth"
-                  max={10}
-                  min={0}
-                  type="number"
-                  value={maxDepth}
-                  onChange={(event) => {
-                    onMaxDepthChange(Number.parseInt(event.target.value || "0", 10));
-                    onRefresh();
-                  }}
-                />
-              </label>
-              <button type="button" onClick={onRefresh}>
-                Refresh graph
-              </button>
+            <div className="graph-flow">
+              <div className="graph-toolbar" aria-label="Graph controls">
+                <label className="field field--compact">
+                  <span>Depth</span>
+                  <input
+                    aria-label="Graph depth"
+                    max={10}
+                    min={0}
+                    type="number"
+                    value={maxDepth}
+                    onChange={(event) => {
+                      onMaxDepthChange(Number.parseInt(event.target.value || "0", 10));
+                      onRefresh();
+                    }}
+                  />
+                </label>
+                <button type="button" onClick={onRefresh}>
+                  Refresh graph
+                </button>
+              </div>
+
+              <ReactFlow
+                nodes={nodes}
+                edges={edges}
+                nodeTypes={nodeTypes}
+                onNodesChange={onNodesChange}
+                onEdgesChange={onEdgesChange}
+                nodesDraggable
+                nodesConnectable={false}
+                elementsSelectable={false}
+                fitView
+                fitViewOptions={{ padding: 0.25 }}
+                minZoom={0.2}
+                maxZoom={1.5}
+                proOptions={{ hideAttribution: false }}
+              >
+                <Background gap={28} color="var(--ink-ghost)" />
+                <Controls showInteractive={false} />
+                <MiniMap pannable zoomable nodeColor={minimapNodeColor} maskColor="rgba(0, 0, 0, 0.6)" />
+              </ReactFlow>
+
+              {graph.truncatedDepth ? (
+                <div className="graph-truncated inline-alert">
+                  Depth limit reached; increase graph depth to expand descendants.
+                </div>
+              ) : null}
             </div>
-
-            <div className="graph-grid" aria-hidden="true">
-              {[0, 25, 50, 75, 100].map((percent) => (
-                <span key={percent} style={{ left: `${percent}%` }} />
-              ))}
-              <b style={{ left: "38%" }}>Depth·1</b>
-              <b style={{ left: "72%" }}>Depth·2</b>
-            </div>
-
-            <svg
-              aria-hidden="true"
-              className="graph-edges"
-              data-testid="agent-graph-edges"
-              height={layout.height}
-              viewBox={`0 0 ${layout.width} ${layout.height}`}
-              width={layout.width}
-            >
-              <defs>
-                <marker id="graph-arrow" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto">
-                  <path d="M0,0 L6,3 L0,6 z" />
-                </marker>
-                <marker id="graph-arrow-warn" markerWidth="6" markerHeight="6" refX="6" refY="3" orient="auto">
-                  <path d="M0,0 L6,3 L0,6 z" />
-                </marker>
-              </defs>
-              {graph.edges.map((edge) => {
-                const parentPosition = layout.positions.get(edge.parentId);
-                const childPosition = layout.positions.get(edge.childId);
-                if (!parentPosition || !childPosition) {
-                  return null;
-                }
-
-                const x1 = parentPosition.x + layout.nodeWidth;
-                const y1 = parentPosition.y + layout.nodeHeight / 2;
-                const x2 = childPosition.x;
-                const y2 = childPosition.y + layout.nodeHeight / 2;
-                const mx = (x1 + x2) / 2;
-                const marker = edge.status === "open" ? "url(#graph-arrow-warn)" : "url(#graph-arrow)";
-
-                return (
-                  <g className={`graph-edge graph-edge--${edge.status}`} key={`${edge.parentId}-${edge.childId}`}>
-                    <path d={`M ${x1} ${y1} C ${mx} ${y1} ${mx} ${y2} ${x2} ${y2}`} markerEnd={marker} />
-                    <text x={mx} y={(y1 + y2) / 2 - 6}>
-                      {edge.status}
-                    </text>
-                  </g>
-                );
-              })}
-            </svg>
-
-            <ul
-              aria-label="Agent graph nodes"
-              className="graph-nodes"
-              style={{ height: layout.height, width: layout.width }}
-            >
-              {graph.nodes.map((node) => (
-                <li
-                  className="graph-node-item"
-                  key={node.id}
-                  style={{
-                    left: layout.positions.get(node.id)?.x ?? 0,
-                    top: layout.positions.get(node.id)?.y ?? 0,
-                  }}
-                >
-                  <button
-                    aria-pressed={selectedNode?.id === node.id}
-                    className={`node ${node.sourceEdgeStatus === "open" ? "status-open" : ""}`}
-                    data-open={selectedNode?.id === node.id}
-                    data-status={node.status}
-                    onClick={() => setSelectedNodeId(node.id)}
-                    onDoubleClick={() => selectTimeline(node)}
-                    type="button"
-                  >
-                    <span className="corner-tl" />
-                    <span className="corner-br" />
-                    <span className="role">{nodeRole(node, graph.root.id)}</span>
-                    <strong className="nick">{nodeCallsign(node)}</strong>
-                    <span className="node-title">{node.title}</span>
-                    <span className="id">
-                      <ShortId value={node.id} />
-                    </span>
-                    <span className="row">
-                      <span className="chip dim">{compactFormatter.format(node.tokenTotal)} tok</span>
-                      <span className={node.sourceEdgeStatus === "open" ? "chip warn" : "chip good"}>
-                        {node.sourceEdgeStatus ?? node.status}
-                      </span>
-                      {node.metadataMissing ? <span className="chip warn">meta</span> : null}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-
-            {graph.truncatedDepth ? (
-              <div className="graph-truncated inline-alert">Depth limit reached; increase graph depth to expand descendants.</div>
-            ) : null}
           </div>
 
           <aside className="graph-info" aria-label="Selected graph node">
@@ -236,7 +266,7 @@ export function AgentGraphView({
             {selectedNode ? (
               <div className="graph-info__body">
                 <span className={selectedNode.depth > 0 ? "haztag amber" : "haztag primary"}>
-                  {nodeRole(selectedNode, graph.root.id)}
+                  {nodeRole(selectedNode, selectedNode.id === graph.root.id)}
                 </span>
                 <strong className="display graph-info__title">{selectedNode.title}</strong>
                 <ShortId value={selectedNode.id} />
@@ -276,7 +306,7 @@ export function AgentGraphView({
                   <p>{selectedNode.finalReportPreview ?? "in progress"}</p>
                 </div>
 
-                <button type="button" onClick={() => selectTimeline(selectedNode)}>
+                <button type="button" onClick={() => onSelectSession(selectedNode.id, "Timeline")}>
                   Open selected in Timeline
                 </button>
               </div>

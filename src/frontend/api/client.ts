@@ -127,6 +127,7 @@ export const buildSessionQuery = (filter: SessionFilter = {}, page: PageOptions 
 
   appendParam(params, "search", filter.search?.trim());
   appendParam(params, "cwd", filter.cwd);
+  appendParam(params, "repo", filter.repo);
   appendParam(params, "archived", filter.archived);
   appendParam(params, "source", filter.threadSource);
   appendParam(params, "role", filter.agentRole);
