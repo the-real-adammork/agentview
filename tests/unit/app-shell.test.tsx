@@ -84,7 +84,7 @@ describe("fixture-backed app shell", () => {
     expect(screen.getByText("SESSION INDEX")).toBeVisible();
     expect(screen.getByText(/Token usage · last 12h/i)).toBeVisible();
     expect(screen.getByText(/RESULTS ·/i)).toBeVisible();
-    expect(screen.getByText(/SORT · updated_at/i)).toBeVisible();
+    expect(screen.getByText(/SORT · created_at/i)).toBeVisible();
     expect(screen.getByText(/TREE · thread_spawn_edges/i)).toBeVisible();
 
     const sessionsTable = screen.getByRole("table", { name: /sessions/i });
