@@ -329,7 +329,7 @@ function SessionTokenComposition({
         </div>
         <div className="stc-ctx">
           <div className="stc-ctx-head">
-            <span>Context window</span>
+            <span>Context</span>
             <span className={`num strong ${ctxPct > 60 ? "tone-warn" : ""}`}>{ctxPct.toFixed(1)}%</span>
           </div>
           <GaugeBar count={20} value={ctxPct} hi={ctxPct > 60} />
@@ -421,7 +421,7 @@ export function TokensView({
                 <MiniReadout label={`Last input ${lastInputLabel}`} value={lastInputLabel} />
                 <MiniReadout label={`Last output ${lastOutputLabel}`} value={lastOutputLabel} />
                 <MiniReadout label={`Context window ${contextWindowLabel}`} value={contextWindowLabel} />
-                <MiniReadout label={`Plan ${planTypeLabel}`} value={planTypeLabel} />
+                <MiniReadout label={`Plan type ${planTypeLabel}`} value={planTypeLabel} />
               </div>
             </section>
 

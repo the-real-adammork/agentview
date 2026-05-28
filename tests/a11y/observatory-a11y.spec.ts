@@ -1,6 +1,6 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
-const primaryViews = ["Sessions", "Timeline", "Agent Graph", "Tokens", "Diagnostics"] as const;
+const primaryViews = ["Timeline", "Agent Graph", "Tokens", "Diagnostics"] as const;
 
 function appBaseUrl(testInfo: TestInfo) {
   const configuredBaseUrl = testInfo.project.use.baseURL;
@@ -36,7 +36,8 @@ test.describe("Observatory accessibility @a11y", () => {
       await expect(page.getByRole("heading", { name: new RegExp(viewName, "i") }).first()).toBeVisible();
     }
 
-    await primaryNav.getByRole("button", { name: "Sessions", exact: true }).click();
+    // Sessions is merged into the header session square (not a primary tab).
+    await page.locator(".session-sq").click();
     await expect(page.getByRole("table", { name: /sessions/i }).getByRole("columnheader", { name: "Session" })).toBeVisible();
     await expect(page.getByRole("row", { name: /Subagent implementation lane/i })).toHaveAttribute("tabindex", "0");
     await expectFocusVisible(page, "Timeline");

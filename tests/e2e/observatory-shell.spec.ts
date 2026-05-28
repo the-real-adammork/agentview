@@ -1,6 +1,6 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
-const primaryViews = ["Sessions", "Timeline", "Agent Graph", "Tokens", "Diagnostics"] as const;
+const primaryViews = ["Timeline", "Agent Graph", "Tokens", "Diagnostics"] as const;
 
 function assertLocalHttpUrl(rawUrl: string, label: string) {
   const url = new URL(rawUrl);
@@ -131,12 +131,16 @@ test.describe("observatory local fixture shell", () => {
 
     await expect(page.getByRole("button", { name: /repos/i })).toBeVisible();
 
+    // Sessions is merged into the header session square (no longer a primary tab).
+    await page.locator(".session-sq").click();
+    await expect(
+      page.getByRole("heading", { name: /sessions/i }),
+      "Sessions view should render after clicking the header session square",
+    ).toBeVisible();
+
+    const primaryNav = page.getByRole("navigation", { name: "Primary views" });
     for (const viewName of primaryViews) {
-      await page
-        .getByRole("button", { name: viewName })
-        .or(page.getByRole("link", { name: viewName }))
-        .first()
-        .click();
+      await primaryNav.getByRole("button", { name: viewName }).first().click();
       await expect(
         page.getByRole("heading", { name: new RegExp(viewName, "i") }),
         `${viewName} view should render after primary navigation`,

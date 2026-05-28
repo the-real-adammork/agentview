@@ -79,8 +79,8 @@ test.describe("real Sessions index @sessions", () => {
     await rows.nth(2).click();
     await expect(page.getByRole("heading", { name: /timeline/i })).toBeVisible();
 
-    // Returning to the index shows the clicked session as the active row.
-    await page.getByRole("button", { name: "Sessions" }).click();
+    // Returning to the index (via the header session square) shows the clicked session active.
+    await page.locator(".session-sq").click();
     await expect((await sessionRows(page)).nth(2)).toHaveAttribute("aria-current", "true");
   });
 

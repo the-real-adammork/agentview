@@ -106,10 +106,11 @@ test.describe("real Graph and Tokens views @graph-tokens", () => {
     await expect.soft(page.getByText(/plan type/i)).toContainText("pro", { timeout: 1_000 });
     await expect.soft(page.getByText(/primary rate limit/i)).toContainText("64", { timeout: 1_000 });
     await expect.soft(page.getByText(/secondary rate limit/i)).toContainText("12", { timeout: 1_000 });
-    await expect.soft(page.getByText(/^Reset\b/i)).toContainText("7:30", { timeout: 1_000 });
-    await expect(page.getByRole("table", { name: /top token sessions/i })).toContainText("Parent real sessions work");
+    await expect.soft(page.getByText(/· next/i)).toContainText("7:30", { timeout: 1_000 });
+    await expect(page.getByText(/token budget · by session/i)).toBeVisible();
 
-    await page.getByRole("button", { name: /open parent real sessions work/i }).click();
+    // Budget bars list each session as a stacked composition row; clicking drills into the timeline.
+    await page.getByRole("button", { name: /parent real sessions work/i }).first().click();
     await expect(page.getByRole("heading", { name: "Timeline" })).toBeVisible();
   });
 });

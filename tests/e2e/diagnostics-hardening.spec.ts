@@ -1,6 +1,6 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
 
-const primaryViews = ["Sessions", "Timeline", "Agent Graph", "Tokens", "Diagnostics"] as const;
+const primaryViews = ["Timeline", "Agent Graph", "Tokens", "Diagnostics"] as const;
 
 function appBaseUrl(testInfo: TestInfo) {
   const configuredBaseUrl = testInfo.project.use.baseURL;

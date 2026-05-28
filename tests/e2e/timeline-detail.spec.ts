@@ -69,7 +69,9 @@ test.describe("real Timeline detail @timeline", () => {
         events: expect.arrayContaining([expect.objectContaining({ previewText: "tail appended row" })]),
       },
     });
-    await expect(page.getByText("tail appended row")).toBeVisible();
+    // The manual Tail fetch and the live SSE stream can both deliver the appended
+    // bytes, so the row may render more than once; assert at least one is visible.
+    await expect(page.getByText("tail appended row").first()).toBeVisible();
   });
 
   test("surfaces enriched observed rollout facts in event groups and spawn actions", async ({ page }, testInfo) => {
@@ -156,9 +158,9 @@ test.describe("real Timeline detail @timeline", () => {
     await expect.soft(timeline).toContainText("observed joined shell output", { timeout: 1_000 });
     await expect.soft(timeline).toContainText("exit 7", { timeout: 1_000 });
     await expect.soft(timeline).toContainText("1.234s", { timeout: 1_000 });
-    // token_count KV grid surfaces the snapshot totals.
-    await expect.soft(timeline).toContainText("8,420", { timeout: 1_000 });
-    await expect.soft(timeline).toContainText("7,200", { timeout: 1_000 });
+    // token_count composition row: compact total + cache-hit % + stacked legend.
+    await expect.soft(timeline).toContainText("8.4K", { timeout: 1_000 });
+    await expect.soft(timeline).toContainText("of input cached", { timeout: 1_000 });
     await expect.soft(timeline).toContainText("Observed agent report row", { timeout: 1_000 });
     await expect
       .soft(page.getByRole("button", { name: /open thread-subagent-implementation in timeline/i }))
