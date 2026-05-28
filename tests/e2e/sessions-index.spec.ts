@@ -61,7 +61,7 @@ test.describe("real Sessions index @sessions", () => {
     // (newest descendant first), rather than a flat updated_at sort.
     await expect(rows.nth(0)).toContainText("Parent real sessions work");
     await expect(rows.nth(1)).toContainText("UI fixture archived");
-    await expect(rows.nth(2)).toContainText("Subagent implementation lane");
+    await expect(rows.nth(2)).toContainText("ui-worker");
     await expect(rows.nth(0)).toHaveAttribute("data-depth", "0");
     await expect(rows.nth(1)).toHaveAttribute("data-depth", "1");
     await expect(rows.nth(2)).toHaveAttribute("data-depth", "1");
@@ -96,7 +96,7 @@ test.describe("real Sessions index @sessions", () => {
 
     const rows = await sessionRows(page);
     await expect(rows).toHaveCount(1);
-    await expect(rows.first()).toContainText("Subagent implementation lane");
+    await expect(rows.first()).toContainText("ui-worker");
     await expect(rows.first()).toContainText("gpt-5-codex");
   });
 
@@ -115,7 +115,7 @@ test.describe("real Sessions index @sessions", () => {
 
     const rows = await sessionRows(page);
     await expect(rows).toHaveCount(2);
-    await expect(page.getByRole("table", { name: /sessions/i })).toContainText("Subagent implementation lane");
+    await expect(page.getByRole("table", { name: /sessions/i })).toContainText("ui-worker");
     await expect(page.getByRole("table", { name: /sessions/i })).toContainText("Parent real sessions work");
     await expect(page.getByRole("table", { name: /sessions/i })).not.toContainText("UI fixture archived");
     await expect(page.getByRole("table", { name: /sessions/i })).not.toContainText("/repo/agentview");

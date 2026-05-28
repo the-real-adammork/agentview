@@ -39,7 +39,7 @@ test.describe("Observatory accessibility @a11y", () => {
     // Sessions is merged into the header session square (not a primary tab).
     await page.locator(".session-sq").click();
     await expect(page.getByRole("table", { name: /sessions/i }).getByRole("columnheader", { name: "Session" })).toBeVisible();
-    await expect(page.getByRole("row", { name: /Subagent implementation lane/i })).toHaveAttribute("tabindex", "0");
+    await expect(page.getByRole("row", { name: /ui-worker/i })).toHaveAttribute("tabindex", "0");
     await expectFocusVisible(page, "Timeline");
   });
 });

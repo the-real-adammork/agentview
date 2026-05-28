@@ -228,11 +228,11 @@ test.describe("Diagnostics UI @diagnostics", () => {
     await expect(rows, "session rows should paint before diagnostics badge hydration resolves").toHaveCount(3, {
       timeout: 1_000,
     });
-    await expect(rows.filter({ hasText: "Subagent implementation lane" })).not.toContainText(/warning|failed command/i);
+    await expect(rows.filter({ hasText: "ui-worker" })).not.toContainText(/warning|failed command/i);
 
     releaseSummary?.();
 
-    const subagentRow = rows.filter({ hasText: "Subagent implementation lane" });
+    const subagentRow = rows.filter({ hasText: "ui-worker" });
     await expect(subagentRow).toContainText("2 warnings");
     await expect(subagentRow).toContainText("1 failed command");
     await expect.soft(subagentRow).toContainText("observed schema");
