@@ -308,12 +308,14 @@ export function App() {
             <TimelineView
               payload={timelinePayload ?? fallbackTimeline}
               activeSession={activeSession}
+              sessions={sessions}
               isLoading={timelineLoading}
               error={timelineError}
               activeKind={timelineKind}
               onKindChange={setTimelineKind}
               onRefresh={() => loadTimeline()}
               onSelectSession={selectSession}
+              onOpenGraph={() => activeSession && selectSession(activeSession.id, "Agent Graph")}
               onTail={() => loadTimeline(timelinePayload?.nextByteOffset ?? 0)}
             />
           ) : null}

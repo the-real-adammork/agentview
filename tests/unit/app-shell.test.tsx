@@ -109,9 +109,10 @@ describe("fixture-backed five-view app shell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Timeline" }));
     expect(screen.getByRole("heading", { name: /timeline/i })).toBeVisible();
     expect(screen.getByText(/TURN 01 · VITALS/i)).toBeVisible();
-    expect(screen.getByText(/SESSION META/i)).toBeVisible();
+    expect(screen.getByText(/Other Sessions/i)).toBeVisible();
     expect(screen.getByText(/Context window/i)).toBeVisible();
     expect(screen.getByText(/Tool Usage · this turn/i)).toBeVisible();
+    expect(screen.getByRole("button", { name: /open agent graph/i })).toBeVisible();
     expect(screen.getByRole("list", { name: /Timeline events/i })).toHaveClass("tl-stream");
     expect(screen.getByText(timelineEventsFixture[0].previewText)).toBeVisible();
 

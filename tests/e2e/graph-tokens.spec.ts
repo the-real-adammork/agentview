@@ -67,7 +67,8 @@ test.describe("real Graph and Tokens views @graph-tokens", () => {
     await expect(page.getByText(/Implementation prompt/i).or(page.getByText(/Timeline task started/i))).toBeVisible();
 
     const tokensResponsePromise = page.waitForResponse((response) => response.url().includes("/api/tokens"));
-    await page.getByRole("button", { name: "Tokens" }).click();
+    // Scope to the primary nav: the Timeline filter tabs also include a "Tokens" button.
+    await page.getByRole("navigation", { name: "Primary views" }).getByRole("button", { name: "Tokens" }).click();
     const tokensResponse = await tokensResponsePromise;
     expect(tokensResponse.status()).toBe(200);
     const tokensBody = await tokensResponse.json();
