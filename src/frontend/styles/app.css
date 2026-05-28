@@ -171,7 +171,7 @@ button {
 
 .header {
   display: grid;
-  grid-template-columns: 320px 1fr auto;
+  grid-template-columns: auto auto 1fr auto;
   align-items: center;
   border-bottom: var(--border-width) solid var(--rule);
   background: var(--bg-1);
@@ -264,12 +264,27 @@ button {
 }
 
 .nav button[data-active="true"] {
-  background: var(--primary);
-  color: var(--bg-0);
+  background: rgba(255, 107, 26, 0.1);
+  color: var(--primary);
+  text-shadow: 0 0 12px rgba(255, 107, 26, 0.6);
 }
 
 .nav button[data-active="true"] .idx {
-  color: rgba(0, 0, 0, 0.6);
+  color: var(--primary);
+}
+
+/* Continuous selection rail: a 2px bottom border runs from the header through
+   to the active tab. The active tab gets a brighter, glowing 3px segment. */
+.repos-btn[data-rail="on"]::after,
+.session-sq[data-rail="on"]::after,
+.nav button[data-rail="on"]::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: var(--primary);
 }
 
 .nav button[data-active="true"]::after {
@@ -278,8 +293,11 @@ button {
   right: 0;
   bottom: -1px;
   left: 0;
-  height: 1px;
+  height: 3px;
   background: var(--primary);
+  box-shadow:
+    0 0 10px 1px var(--primary),
+    0 0 4px var(--primary);
 }
 
 .header .right {
@@ -2690,10 +2708,10 @@ tbody tr[aria-current="true"] {
 
 /* ≤1440 — tighten chrome, narrow side columns. */
 @media (max-width: 1440px) {
-  .header { grid-template-columns: 280px 1fr auto; }
-  .header .brand { padding: 0 12px; gap: 10px; }
-  .header .brand .mark { width: 32px; height: 32px; }
-  .header .brand .name { font-size: 16px; letter-spacing: 0.14em; }
+  .header { grid-template-columns: auto auto 1fr auto; }
+  .repos-btn { width: 200px; }
+  .session-sq { padding: 0 12px; gap: 8px; }
+  .session-sq .ss-name { max-width: 150px; font-size: 12px; }
   .nav button { padding: 0 14px; letter-spacing: 0.14em; }
   .top-hazard .center { padding: 0 14px; letter-spacing: 0.28em; font-size: 13px; gap: 12px; }
 
@@ -2706,10 +2724,10 @@ tbody tr[aria-current="true"] {
 /* ≤1280 — drop JP wordmark and low-priority header stats. */
 @media (max-width: 1280px) {
   .top-hazard .center .jp { display: none; }
-  .header .brand .sub { display: none; }
   .header .right .stat:nth-child(2),
   .header .right .stat:nth-child(3) { display: none; }
   .header .right { gap: 12px; padding: 0 12px; }
+  .session-sq .ss-tok { display: none; }
 }
 
 /* ≤1100 — collapse right panels, drop lower-priority table columns. */
@@ -2733,10 +2751,12 @@ tbody tr[aria-current="true"] {
 @media (max-width: 960px) {
   .top-hazard .center { font-size: 11px; letter-spacing: 0.22em; }
 
-  .header { grid-template-columns: auto 1fr; }
+  .header { grid-template-columns: auto auto 1fr; }
   .header .right { display: none; }
-  .header .brand .name { font-size: 14px; }
-  .nav button { padding: 0 10px; font-size: 10px; }
+  .session-sq { padding: 0 10px; gap: 6px; }
+  .session-sq .ss-name { max-width: 110px; font-size: 11px; }
+  .session-sq .ss-role { display: none; }
+  .nav button { padding: 0 10px; font-size: 10px; white-space: nowrap; }
 
   /* Sessions: filters become a capped top bar above the table. */
   .overview { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
@@ -2778,16 +2798,20 @@ tbody tr[aria-current="true"] {
   .status > span:nth-child(4) { display: none; }
 }
 
-/* ≤720 — minimum-viable: code-only nav, mark-only brand. */
+/* ≤720 — minimum-viable: code-only nav, mark-only repos button. */
 @media (max-width: 720px) {
   .nav button { padding: 0 10px; }
   .nav button .label { display: none; }
   .nav button .idx { font-size: 13px; color: var(--ink-dim); letter-spacing: 0.08em; }
-  .nav button[data-active="true"] .idx { color: var(--bg-0); }
+  .nav button[data-active="true"] .idx { color: var(--primary); }
 
-  .header .brand > div:not(.mark) { display: none; }
-  .header .brand { padding: 0 10px; border-right: var(--border-width) solid var(--rule); }
-  .header .brand .mark { width: 28px; height: 28px; }
+  .repos-btn { width: auto; padding: 0 12px; }
+  .repos-btn .repos-id,
+  .repos-btn .lbl,
+  .repos-btn .caret { display: none; } /* mark-only when very narrow */
+  .session-sq { padding: 0 8px; gap: 6px; }
+  .session-sq .ss-name { display: none; }
+  .session-sq .ss-arrow { display: none; }
 
   .top-hazard .center .blink { display: none; }
   .top-hazard .center .hazard-strip__sys { display: none; }
@@ -3294,7 +3318,9 @@ tbody tr[aria-current="true"] {
   align-items: center;
   gap: 10px;
   height: 100%;
-  padding: 0 18px;
+  width: 224px;
+  box-sizing: border-box;
+  padding: 0 16px;
   border: 0;
   border-right: 1px solid var(--rule);
   background: var(--bg-1);
@@ -3325,6 +3351,8 @@ tbody tr[aria-current="true"] {
 }
 .repos-btn .lbl {
   color: var(--ink-strong);
+  flex: 1;
+  text-align: left;
 }
 .repos-btn .caret {
   font-family: var(--mono);
@@ -3333,6 +3361,7 @@ tbody tr[aria-current="true"] {
   letter-spacing: 0;
   opacity: 0.6;
   transition: transform 80ms, opacity 80ms;
+  flex-shrink: 0;
 }
 .repos-btn:hover {
   background: rgba(255, 107, 26, 0.08);
@@ -3341,23 +3370,188 @@ tbody tr[aria-current="true"] {
   opacity: 1;
   transform: translateX(2px);
 }
+/* active state matches the nav tabs: tint + glow + glowing bottom rail */
 .repos-btn[data-active="true"] {
-  background: var(--primary);
-  color: var(--bg-0);
-}
-.repos-btn[data-active="true"] .mark {
-  background: var(--bg-0);
-  box-shadow: none;
-}
-.repos-btn[data-active="true"] .mark::after {
-  color: var(--primary);
+  background: rgba(255, 107, 26, 0.1);
 }
 .repos-btn[data-active="true"] .lbl,
+.repos-btn[data-active="true"] .repos-name {
+  text-shadow: 0 0 12px rgba(255, 107, 26, 0.6);
+}
 .repos-btn[data-active="true"] .caret {
-  color: var(--bg-0);
   opacity: 1;
 }
+.repos-btn[data-active="true"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 3px;
+  background: var(--primary);
+  box-shadow:
+    0 0 10px 1px var(--primary),
+    0 0 4px var(--primary);
+}
 .repos-btn:focus-visible {
+  outline: 1px solid var(--primary);
+  outline-offset: -2px;
+}
+
+/* REPOS button — selected-repo identity */
+.repos-btn .repos-id {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.1;
+  letter-spacing: normal;
+  flex: 1;
+  min-width: 0;
+}
+.repos-btn .repos-kicker {
+  font-family: var(--display);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  color: var(--primary);
+}
+.repos-btn .repos-name {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 0.06em;
+  color: var(--ink-strong);
+  text-transform: uppercase;
+  width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* SESSION square — selected-session identity + hierarchy depth */
+.session-sq {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 100%;
+  padding: 0 16px;
+  border: 0;
+  border-right: 1px solid var(--rule);
+  background: var(--bg-1);
+  cursor: pointer;
+  color: var(--ink);
+  position: relative;
+}
+.session-sq .ss-bars {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.session-sq .ss-bar {
+  width: 4px;
+  height: 30px;
+  background: var(--ink-faint);
+}
+.session-sq .ss-bar[data-lvl="0"] {
+  background: var(--primary);
+}
+.session-sq .ss-bar[data-lvl="1"] {
+  background: var(--amber);
+}
+.session-sq .ss-bar[data-lvl="2"] {
+  background: var(--cyan);
+}
+.session-sq .ss-bar[data-current="true"][data-lvl="0"] {
+  box-shadow: 0 0 8px var(--primary);
+}
+.session-sq .ss-bar[data-current="true"][data-lvl="1"] {
+  box-shadow: 0 0 8px var(--amber);
+}
+.session-sq .ss-bar[data-current="true"][data-lvl="2"] {
+  box-shadow: 0 0 8px var(--cyan);
+}
+.session-sq .ss-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
+.session-sq .ss-top {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--display);
+  text-transform: uppercase;
+}
+.session-sq .ss-depth {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  font-weight: 700;
+  padding: 1px 5px;
+  border: 1px solid currentColor;
+}
+.session-sq[data-tone="primary"] .ss-depth {
+  color: var(--primary);
+}
+.session-sq[data-tone="amber"] .ss-depth {
+  color: var(--amber);
+}
+.session-sq[data-tone="cyan"] .ss-depth {
+  color: var(--cyan);
+}
+.session-sq .ss-role {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--ink-dim);
+}
+.session-sq .ss-name {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--ink-strong);
+  font-weight: 500;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.session-sq .ss-tok {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-dim);
+  flex-shrink: 0;
+}
+.session-sq .ss-arrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-dim);
+  opacity: 0;
+  transition: opacity 80ms, transform 80ms;
+  flex-shrink: 0;
+}
+.session-sq:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+.session-sq:hover .ss-arrow {
+  opacity: 1;
+  transform: translateX(2px);
+}
+.session-sq[data-active="true"] {
+  background: rgba(255, 107, 26, 0.1);
+}
+.session-sq[data-active="true"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 3px;
+  background: var(--primary);
+  box-shadow:
+    0 0 10px 1px var(--primary),
+    0 0 4px var(--primary);
+}
+.session-sq:focus-visible {
   outline: 1px solid var(--primary);
   outline-offset: -2px;
 }
@@ -3948,5 +4142,187 @@ tbody tr[aria-current="true"] {
   }
   .repos-btn .caret {
     display: none;
+  }
+}
+
+/* ============================================================
+   v0.3 ADDITIONS · ANIMATION SYSTEM · SESSION SQUARE · LIVE TAIL
+   Ported from the design handoff (workflowkit-evangelion v0.3).
+   Class names mirror the prototype 1:1.
+   ============================================================ */
+
+/* --- AnimatedNumber: flashes a tint while tweening (green up / red down) --- */
+.anim-num {
+  transition: color 120ms;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.anim-num.flash-up {
+  animation: numFlashUp 600ms ease-out;
+}
+.anim-num.flash-down {
+  animation: numFlashDown 600ms ease-out;
+}
+@keyframes numFlashUp {
+  0% {
+    color: var(--good);
+    text-shadow: 0 0 10px var(--good);
+  }
+  100% {
+    color: inherit;
+    text-shadow: none;
+  }
+}
+@keyframes numFlashDown {
+  0% {
+    color: var(--warn);
+    text-shadow: 0 0 10px var(--warn);
+  }
+  100% {
+    color: inherit;
+    text-shadow: none;
+  }
+}
+
+/* --- Live-stream feed enter: new events slide+fade in with an edge sweep --- */
+.ev-wrap {
+  position: relative;
+}
+@keyframes feedEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes feedSweep {
+  0% {
+    transform: scaleY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: scaleY(1);
+    opacity: 0;
+  }
+}
+.ev-enter {
+  animation: feedEnter 380ms cubic-bezier(0.16, 0.84, 0.44, 1) both;
+}
+.ev-enter::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--primary);
+  transform-origin: top;
+  animation: feedSweep 700ms ease-out both;
+  pointer-events: none;
+}
+
+/* --- Sessions-list live token cell (pulsing green "live" dot) --- */
+.tok-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tok-live {
+  color: var(--good);
+  font-size: 8px;
+  line-height: 1;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+/* --- LIVE / TAIL toggle in the timeline tabs row --- */
+.tl-live-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--rule);
+  background: var(--bg-0);
+  color: var(--ink-dim);
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  padding: 4px 9px;
+  margin-right: 8px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+.tl-live-btn .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+}
+.tl-live-btn:hover {
+  color: var(--ink-strong);
+  border-color: var(--rule-strong);
+}
+.tl-live-btn[data-on="true"] {
+  color: var(--warn);
+  border-color: var(--warn);
+  background: rgba(255, 45, 77, 0.08);
+}
+.tl-live-btn[data-on="true"] .dot {
+  background: var(--warn);
+  box-shadow: 0 0 6px var(--warn);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* --- Thread navigator: cyan tone for depth ≥2 + open-edge dot --- */
+.thread-row .tn-tab[data-tone="cyan"] {
+  background: var(--cyan);
+  box-shadow: 0 0 6px var(--cyan);
+}
+.thread-row[data-tone="cyan"] .tn-kicker,
+.thread-row[data-tone="cyan"] .tn-here {
+  color: var(--cyan);
+}
+.thread-row[data-here="true"][data-tone="cyan"] {
+  border-left-color: var(--cyan);
+}
+.thread-row .tn-connector[data-tone="cyan"] {
+  color: var(--cyan);
+}
+.thread-row .tn-tok {
+  color: var(--ink-strong);
+}
+.thread-row .tn-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warn);
+  box-shadow: 0 0 5px var(--warn);
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-num.flash-up,
+  .anim-num.flash-down {
+    animation: none;
+  }
+  .ev-enter,
+  .ev-enter::after {
+    animation-duration: 1ms;
+  }
+  .tok-live,
+  .tl-live-btn[data-on="true"] .dot,
+  .thread-row .tn-dot {
+    animation: none;
   }
 }

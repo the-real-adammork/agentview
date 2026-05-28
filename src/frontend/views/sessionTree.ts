@@ -53,6 +53,45 @@ export const isDescendantOf = (session: SessionSummary, ancestorId: string, inde
 
 const isRoot = (session: SessionSummary, index: SessionIndex): boolean => rootOf(session, index).id === session.id;
 
+/** Depth in the agent tree: 0 = root/parent, 1 = sub-agent, 2 = sub-sub-agent, … (cycle/orphan safe). */
+export const sessionDepth = (session: SessionSummary, index: SessionIndex): number => {
+  let depth = 0;
+  let current = session;
+  const seen = new Set<string>([current.id]);
+  while (current.parentId) {
+    const parent = index.get(current.parentId);
+    if (!parent || seen.has(parent.id)) {
+      break;
+    }
+    depth += 1;
+    current = parent;
+    seen.add(current.id);
+  }
+  return depth;
+};
+
+/** Ancestor chain ordered root → … → current (always includes `session` as the last element). */
+export const sessionLineage = (session: SessionSummary, index: SessionIndex): SessionSummary[] => {
+  const chain: SessionSummary[] = [];
+  let current: SessionSummary | undefined = session;
+  const seen = new Set<string>();
+  while (current && !seen.has(current.id)) {
+    chain.unshift(current);
+    seen.add(current.id);
+    current = current.parentId ? index.get(current.parentId) : undefined;
+  }
+  return chain;
+};
+
+/** Shared depth → color tone: 0 root (orange/primary) · 1 sub (amber) · 2+ sub-sub (cyan). */
+export type DepthTone = "primary" | "amber" | "cyan";
+export const toneForDepth = (depth: number): DepthTone =>
+  depth <= 0 ? "primary" : depth === 1 ? "amber" : "cyan";
+
+const DEPTH_LABELS = ["PARENT", "SUB-AGENT", "SUB-SUB-AGENT"] as const;
+/** Human label for a tree depth, used in the header square and thread navigator. */
+export const depthLabel = (depth: number): string => DEPTH_LABELS[depth] ?? `SUB · L${depth}`;
+
 export interface RepoRoot {
   root: SessionSummary;
   subs: SessionSummary[];

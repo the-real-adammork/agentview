@@ -13,6 +13,7 @@ import { ReposView } from "./views/ReposView";
 import { SessionsView } from "./views/SessionsView";
 import { TimelineView } from "./views/TimelineView";
 import { TokensView } from "./views/TokensView";
+import { indexSessions, rootOf, sessionRepoName } from "./views/sessionTree";
 import type {
   AgentGraph,
   ApiError,
@@ -26,11 +27,11 @@ import type {
 
 const stylesheetHref = new URL("./styles/app.css", import.meta.url).href;
 
-const views = ["Sessions", "Timeline", "Agent Graph", "Tokens", "Diagnostics"] as const;
+// Primary tab set (renumbered 00–03). "Sessions" merged into the header session
+// square; "Repos" is reachable from the header REPOS button. Neither is a tab.
+const navViews = ["Timeline", "Agent Graph", "Tokens", "Diagnostics"] as const;
 
-// "Repos" is reachable from the header REPOS button + the in-view "all repos" back
-// affordance, but it is deliberately not part of the primary SegBar tab set.
-export type ObservatoryView = (typeof views)[number] | "Repos";
+export type ObservatoryView = (typeof navViews)[number] | "Repos" | "Sessions";
 
 export function App() {
   const fixture = useMemo(() => createFixtureSnapshot(), []);
@@ -150,6 +151,19 @@ export function App() {
     [sessions],
   );
 
+  // Repo shown in the header button: the explicitly-selected repo if set,
+  // otherwise the repo of whatever session is selected (sub-agents inherit the
+  // root's repo). Always informative — only the Repos browser shows plain REPOS.
+  const headerRepo = useMemo(() => {
+    if (repoFilter) {
+      return repoFilter;
+    }
+    if (!activeSession) {
+      return null;
+    }
+    return sessionRepoName(rootOf(activeSession, indexSessions(sessions)));
+  }, [repoFilter, activeSession, sessions]);
+
   const selectSession = useCallback((sessionId: string, view?: ObservatoryView) => {
     setActiveSessionId(sessionId);
     if (view) {
@@ -166,6 +180,11 @@ export function App() {
   // Opening a repo card scopes the Sessions catalog to that repo (dossier mode).
   const openRepo = useCallback((repoName: string) => {
     setRepoFilter(repoName);
+    setActiveView("Sessions");
+  }, []);
+
+  // Header session square opens the Sessions list (in whatever repo context is active).
+  const openSessions = useCallback(() => {
     setActiveView("Sessions");
   }, []);
 
@@ -359,11 +378,16 @@ export function App() {
       <Chrome
         activeView={activeView}
         health={health}
-        navigation={<SegBar views={views} activeView={activeView} onChange={setActiveView} />}
+        navigation={<SegBar views={navViews} activeView={activeView} onChange={setActiveView} />}
         palette={palette}
         onPaletteChange={setPalette}
         onOpenRepos={openReposIndex}
+        onOpenSessions={openSessions}
         reposActive={activeView === "Repos"}
+        sessionsActive={activeView === "Sessions"}
+        headerRepo={headerRepo}
+        activeSession={activeSession}
+        sessions={sessions}
         sessionCount={sessions.length}
         tokenTotal={tokenTotal}
         warningSessionCount={warningSessionCount}

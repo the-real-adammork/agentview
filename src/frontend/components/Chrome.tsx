@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 
-import type { HealthStatus } from "../../shared/contracts";
+import type { HealthStatus, SessionSummary } from "../../shared/contracts";
 import type { ObservatoryView } from "../App";
 import { LiveTokenTotal } from "../live/LiveTokens";
 import { PaletteSwitcher, type Palette } from "./PaletteSwitcher";
+import { SessionSquare } from "./SessionSquare";
 
 interface ChromeProps {
   children: ReactNode;
@@ -13,7 +14,13 @@ interface ChromeProps {
   palette: Palette;
   onPaletteChange: (palette: Palette) => void;
   onOpenRepos: () => void;
+  onOpenSessions: () => void;
   reposActive: boolean;
+  sessionsActive: boolean;
+  /** Repo name shown in the REPOS button (selected repo, or the active session's repo). */
+  headerRepo: string | null;
+  activeSession: SessionSummary | undefined;
+  sessions: SessionSummary[];
   sessionCount: number;
   tokenTotal: number;
   warningSessionCount: number;
@@ -36,12 +43,23 @@ export function Chrome({
   palette,
   onPaletteChange,
   onOpenRepos,
+  onOpenSessions,
   reposActive,
+  sessionsActive,
+  headerRepo,
+  activeSession,
+  sessions,
   sessionCount,
   tokenTotal,
   warningSessionCount,
 }: ChromeProps) {
   const source = health.mode === "real" ? "state-db" : "fixture";
+  // The REPOS button shows the current repo's name unless the Repos browser
+  // itself is open (then it's the plain "REPOS" label). The selection rail runs
+  // under REPOS + the session square whenever we're not in the Repos browser.
+  const showRepoName = !reposActive && Boolean(headerRepo);
+  const railStart = !reposActive;
+  const repoLeaf = headerRepo ? headerRepo.split("/").pop() ?? headerRepo : null;
   const clock = formatClock(health.checkedAt);
   const tickerItems = [
     `PATTERN: CODEX OPS - NORMAL · SOURCE: ${source} · SESSIONS: ${sessionCount} · WARN: ${warningSessionCount}`,
@@ -76,14 +94,32 @@ export function Chrome({
           className="repos-btn"
           type="button"
           data-active={reposActive ? "true" : "false"}
+          data-has-repo={showRepoName ? "true" : "false"}
+          data-rail={railStart ? "on" : undefined}
           aria-pressed={reposActive}
+          aria-label={showRepoName && repoLeaf ? `Repos browser — current repo ${repoLeaf}` : "Repos browser"}
           onClick={onOpenRepos}
-          title="Browse all repos"
+          title={headerRepo ? `Repo: ${headerRepo} — click to browse all repos` : "Browse all repos"}
         >
           <span className="mark" aria-hidden="true" />
-          <span className="lbl">REPOS</span>
+          {showRepoName && repoLeaf ? (
+            <span className="repos-id">
+              <span className="repos-kicker">▸ REPO</span>
+              <span className="repos-name">{repoLeaf}</span>
+            </span>
+          ) : (
+            <span className="lbl">REPOS</span>
+          )}
           <span className="caret" aria-hidden="true">▸</span>
         </button>
+
+        <SessionSquare
+          session={activeSession}
+          sessions={sessions}
+          active={sessionsActive}
+          railStart={railStart}
+          onClick={onOpenSessions}
+        />
 
         {navigation}
 

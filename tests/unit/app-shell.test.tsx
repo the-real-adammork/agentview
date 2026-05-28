@@ -13,9 +13,9 @@ import {
   tokenSeriesFixture,
 } from "../../src/fixtures/observatoryFixtures";
 
-const primaryViews = ["Sessions", "Timeline", "Agent Graph", "Tokens", "Diagnostics"] as const;
+const primaryViews = ["Timeline", "Agent Graph", "Tokens", "Diagnostics"] as const;
 
-describe("fixture-backed five-view app shell", () => {
+describe("fixture-backed app shell", () => {
   it("keeps large chrome token totals compact", () => {
     render(
       <Chrome
@@ -25,7 +25,12 @@ describe("fixture-backed five-view app shell", () => {
         palette="orange"
         onPaletteChange={() => {}}
         onOpenRepos={() => {}}
+        onOpenSessions={() => {}}
         reposActive={false}
+        sessionsActive
+        headerRepo="workflowkit"
+        activeSession={sessionSummariesFixture[0]}
+        sessions={sessionSummariesFixture}
         sessionCount={500}
         tokenTotal={4_102_376_000}
         warningSessionCount={28}
@@ -37,7 +42,7 @@ describe("fixture-backed five-view app shell", () => {
     expect(screen.getByLabelText(/observatory summary/i)).toHaveTextContent(/4\.1B/);
   });
 
-  it("renders persistent hazard/status chrome and five primary navigation buttons", () => {
+  it("renders persistent hazard/status chrome and four primary navigation buttons", () => {
     render(<App />);
 
     const banner = screen.getByRole("banner", { name: /observatory status/i });
@@ -53,14 +58,18 @@ describe("fixture-backed five-view app shell", () => {
 
     const primaryNav = screen.getByRole("navigation", { name: /primary views/i });
     const navButtons = within(primaryNav).getAllByRole("button");
-    expect(navButtons).toHaveLength(5);
+    expect(navButtons).toHaveLength(4);
 
     for (const view of primaryViews) {
       expect(within(primaryNav).getByRole("button", { name: view })).toBeVisible();
     }
-    const sessionsButton = within(primaryNav).getByRole("button", { name: "Sessions" });
-    expect(sessionsButton).toHaveAttribute("data-active", "true");
-    expect(sessionsButton).toHaveTextContent(/00\s*Sessions/i);
+    // Sessions is merged into the header session square, not a primary tab.
+    expect(within(primaryNav).queryByRole("button", { name: "Sessions" })).toBeNull();
+    expect(within(primaryNav).getByRole("button", { name: "Timeline" })).toHaveTextContent(/00\s*Timeline/i);
+    // The session square reflects the default Sessions landing as the active surface.
+    const sessionSquare = document.querySelector(".session-sq");
+    expect(sessionSquare).not.toBeNull();
+    expect(sessionSquare).toHaveAttribute("data-active", "true");
 
     expect(screen.getByRole("status", { name: /transport status/i })).toHaveTextContent(
       /\/\/ PATTERN: CODEX OPS/i,
