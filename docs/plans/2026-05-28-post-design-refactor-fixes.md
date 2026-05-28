@@ -12,6 +12,15 @@ once we start, not here.
 
 ## 1. Worktrees are counted as separate repos in the Repos view
 
+**Status: ✅ Fixed 2026-05-28.** Added `repoRootCwd` in `src/shared/repoName.ts` to
+collapse `<repo>/.worktrees/<slug>` → `<repo>` on the path-fallback path (covers the
+backend `repoLabel` and frontend grouping); used it for the `RepoCard` display path in
+`sessionTree.ts`; unit tests added in `repoName.test.ts`. Result: 23 → 15 repo cards,
+agentview's 6 worktree cards collapse to 1, no card shows a worktree slug.
+**Residual (separate root cause — see #7):** the `nerdy` directory still shows two cards
+because some sessions recorded a git origin (`nerdy-hyper-ui`) and others didn't
+(`nerdy`); that's an origin-capture inconsistency, not worktree splintering.
+
 **Symptom:** The Repos index shows multiple cards for what is really one repository —
 one card per git worktree (e.g. `impl-phase-4-graph-tokens`,
 `impl-phase-2-sessions-index`, … each appear as their own "repo" alongside
@@ -58,6 +67,15 @@ covering the `.worktrees/<slug>` canonicalization with `origin: null`.
 ---
 
 ## 2. Sub-agent title should be the sub-agent's own initial prompt, not the parent's
+
+**Status: ✅ Fixed 2026-05-28.** Root cause was *not* a parent-title leak: every
+sub-agent row already showed its own `first_user_message`, but each begins with a long
+identical boilerplate preamble (`"You are a general-purpose implementation worker …"`)
+and the single-line title truncated to that shared prefix, so all siblings looked alike.
+Fix (chosen direction: nickname-led): in `SessionsView.tsx`, sub-agent rows now show
+`agentNickname · agentRole` as the title with the prompt as the brief line (matches the
+Timeline sidebar convention). Roots are unchanged. Verified: siblings now read
+`Heisenberg · worker`, `Kepler · worker`, … with the prompt beneath.
 
 **Symptom (reported):** In the sessions view, a sub-agent's title shows the parent's
 initial prompt instead of the sub-agent's own initial prompt.
@@ -213,6 +231,33 @@ dashboard, then close it while a session is actively updating.
 
 ---
 
+## 7. Same repo splits into two cards when origin is recorded on only some sessions
+
+**Symptom:** After the worktree fix (#1), `/Users/adam/Gauntlet/nerdy` still renders two
+repo cards.
+
+**Root cause (confirmed):** Repo identity is the name, not the path. Within the same
+directory, one (worktree) session recorded a git origin → `repoLabel = "nerdy-hyper-ui"`
+(origin-derived), while the main checkout recorded no origin →
+`repoLabel = "nerdy"` (cwd basename). Different names ⇒ different groups ⇒ two cards.
+This is an origin-capture inconsistency across sessions of the same repo, distinct from
+worktree splintering.
+
+**Affected code:** `src/shared/repoName.ts` (name derivation), `sessionTree.ts`
+(`groupSessionsByRepo` keys by name), and the repo-filter contract
+(`SessionsView` filters by repo name; backend `stateStore` filters `repoLabel`).
+
+**Proposed fix direction (deferred — bigger than a "small fix"):**
+- Option A: group by **canonical cwd path** when present (same working directory ⇒ same
+  repo), falling back to name only when paths differ. Ripples into the repo-filter
+  contract (frontend + backend), so it needs its own plan.
+- Option B: reconcile names within a canonical path — if any session in a path has an
+  origin-derived name, apply it to the origin-less siblings sharing that path.
+- Lower-effort partial: backfill `git_origin_url` at ingest for sessions missing it when
+  a sibling in the same checkout has one.
+
+---
+
 ## Sequencing
 
 **#5 is a stability bug** (crashes the whole API on client disconnect) and can be fixed
@@ -221,6 +266,6 @@ local use. Note: a "Failed to fetch" in *any* view (Timeline, Diagnostics, …) 
 downstream symptom of #5 — once the API process dies, every fetch to `:4317` fails until
 it's restarted.
 
-Otherwise, do these **after** the design refactor merges. Suggested order: #5 (crash),
-#1 (self-contained, shared helper + test), #4 (shared formatter, low-risk), then #3 (UI
-empty-states), then #2 (needs a repro from Adam first).
+**Done so far:** #1 (worktrees), #2 (sub-agent titles), and #6 (duplicate token bar) are
+fixed on `main`. Remaining: #5 (crash), #4 (token M/B/T formatter), #3 (diagnostics
+empty-states), #7 (origin-capture repo split — needs its own plan).
