@@ -1381,31 +1381,6 @@ tbody tr[aria-current="true"] {
   text-transform: uppercase;
 }
 
-.ev-token-grid {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 8px;
-  font-size: 11px;
-}
-
-.ev-token-grid__cell {
-  display: grid;
-  gap: 2px;
-}
-
-.ev-token-grid__cell .k {
-  color: var(--ink-dim);
-  font-size: 9px;
-  letter-spacing: 0.18em;
-}
-
-.ev-token-grid__cell .v {
-  color: var(--ink-strong);
-}
-
-.ev-token-grid__cell .v[data-tone="primary"] { color: var(--primary); }
-.ev-token-grid__cell .v[data-tone="warn"] { color: var(--warn); }
-
 .tl-other {
   display: grid;
 }
