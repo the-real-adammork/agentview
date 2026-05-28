@@ -73,7 +73,7 @@
 
   .toc {
     display: grid;
-    grid-template-columns: repeat(6, 1fr);
+    grid-template-columns: repeat(7, 1fr);
     gap: 0;
     border: 1px solid var(--rule);
     margin: 28px 0 56px;
@@ -338,11 +338,11 @@
       <div class="mark"></div>
       <div>
         <h1>COMPONENT<br>LIBRARY</h1>
-        <div class="sub">// Observatory Design System · v0.1 · 22 components · 6 categories</div>
+        <div class="sub">// Observatory Design System · v0.2 · 28 components · 7 categories</div>
       </div>
       <div class="meta">
-        <div><b>VERSION</b> 2026.05.26</div>
-        <div><b>SOURCE</b> styles.css · ui.jsx</div>
+        <div><b>VERSION</b> 2026.05.28 · v0.2</div>
+        <div><b>SOURCE</b> styles.css · ui.jsx · app.jsx</div>
         <div><b>PALETTE</b> orange / amber / red / cyan</div>
         <div><b>HOST</b> adam@local</div>
       </div>
@@ -356,6 +356,7 @@
       <a href="#cat-04"><span class="n">04</span>Data</a>
       <a href="#cat-05"><span class="n">05</span>Controls</a>
       <a href="#cat-06"><span class="n">06</span>Composites</a>
+      <a href="#cat-07"><span class="n">07</span>Motion</a>
     </nav>
 
     <!-- =====================================================
@@ -1143,16 +1144,186 @@
       </div>
     </section>
 
+    <!-- =====================================================
+         07 — MOTION / ANIMATIONS
+         ===================================================== -->
+    <section class="cat" id="cat-07">
+      <header>
+        <div class="n">07</div>
+        <div>
+          <h2>Motion · Live-Stream Animations</h2>
+          <div class="d">SSE pushes updates constantly; motion makes those changes followable. Two primitives carry the system — <b>feed-enter</b> for items pushed into a list, and <b>AnimatedNumber</b> for any count that updates in place — plus ambient pulse / blink for "live" state and the glowing selection rail. All respect <code class="token">prefers-reduced-motion</code>.</div>
+        </div>
+        <div class="tag">6 motions</div>
+      </header>
+
+      <!-- live demos: feed enter + animated number -->
+      <div class="grid cols-2">
+        <div class="spec">
+          <div class="stitle"><span class="dot"></span><span class="n">Feed Enter</span><span class="code">.ev-enter · @keyframes feedEnter + feedSweep</span></div>
+          <div class="stage flush"><div id="anim-feed" style="width: 100%; padding: 12px 0; min-height: 210px; overflow: hidden;"></div></div>
+          <div class="notes"><span><b>Use</b> · new events pushed into any stream (timeline feed, logs). New row slides down + fades in, with an orange left-edge accent that sweeps top→bottom so the insertion is unmistakable. Newest enters at the top; stream auto-pins to the top while tailing.</span><span class="pill">380ms enter · 700ms sweep</span></div>
+        </div>
+        <div class="spec">
+          <div class="stitle"><span class="dot"></span><span class="n">AnimatedNumber</span><span class="code">.anim-num · numFlashUp / numFlashDown</span></div>
+          <div class="stage col" style="justify-content: center; gap: 16px;">
+            <div>
+              <div class="kicker mb-1">Σ TOKENS · live</div>
+              <div class="display num" style="font-size: 44px; color: var(--ink-strong); line-height: 1;"><span id="anim-num" class="anim-num">184,312</span></div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <div class="legend-line" style="color: var(--good);"><span class="sw"></span><span style="color: var(--ink-dim); letter-spacing: 0.08em;">flash-up — value increased</span></div>
+              <div class="legend-line" style="color: var(--warn);"><span class="sw"></span><span style="color: var(--ink-dim); letter-spacing: 0.08em;">flash-down — value decreased</span></div>
+            </div>
+          </div>
+          <div class="notes"><span><b>Use</b> · any count that updates in place. Tweens from old→new value (easeOutCubic, ~700ms) and flashes green on increase / red on decrease.</span><span class="pill">rAF tween + flash</span></div>
+        </div>
+      </div>
+
+      <!-- where AnimatedNumber is wired -->
+      <div class="spec" style="margin-top: 18px;">
+        <div class="stitle"><span class="dot"></span><span class="n">AnimatedNumber · placements</span><span class="code">one primitive · five surfaces, kept in sync</span></div>
+        <div class="stage flush col" style="padding: 0;">
+          <div class="type-row"><div class="name">Header · Σ Tokens<span class="s">global, all sessions</span></div><div style="font-family: var(--mono); font-size: 12px; color: var(--ink);">sum of every session + live bump · visible on every view</div><div class="specs">App.liveBump</div></div>
+          <div class="type-row"><div class="name">Timeline · Vitals<span class="s">current session</span></div><div style="font-family: var(--mono); font-size: 12px; color: var(--ink);">Σ tokens + context-window % for the open session</div><div class="specs">liveTotal</div></div>
+          <div class="type-row"><div class="name">Thread Navigator<span class="s">"● HERE" row</span></div><div style="font-family: var(--mono); font-size: 12px; color: var(--ink);">current thread's token count, synced to the Vitals figure</div><div class="specs">liveTotal</div></div>
+          <div class="type-row"><div class="name">Sessions List<span class="s">per active row</span></div><div style="font-family: var(--mono); font-size: 12px; color: var(--ink);">active sessions bump every ~2s; SegBar grows with the value</div><div class="specs">liveDeltas[id]</div></div>
+          <div class="type-row"><div class="name">Sessions Sidebar<span class="s">Σ Tokens stat</span></div><div style="font-family: var(--mono); font-size: 12px; color: var(--ink);">global or repo-scoped total, sums the same live deltas</div><div class="specs">liveBumpTotal</div></div>
+        </div>
+        <div class="notes"><span><b>Rule</b> · whenever a token count is shown anywhere, it animates — and all surfaces reading the same source stay in lockstep.</span><span class="pill">consistency</span></div>
+      </div>
+
+      <!-- ambient + control motions -->
+      <div class="grid cols-3" style="margin-top: 18px;">
+        <div class="spec">
+          <div class="stitle"><span class="dot"></span><span class="n">Pulse</span><span class="code">@keyframes pulse</span></div>
+          <div class="stage" style="gap: 22px;">
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 6px var(--warn); animation: pulse 1.4s ease-in-out infinite;"></span>
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 5px var(--amber); animation: pulse 1.4s ease-in-out infinite;"></span>
+          </div>
+          <div class="notes"><span><b>Use</b> · open-child dots, live-tail indicator. Opacity 1→0.4→1.</span><span class="pill">1.4s · infinite</span></div>
+        </div>
+        <div class="spec">
+          <div class="stitle"><span class="dot"></span><span class="n">Blink</span><span class="code">.blink</span></div>
+          <div class="stage">
+            <span class="blink" style="color: var(--warn); font-family: var(--display); font-weight: 700; letter-spacing: 0.3em; font-size: 14px;">● LIVE</span>
+          </div>
+          <div class="notes"><span><b>Use</b> · "● LIVE" markers in the hazard strip + status bar.</span><span class="pill">step blink</span></div>
+        </div>
+        <div class="spec">
+          <div class="stitle"><span class="dot"></span><span class="n">Live-Tail Toggle</span><span class="code">.tl-live-btn[data-on]</span></div>
+          <div class="stage">
+            <button id="anim-live" class="tl-live-btn" data-on="false" style="position: relative;"><span class="dot"></span><span class="lbl">TAIL</span></button>
+          </div>
+          <div class="notes"><span><b>Use</b> · timeline tabs row. Off = "TAIL"; on = "LIVE" with a pulsing red dot. Click to toggle the demo.</span><span class="pill">stateful</span></div>
+        </div>
+      </div>
+
+      <!-- selection rail glow -->
+      <div class="spec" style="margin-top: 18px;">
+        <div class="stitle"><span class="dot"></span><span class="n">Selection Rail + Glowing Tab</span><span class="code">[data-rail="on"]::after · box-shadow glow</span></div>
+        <div class="stage flush">
+          <div class="demo-nav" style="width: 100%; border: 0; border-bottom: 1px solid var(--rule);">
+            <button style="position: relative;"><span class="idx">▦</span><span>REPOS</span><span style="position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--primary);"></span></button>
+            <button style="position: relative;"><span class="idx">▮▮</span><span>SESSION</span><span style="position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--primary);"></span></button>
+            <button style="position: relative; color: var(--primary); background: rgba(255,107,26,0.10); text-shadow: 0 0 12px rgba(255,107,26,0.6);"><span class="idx" style="color: var(--primary);">00</span><span>TIMELINE</span><span style="position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--primary); box-shadow: 0 0 10px 1px var(--primary), 0 0 4px var(--primary);"></span></button>
+            <button><span class="idx">01</span><span>AGENT GRAPH</span></button>
+            <button><span class="idx">02</span><span>TOKENS</span></button>
+          </div>
+        </div>
+        <div class="notes"><span><b>Use</b> · a continuous 2px bottom border runs from the REPOS button through the session square to the selected tab; the active tab is brighter — 3px + orange glow + faint tint — so it reads as the head of the rail.</span><span class="pill">continuous rail</span></div>
+      </div>
+
+      <!-- timing reference -->
+      <div class="spec" style="margin-top: 18px;">
+        <div class="stitle"><span class="dot"></span><span class="n">Timing &amp; Easing · reference</span><span class="code">@keyframes</span></div>
+        <div class="stage flush col" style="padding: 0;">
+          <div class="type-row"><div class="name">feedEnter<span class="s">row slide + fade in</span></div><div style="font-family: var(--mono); font-size: 11px; color: var(--ink-dim);">translateY(-8px)→0 · opacity 0→1</div><div class="specs">380ms · cubic-bezier(.16,.84,.44,1)</div></div>
+          <div class="type-row"><div class="name">feedSweep<span class="s">left-edge accent</span></div><div style="font-family: var(--mono); font-size: 11px; color: var(--ink-dim);">scaleY 0→1 · opacity 1→0</div><div class="specs">700ms · ease-out</div></div>
+          <div class="type-row"><div class="name">numFlashUp / Down<span class="s">value change</span></div><div style="font-family: var(--mono); font-size: 11px; color: var(--ink-dim);">color + text-shadow → inherit</div><div class="specs">600ms · ease-out · rAF tween 700ms</div></div>
+          <div class="type-row"><div class="name">pulse<span class="s">live dots</span></div><div style="font-family: var(--mono); font-size: 11px; color: var(--ink-dim);">opacity 1 → 0.4 → 1</div><div class="specs">1.4s · ease-in-out · infinite</div></div>
+        </div>
+        <div class="notes"><span><b>Reduced motion</b> · under <code class="token">prefers-reduced-motion: reduce</code>, enter/sweep durations collapse to ~1ms — values still update, just without the travel.</span><span class="pill">a11y</span></div>
+      </div>
+    </section>
+
     <!-- FOOTER -->
     <div class="lib-footer">
       <div>// WORKFLOWKIT · OBSERVATORY</div>
       <div class="center">END OF LIBRARY · 部品庫の終わり</div>
-      <div style="text-align: right;">v0.1 · 2026.05.26</div>
+      <div style="text-align: right;">v0.2 · 2026.05.28</div>
     </div>
   </div>
 
   <div class="scanlines"></div>
   <div class="crt-vignette"></div>
+
+  <script>
+    /* ---- Motion section live demos ---- */
+    (function () {
+      var feed = document.getElementById("anim-feed");
+      var kinds = [
+        { cls: "user", who: "USER", whoCls: "who user", sub: "message", text: "review the diff and ship" },
+        { cls: "tool", who: "▸ READ_FILE", whoCls: "who tool", sub: "call_id c01", text: "src/app.jsx" },
+        { cls: "spawn", who: "⊕ SPAWN_AGENT", whoCls: "who spawn", sub: "researcher", text: "EUCLID // investigate subsystem" },
+        { cls: "assistant", who: "ASSISTANT", whoCls: "who", sub: "working", text: "continuing analysis of the task context…" },
+        { cls: "warn", who: "▲ WARNING", whoCls: "who warn", sub: "", text: "approaching context window soft limit" }
+      ];
+      var fi = 0;
+      function pad2(n) { return (n < 10 ? "0" : "") + n; }
+      function stamp() { var d = new Date(); return pad2(d.getHours()) + ":" + pad2(d.getMinutes()) + ":" + pad2(d.getSeconds()); }
+      function pushRow() {
+        if (!feed) return;
+        var k = kinds[fi % kinds.length]; fi++;
+        var wrap = document.createElement("div");
+        wrap.className = "ev-wrap ev-enter";
+        wrap.style.margin = "8px 14px";
+        wrap.innerHTML =
+          '<div class="ev ' + k.cls + '" style="padding-left:24px;">' +
+            '<div class="ts num">' + stamp() + '</div>' +
+            '<div class="body"' + (k.cls === "tool" ? ' style="border-color:var(--amber)"' : k.cls === "spawn" ? ' style="border-color:var(--good)"' : k.cls === "warn" ? ' style="border-color:var(--warn)"' : '') + '>' +
+              '<div class="head"><span class="' + k.whoCls + '">' + k.who + '</span>' + (k.sub ? '<span>' + k.sub + '</span>' : '') + '</div>' +
+              '<pre style="margin:0;white-space:pre-wrap;font-family:var(--mono);font-size:11px;color:' + (k.cls === "warn" ? "var(--warn)" : "var(--ink-strong)") + ';line-height:1.5;">' + k.text + '</pre>' +
+            '</div>' +
+          '</div>';
+        feed.insertBefore(wrap, feed.firstChild);
+        while (feed.children.length > 5) feed.removeChild(feed.lastChild);
+      }
+      pushRow(); pushRow();
+      setInterval(pushRow, 1700);
+
+      var el = document.getElementById("anim-num");
+      var cur = 184312, from = cur, raf = 0;
+      function tweenTo(to) {
+        if (!el) return;
+        var start = performance.now(), f = from;
+        el.classList.remove("flash-up", "flash-down");
+        void el.offsetWidth;
+        el.classList.add(to >= cur ? "flash-up" : "flash-down");
+        cur = to;
+        cancelAnimationFrame(raf);
+        (function tick(t) {
+          var p = Math.min(1, (t - start) / 700);
+          var e = 1 - Math.pow(1 - p, 3);
+          var v = f + (to - f) * e;
+          el.textContent = Math.round(v).toLocaleString();
+          from = v;
+          if (p < 1) raf = requestAnimationFrame(tick);
+          else { from = to; el.textContent = to.toLocaleString(); }
+        })(start);
+      }
+      setInterval(function () { tweenTo(cur + 600 + Math.floor(Math.random() * 4200)); }, 1700);
+
+      var live = document.getElementById("anim-live");
+      if (live) {
+        live.addEventListener("click", function () {
+          var on = live.getAttribute("data-on") === "true";
+          live.setAttribute("data-on", String(!on));
+          live.querySelector(".lbl").textContent = on ? "TAIL" : "LIVE";
+        });
+      }
+    })();
+  </script>
 
 </body>
 </html>
