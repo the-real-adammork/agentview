@@ -852,21 +852,34 @@ button {
 }
 
 .session-brief {
-  display: block;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   max-width: 72ch;
   margin-top: 3px;
   color: var(--ink-dim);
   font-size: 11px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-.session-title,
+/* Title wraps (handoff shows multi-line titles); other cell lines stay single-row. */
 .tbl td > div {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Title column tree art — vertical rail + arm replace the inline glyph. */
+.tree-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.tree-title .tree-connector {
+  display: none;
+}
+.session-effort {
+  font-size: 11px;
 }
 
 .segbar {
@@ -1018,9 +1031,12 @@ tbody tr[aria-current="true"] {
 }
 
 .session-title {
-  display: block;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
   min-width: 0;
-  overflow-wrap: break-word;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .badge-cell {
@@ -4073,17 +4089,58 @@ tbody tr[aria-current="true"] {
   border-top: 0;
 }
 
-/* --- Sessions table: tree-grouped sub-agent rows (nested under parent) --- */
-.tbl tbody tr.session-row[data-depth="1"] > * {
-  background: rgba(255, 184, 0, 0.02);
+/* --- Sessions table: tree-grouped sub-agent rows (nested under parent) ---
+   Ported from the design handoff: an amber vertical rail runs down the indent
+   column with a horizontal arm into each sub row; the rail stops half-way
+   through the last sub of a group. */
+.tbl tbody tr.session-row[data-depth="1"] {
+  background: rgba(255, 184, 0, 0.05);
+}
+.tbl tbody tr.session-row[data-depth="1"]:hover {
+  background: rgba(255, 184, 0, 0.12);
+}
+/* dim + shrink the leading index column so sub rows step back */
+.tbl tbody tr.session-row[data-depth="1"] > td:first-child {
+  color: var(--ink-faint);
+  font-size: 10px;
+}
+/* dashed divider between consecutive sub rows for read rhythm */
+.tbl tbody tr.session-row[data-depth="1"] + tr.session-row[data-depth="1"] > * {
+  border-top: var(--border-width) dashed rgba(255, 184, 0, 0.18);
+}
+/* rows filtered out of the match set read back (parents kept for context) */
+.tbl tbody tr.session-row[data-dim="true"] > * {
+  opacity: 0.55;
+}
+
+.session-cell {
+  position: relative;
 }
 .tbl tbody tr.session-row[data-depth="1"] .session-cell {
-  padding-left: 28px;
+  padding-left: 36px;
 }
-.session-cell .tree-branch {
-  color: var(--ink-faint);
-  font-family: var(--mono);
-  margin-right: 6px;
+.tbl tbody tr.session-row[data-depth="1"] .session-cell::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--amber);
+  opacity: 0.45;
+}
+.tbl tbody tr.session-row[data-depth="1"][data-last-sub="true"] .session-cell::before {
+  bottom: 50%;
+}
+.tbl tbody tr.session-row[data-depth="1"] .session-cell::after {
+  content: "";
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  width: 12px;
+  height: 2px;
+  background: var(--amber);
+  opacity: 0.45;
 }
 .tbl tbody tr.session-row[data-depth="1"] .session-title {
   font-size: 12px;
