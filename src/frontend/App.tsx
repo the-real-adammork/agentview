@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { createFixtureSnapshot, realApiClient } from "./api/client";
+import { createLiveTokenStore } from "./live/liveTokenStore";
+import { LiveTokenStoreContext } from "./live/LiveTokens";
 import { Chrome } from "./components/Chrome";
 import { SegBar } from "./components/SegBar";
 import { AgentGraphView } from "./views/AgentGraphView";
@@ -25,8 +27,11 @@ const views = ["Sessions", "Timeline", "Agent Graph", "Tokens", "Diagnostics"] a
 
 export type ObservatoryView = (typeof views)[number];
 
+const LIVE_TOKEN_POLL_MS = 5000;
+
 export function App() {
   const fixture = useMemo(() => createFixtureSnapshot(), []);
+  const liveTokenStore = useMemo(() => createLiveTokenStore(), []);
   const [activeView, setActiveView] = useState<ObservatoryView>("Sessions");
   const [health, setHealth] = useState<HealthStatus>(fixture.health);
   const [sessions, setSessions] = useState<SessionSummary[]>(fixture.sessions);
@@ -104,6 +109,7 @@ export function App() {
 
         if (result.ok) {
           setSessions(result.data);
+          liveTokenStore.setSessions(result.data);
           setActiveSessionId((current) => result.data.find((session) => session.id === current)?.id ?? result.data[0]?.id ?? "");
         } else {
           setSessionsError(result.error);
@@ -126,7 +132,29 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [sessionFilter]);
+  }, [sessionFilter, liveTokenStore]);
+
+  useEffect(() => {
+    const poll = () => {
+      if (typeof document !== "undefined" && document.hidden) {
+        return;
+      }
+
+      void realApiClient
+        .listSessions(sessionFilter, { limit: 500, offset: 0 })
+        .then((result) => {
+          if (result.ok) {
+            // Writes only to the external store, not React state, so a token
+            // tick re-renders the subscribed token leaves and nothing else.
+            liveTokenStore.setSessions(result.data);
+          }
+        })
+        .catch(() => undefined);
+    };
+
+    const intervalId = setInterval(poll, LIVE_TOKEN_POLL_MS);
+    return () => clearInterval(intervalId);
+  }, [sessionFilter, liveTokenStore]);
 
   const activeSession = sessions.find((session) => session.id === activeSessionId) ?? sessions[0] ?? fixture.sessions[0];
   const warningSessionCount = sessions.filter(
@@ -281,7 +309,7 @@ export function App() {
   };
 
   return (
-    <>
+    <LiveTokenStoreContext.Provider value={liveTokenStore}>
       <link rel="stylesheet" href={stylesheetHref} />
       <Chrome
         activeView={activeView}
@@ -345,6 +373,6 @@ export function App() {
           {activeView === "Diagnostics" ? <DiagnosticsView logs={fixture.diagnosticsLogs} sessions={sessions} /> : null}
         </main>
       </Chrome>
-    </>
+    </LiveTokenStoreContext.Provider>
   );
 }

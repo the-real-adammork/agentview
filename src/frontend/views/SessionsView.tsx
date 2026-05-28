@@ -1,7 +1,9 @@
+import type { ReactNode } from "react";
+
 import { ShortId } from "../components/ShortId";
 import { deriveRepoName } from "../../shared/repoName";
+import { LiveSessionTokens, LiveTokenTotal } from "../live/LiveTokens";
 import { countActiveSessions, tokensByHour } from "./sessionStats";
-import { TOKEN_BAR_CELLS, tokenBarFill } from "./tokenBar";
 import type { ApiError, ArchivedFilter, DiagnosticsSummary, SessionFilter, SessionSummary, ThreadSource } from "../../shared/contracts";
 
 interface SessionsViewProps {
@@ -15,12 +17,6 @@ interface SessionsViewProps {
   error: ApiError | null;
 }
 
-const numberFormatter = new Intl.NumberFormat("en-US");
-const compactNumberFormatter = new Intl.NumberFormat("en-US", {
-  maximumFractionDigits: 1,
-  notation: "compact",
-});
-
 const uniqueValues = (sessions: SessionSummary[], getValue: (session: SessionSummary) => string | null | undefined) =>
   Array.from(new Set(sessions.map(getValue).filter((value): value is string => Boolean(value)))).sort((a, b) =>
     a.localeCompare(b),
@@ -29,7 +25,7 @@ const uniqueValues = (sessions: SessionSummary[], getValue: (session: SessionSum
 const formatTime = (value: string) => new Date(value).toLocaleTimeString("en-US");
 const repoName = (session: SessionSummary) => session.repoLabel || deriveRepoName(undefined, session.cwd);
 
-function StatCell({ label, sub, tone, value }: { label: string; sub: string; tone?: "warn"; value: string | number }) {
+function StatCell({ label, sub, tone, value }: { label: string; sub: string; tone?: "warn"; value: ReactNode }) {
   return (
     <div className="cell">
       <div className="l">{label}</div>
@@ -52,19 +48,6 @@ function VBars({ data }: { data: number[] }) {
             opacity: 0.35 + 0.65 * (value / max),
           }}
         />
-      ))}
-    </div>
-  );
-}
-
-function TokenSegBar({ value }: { value: number }) {
-  const { filled, hi } = tokenBarFill(value);
-  const cells = Array.from({ length: TOKEN_BAR_CELLS }, (_, index) => index < filled);
-
-  return (
-    <div className="segbar" aria-hidden="true">
-      {cells.map((on, index) => (
-        <i className={on ? (hi ? "hi" : "on") : undefined} key={index} />
       ))}
     </div>
   );
@@ -105,7 +88,7 @@ export function SessionsView({
           <StatCell label="Active" value={activeSessions} sub="updated < 1h" />
           <StatCell label="Sub-agents" value={subagentSessions} sub="subagent threads" />
           <StatCell label="Open child" value={openChildren} tone="warn" sub="awaiting" />
-          <StatCell label="Σ Tokens" value={compactNumberFormatter.format(tokenTotal)} sub="all sessions" />
+          <StatCell label="Σ Tokens" value={<LiveTokenTotal fallback={tokenTotal} />} sub="all sessions" />
         </div>
 
         <div className="filter-grp">
@@ -310,8 +293,7 @@ export function SessionsView({
                   </td>
                   <td>{session.model || "-"}</td>
                   <td className="numeric">
-                    <div>{numberFormatter.format(tokenValue)}</div>
-                    <TokenSegBar value={tokenValue} />
+                    <LiveSessionTokens sessionId={session.id} fallback={tokenValue} />
                   </td>
                   <td className="badge-cell">
                     <span className={source === "subagent" ? "chip amber" : "chip"}>{source === "subagent" ? `SUB · ${(session.agentRole ?? "worker").charAt(0).toUpperCase()}` : "USER"}</span>
