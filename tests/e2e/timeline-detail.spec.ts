@@ -18,7 +18,9 @@ test.describe("real Timeline detail @timeline", () => {
     const initialTimelineResponsePromise = page.waitForResponse(
       (response) => response.url().includes("/api/timeline") && !response.url().includes("fromByte="),
     );
-    await page.getByRole("button", { name: "Timeline" }).click();
+    // Select the user-root row explicitly (its rollout holds these fixtures);
+    // the default "Active" selection lands on the sub-agent, not the parent.
+    await page.getByRole("table", { name: /sessions/i }).getByRole("row", { name: /Parent real sessions work/i }).click();
     const initialTimelineBody = await (await initialTimelineResponsePromise).json();
 
     await expect(page.getByRole("heading", { name: "Timeline" })).toBeVisible();
@@ -80,7 +82,9 @@ test.describe("real Timeline detail @timeline", () => {
     const timelineResponsePromise = page.waitForResponse(
       (response) => response.url().includes("/api/timeline") && !response.url().includes("fromByte="),
     );
-    await page.getByRole("button", { name: "Timeline" }).click();
+    // Select the user-root row explicitly (its rollout holds the observed fixtures);
+    // the default "Active" selection lands on the sub-agent, not the parent.
+    await page.getByRole("table", { name: /sessions/i }).getByRole("row", { name: /Parent real sessions work/i }).click();
     const timelineBody = await (await timelineResponsePromise).json();
 
     expect(timelineBody).toMatchObject({

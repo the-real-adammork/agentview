@@ -40,7 +40,7 @@ export function App() {
   const [activeView, setActiveView] = useState<ObservatoryView>("Sessions");
   const [health, setHealth] = useState<HealthStatus>(fixture.health);
   const [sessions, setSessions] = useState<SessionSummary[]>(fixture.sessions);
-  const [sessionFilter, setSessionFilter] = useState<SessionFilter>({ archived: "include" });
+  const [sessionFilter, setSessionFilter] = useState<SessionFilter>({ archived: "exclude" });
   const [repoFilter, setRepoFilter] = useState<string | null>(null);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [sessionsError, setSessionsError] = useState<ApiError | null>(null);

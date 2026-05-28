@@ -225,7 +225,9 @@ test.describe("Diagnostics UI @diagnostics", () => {
     await page.goto(appBaseUrl(testInfo));
 
     const rows = page.getByRole("table", { name: /sessions/i }).locator("tbody tr");
-    await expect(rows, "session rows should paint before diagnostics badge hydration resolves").toHaveCount(3, {
+    // Default flag is "Active": the archived fixture session is hidden, leaving the
+    // user root + its active sub-agent.
+    await expect(rows, "session rows should paint before diagnostics badge hydration resolves").toHaveCount(2, {
       timeout: 1_000,
     });
     await expect(rows.filter({ hasText: "ui-worker" })).not.toContainText(/warning|failed command/i);

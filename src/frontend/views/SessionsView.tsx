@@ -112,8 +112,6 @@ export function SessionsView({
 
   const rows = useMemo(() => buildSessionRows(scopedSessions, () => true), [scopedSessions]);
 
-  const roleOptions = uniqueValues(sessions, (session) => session.agentRole);
-  const modelOptions = uniqueValues(sessions, (session) => session.model);
   const repoOptions = uniqueValues(sessions, sessionRepoName);
   const updateFilter = (patch: Partial<SessionFilter>) => onFilterChange({ ...filter, ...patch });
   const nowMs = Date.now();
@@ -193,21 +191,6 @@ export function SessionsView({
             <button className="opt" data-on={filter.threadSource === "subagent"} onClick={() => selectSource("subagent")} type="button">Sub-agent</button>
           </div>
 
-          <label className="field">
-            <span>Source</span>
-            <select
-              aria-label="Source"
-              value={filter.threadSource ?? ""}
-              onChange={(event) =>
-                updateFilter({ threadSource: event.target.value ? (event.target.value as ThreadSource) : undefined })
-              }
-            >
-              <option value="">Any</option>
-              <option value="user">User</option>
-              <option value="subagent">Subagent</option>
-            </select>
-          </label>
-
           <div className="lbl">Repo</div>
           <div className="row" role="group" aria-label="Repository quick filters">
             <button className="opt" data-on={!filter.repo} onClick={() => updateFilter({ repo: undefined })} type="button">All</button>
@@ -232,71 +215,12 @@ export function SessionsView({
             </>
           ) : null}
 
-          <label className="field">
-            <span>Role</span>
-            <select
-              aria-label="Role"
-              value={filter.agentRole ?? ""}
-              onChange={(event) => updateFilter({ agentRole: event.target.value || undefined })}
-            >
-              <option value="">Any</option>
-              {roleOptions.map((role) => (
-                <option value={role} key={role}>
-                  {role}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="field">
-            <span>Model</span>
-            <select
-              aria-label="Model"
-              value={filter.model ?? ""}
-              onChange={(event) => updateFilter({ model: event.target.value || undefined })}
-            >
-              <option value="">Any</option>
-              {modelOptions.map((model) => (
-                <option value={model} key={model}>
-                  {model}
-                </option>
-              ))}
-            </select>
-          </label>
-
           <div className="lbl">Flag</div>
           <div className="row" role="group" aria-label="Archive quick filters">
-            <button className="opt" data-on={(filter.archived ?? "include") === "include"} onClick={() => selectArchive("include")} type="button">Any</button>
-            <button className="opt" data-on={filter.archived === "exclude"} onClick={() => selectArchive("exclude")} type="button">Active</button>
+            <button className="opt" data-on={filter.archived === "include"} onClick={() => selectArchive("include")} type="button">Any</button>
+            <button className="opt" data-on={(filter.archived ?? "exclude") === "exclude"} onClick={() => selectArchive("exclude")} type="button">Active</button>
             <button className="opt" data-on={filter.archived === "only"} onClick={() => selectArchive("only")} type="button">Archived</button>
           </div>
-
-          <label className="field">
-            <span>Archived</span>
-            <select
-              aria-label="Archived"
-              value={filter.archived ?? "include"}
-              onChange={(event) => updateFilter({ archived: event.target.value as ArchivedFilter })}
-            >
-              <option value="include">Include</option>
-              <option value="exclude">Exclude</option>
-              <option value="only">Only</option>
-            </select>
-          </label>
-
-          <label className="field field--numeric">
-            <span>Min tokens</span>
-            <input
-              aria-label="Minimum tokens"
-              inputMode="numeric"
-              min="0"
-              type="number"
-              value={filter.minTokens ?? ""}
-              onChange={(event) =>
-                updateFilter({ minTokens: event.target.value ? Number.parseInt(event.target.value, 10) : undefined })
-              }
-            />
-          </label>
         </form>
 
         <div className="ov-side__foot">

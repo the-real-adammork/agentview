@@ -39,7 +39,9 @@ test.describe("real Sessions index @sessions", () => {
     await expect(page.getByRole("button", { name: /repos/i })).toBeVisible();
     await expect(page.getByLabel(/observatory status/i)).toContainText(/real mode/i);
     await expect(page.getByRole("status", { name: /transport status/i })).toContainText(/source: state-db/i);
-    await expect(page.getByRole("status", { name: /transport status/i })).toContainText(/sessions:\s*3/i);
+    // Default flag is "Active": the archived fixture session is hidden, leaving the
+    // user root and its active sub-agent.
+    await expect(page.getByRole("status", { name: /transport status/i })).toContainText(/sessions:\s*2/i);
     await expect
       .poll(() =>
         page.evaluate(async () => {
@@ -56,43 +58,37 @@ test.describe("real Sessions index @sessions", () => {
       });
 
     const rows = await sessionRows(page);
-    await expect(rows).toHaveCount(3);
-    // Tree-grouped order: the user root leads, its sub-agents nest beneath it
-    // (newest descendant first), rather than a flat updated_at sort.
+    await expect(rows).toHaveCount(2);
+    // Tree-grouped order: the user root leads, its active sub-agent nests beneath it.
     await expect(rows.nth(0)).toContainText("Parent real sessions work");
-    await expect(rows.nth(1)).toContainText("UI fixture archived");
-    await expect(rows.nth(2)).toContainText("ui-worker");
+    await expect(rows.nth(1)).toContainText("ui-worker");
     await expect(rows.nth(0)).toHaveAttribute("data-depth", "0");
     await expect(rows.nth(1)).toHaveAttribute("data-depth", "1");
-    await expect(rows.nth(2)).toHaveAttribute("data-depth", "1");
-    // Each row still shows its own repo label (not the full cwd).
-    await expect(rows.nth(1)).toContainText("agentview-fixture");
-    await expect(rows.nth(1)).not.toContainText("/repo/agentview-fixture");
+    // Each row shows its own repo label (not the full cwd).
     await expect(rows.nth(0)).toContainText("agentview");
     await expect(rows.nth(0)).not.toContainText("/repo/agentview");
+    await expect(rows.nth(1)).toContainText("agentview");
 
-    // archived-ui is the most recently updated row, so it is the default selection.
+    // The sub-agent is the most recently updated active session, so it is the default selection.
     await expect(rows.nth(1)).toHaveAttribute("aria-current", "true");
-    await expect(rows.nth(2)).toContainText("1/2");
+    await expect(rows.nth(1)).toContainText("1/2");
 
     // Clicking a row selects that session and navigates to its Timeline (handoff COMP/01).
-    await rows.nth(2).click();
+    await rows.nth(1).click();
     await expect(page.getByRole("heading", { name: /timeline/i })).toBeVisible();
 
     // Returning to the index (via the header session square) shows the clicked session active.
     await page.locator(".session-sq").click();
-    await expect((await sessionRows(page)).nth(2)).toHaveAttribute("aria-current", "true");
+    await expect((await sessionRows(page)).nth(1)).toHaveAttribute("aria-current", "true");
   });
 
-  test("composes search and filter controls against the sessions API", async ({ page }, testInfo) => {
+  test("composes search and quick filters against the sessions API", async ({ page }, testInfo) => {
     await page.goto(appBaseUrl(testInfo));
 
+    // Search + the Sub-agent thread-source quick filter narrow to the single
+    // active sub-agent (archived sessions are hidden by the default Active flag).
     await page.getByRole("searchbox", { name: /search sessions/i }).fill("implementation");
-    await page.getByRole("combobox", { name: /source/i }).selectOption("subagent");
-    await page.getByRole("combobox", { name: /role/i }).selectOption("implementation");
-    await page.getByRole("combobox", { name: /model/i }).selectOption("gpt-5-codex");
-    await page.getByRole("combobox", { name: /archived/i }).selectOption("exclude");
-    await page.getByRole("spinbutton", { name: /minimum tokens/i }).fill("10000");
+    await page.getByRole("button", { name: "Sub-agent" }).click();
 
     const rows = await sessionRows(page);
     await expect(rows).toHaveCount(1);
