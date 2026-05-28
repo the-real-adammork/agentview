@@ -7,6 +7,7 @@ import {
   sessionLineage,
   toneForDepth,
 } from "../views/sessionTree";
+import { formatTokens } from "../views/formatTokens";
 
 interface SessionSquareProps {
   session: SessionSummary | undefined;
@@ -71,7 +72,7 @@ export function SessionSquare({ session, sessions, active, railStart, onClick }:
       <AnimatedNumber
         className="ss-tok num"
         value={tokensOf(session)}
-        format={(value) => `${(value / 1000).toFixed(1)}K`}
+        format={formatTokens}
       />
       <span className="ss-arrow" aria-hidden="true">▸</span>
     </button>

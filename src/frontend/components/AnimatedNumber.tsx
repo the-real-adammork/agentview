@@ -31,9 +31,9 @@ export function AnimatedNumber({
 }: AnimatedNumberProps) {
   const [display, setDisplay] = useState(value);
   const [flash, setFlash] = useState<"up" | "down" | null>(null);
-  // True only while the value is mid-tween. Used to drop the fractional part of
-  // the formatted output during the animation so the digits don't jitter; the
-  // settled value keeps its normal formatting (decimals and all).
+  // True only while the value is mid-tween. Used to clamp the formatted output to
+  // at most one decimal place during the animation so the digits don't jitter; the
+  // settled value keeps its normal formatting.
   const [tweening, setTweening] = useState(false);
   const fromRef = useRef(value);
   const prevRef = useRef(value);
@@ -91,10 +91,17 @@ export function AnimatedNumber({
     [],
   );
 
-  // While tweening, strip the fractional part (e.g. "184.3K" → "184K") so the
-  // animated digits read cleanly; the settled value renders the full format.
+  // While tweening, keep the animated digits calm: abbreviated values (with a
+  // magnitude suffix like "184.37K") keep at most one decimal → "184.3K"; values
+  // shown in full ("1,234.5") drop the fraction entirely → "1,234". The settled
+  // value always renders the full format.
   const formatted = format(display);
-  const text = tweening ? formatted.replace(/\.\d+/g, "") : formatted;
+  const abbreviated = /[a-z]/i.test(formatted);
+  const text = tweening
+    ? abbreviated
+      ? formatted.replace(/(\.\d)\d+/g, "$1")
+      : formatted.replace(/\.\d+/g, "")
+    : formatted;
 
   return (
     <span className={`anim-num ${flash ? `flash-${flash}` : ""} ${className}`.trim()}>{text}</span>
