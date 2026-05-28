@@ -1461,6 +1461,57 @@ tbody tr[aria-current="true"] {
   color: var(--ink-dim);
 }
 
+.tl-range {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px 0 12px;
+  border-left: var(--border-width) solid var(--rule-soft);
+}
+
+.tl-range-lbl {
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--ink-dim);
+  padding-right: 4px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.tl-tabs .tl-range button {
+  min-height: 0;
+  padding: 4px 8px;
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  border: var(--border-width) solid var(--rule);
+  color: var(--ink-dim);
+  background: var(--bg-0);
+  min-width: 32px;
+  text-align: center;
+}
+
+.tl-tabs .tl-range button:hover {
+  color: var(--ink);
+  border-color: var(--rule-strong);
+}
+
+.tl-tabs .tl-range button[data-on="true"] {
+  color: var(--bg-0);
+  background: var(--primary);
+  border-color: var(--primary);
+  border-bottom: var(--border-width) solid var(--primary);
+  box-shadow: 0 0 8px rgba(255, 107, 26, 0.5);
+}
+
+.tl-stream__empty {
+  padding: 18px 14px;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .tl-vitals {
   min-height: 0;
   overflow: auto;
@@ -2617,6 +2668,18 @@ tbody tr[aria-current="true"] {
 
   .field--wide {
     grid-column: 1 / -1;
+  }
+
+  /* The window chips scroll inline with the kind tabs; the label and divider
+     drop so the group doesn't read as a separate region while scrolling. */
+  .tl-range {
+    margin-left: 0;
+    padding-left: 8px;
+    border-left: 0;
+  }
+
+  .tl-range-lbl {
+    display: none;
   }
 }
 

@@ -31,6 +31,18 @@ test.describe("real Timeline detail @timeline", () => {
     await expect(page.getByLabel("Timeline scrubber").locator(".timeline-scrubber__axis")).toHaveCount(5);
     expect(await page.getByLabel("Timeline scrubber").locator(".timeline-scrubber__dot").count()).toBeGreaterThan(0);
 
+    // Time window control (handoff COMP/06): four segments, ALL default, header swaps to LAST {N}H.
+    const windowGroup = page.getByRole("group", { name: "Time window" });
+    await expect(windowGroup.getByRole("button")).toHaveCount(4);
+    await expect(windowGroup.getByRole("button", { name: "ALL" })).toHaveAttribute("aria-pressed", "true");
+    const scrubberHeader = page.locator(".tl-scrubber-wrap .hdr span").first();
+    await expect(scrubberHeader).toContainText("TASK_STARTED");
+    await windowGroup.getByRole("button", { name: "1H" }).click();
+    await expect(windowGroup.getByRole("button", { name: "1H" })).toHaveAttribute("aria-pressed", "true");
+    await expect(scrubberHeader).toContainText("LAST 1H");
+    await windowGroup.getByRole("button", { name: "ALL" }).click();
+    await expect(scrubberHeader).toContainText("TASK_STARTED");
+
     // The grouped "Tools" filter shows only tool_call rows (results are inlined).
     await page.getByRole("button", { name: /^Tools/ }).click();
     const events = page.getByLabel("Timeline events");

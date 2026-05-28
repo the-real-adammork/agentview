@@ -1,10 +1,16 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { ShortId } from "../components/ShortId";
 import { TimelineEventRow } from "../components/TimelineEventRow";
 import { TimelineScrubber } from "../components/TimelineScrubber";
 import type { AgentEdgeStatus, ApiError, SessionSummary, TimelinePayload } from "../../shared/contracts";
-import { TIMELINE_FILTERS, filterTimelineEvents, timelineFilterCount } from "./timelineFilters";
+import {
+  TIME_WINDOWS,
+  TIMELINE_FILTERS,
+  filterTimelineEvents,
+  timelineFilterCount,
+  windowTimelineEvents,
+} from "./timelineFilters";
 
 interface TimelineViewProps {
   activeSession?: SessionSummary;
@@ -70,6 +76,7 @@ export function TimelineView({
   onTail,
   onOpenGraph,
 }: TimelineViewProps) {
+  const [windowMs, setWindowMs] = useState(0); // 0 === "ALL"
   const events = payload?.events ?? [];
   const facts = payload?.facts;
   const summary = facts?.summary;
@@ -96,7 +103,12 @@ export function TimelineView({
           }
         : event;
     });
-  const visibleEvents = filterTimelineEvents(renderableEvents, activeKind);
+  // Single source of truth: the time window trims the events array itself, so the
+  // scrubber rail, tab counts, header duration, and stream all derive from one slice.
+  const windowedEvents = windowTimelineEvents(renderableEvents, windowMs);
+  // Newest first: the stream renders most-recent events at the top. filter()
+  // returns a fresh array, so reversing it does not mutate shared data.
+  const visibleEvents = filterTimelineEvents(windowedEvents, activeKind).reverse();
 
   const latestSnapshot = facts?.tokenSnapshots.at(-1);
   const tokenTotal = activeSession?.tokensUsed ?? activeSession?.tokenTotal ?? latestSnapshot?.total ?? 0;
@@ -118,6 +130,18 @@ export function TimelineView({
   const completedAt = summary?.completedAt ?? firstTurn?.completedAt;
   const durationSeconds =
     startedAt && completedAt ? Math.max(0, Math.round((Date.parse(completedAt) - Date.parse(startedAt)) / 1000)) : undefined;
+
+  // When a window is active, the scrubber header swaps to "LAST {N}H" and the
+  // duration is recomputed from the windowed span (handoff COMP/06).
+  const windowLabel = TIME_WINDOWS.find((option) => option.ms === windowMs)?.label;
+  const windowedDurationSeconds = (() => {
+    if (windowedEvents.length === 0) return undefined;
+    const first = Date.parse(windowedEvents[0].timestamp);
+    const last = Date.parse(windowedEvents[windowedEvents.length - 1].timestamp);
+    return Number.isFinite(first) && Number.isFinite(last) ? Math.max(0, Math.round((last - first) / 1000)) : undefined;
+  })();
+  const headerSpanLabel = windowMs ? `LAST ${windowLabel}` : "TASK_STARTED → TASK_COMPLETE";
+  const headerDurationSeconds = windowMs ? windowedDurationSeconds : durationSeconds;
 
   const branch = activeSession?.branch || activeSession?.gitBranch || "unknown";
   const gitSha = activeSession?.gitSha ?? undefined;
@@ -205,10 +229,25 @@ export function TimelineView({
               onClick={() => onKindChange(group.key)}
               type="button"
             >
-              {group.label} <span aria-hidden="true" className="muted">·{timelineFilterCount(renderableEvents, group.key)}</span>
+              {group.label} <span aria-hidden="true" className="muted">·{timelineFilterCount(windowedEvents, group.key)}</span>
             </button>
           ))}
           <span className="spacer" />
+          <div className="tl-range" role="group" aria-label="Time window">
+            <span aria-hidden="true" className="tl-range-lbl">▸ Window</span>
+            {TIME_WINDOWS.map((option) => (
+              <button
+                aria-pressed={windowMs === option.ms}
+                data-on={windowMs === option.ms ? "true" : "false"}
+                key={option.label}
+                onClick={() => setWindowMs(option.ms)}
+                title={option.ms ? `Show events from the last ${option.label}` : "Show the entire session"}
+                type="button"
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
           <button className="tl-tabs__aux" type="button" onClick={onRefresh}>Refresh</button>
           <button className="tl-tabs__aux" type="button" onClick={onTail}>Tail</button>
         </div>
@@ -218,13 +257,16 @@ export function TimelineView({
 
         <div className="tl-scrubber-wrap">
           <div className="hdr">
-            <span>TURN 01 · TASK_STARTED → TASK_COMPLETE{durationSeconds !== undefined ? ` · DUR ${durationSeconds}s` : ""}</span>
+            <span>TURN 01 · {headerSpanLabel}{headerDurationSeconds !== undefined ? ` · DUR ${headerDurationSeconds}s` : ""}</span>
             <span>TTFT {firstTurn?.firstTokenMs ?? "n/a"}ms · next byte {payload?.nextByteOffset ?? 0}</span>
           </div>
-          <TimelineScrubber events={renderableEvents} activeKind={activeKind} />
+          <TimelineScrubber events={windowedEvents} activeKind={activeKind} />
         </div>
 
         <ol className="tl-stream" aria-label="Timeline events">
+          {visibleEvents.length === 0 ? (
+            <li className="tl-stream__empty faint">-- no events in this window --</li>
+          ) : null}
           {visibleEvents.map((event) => {
             let meta: string | undefined;
             if (event.kind === "task_started") {
