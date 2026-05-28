@@ -141,7 +141,7 @@ describe("read-only Codex state store", () => {
             updatedAtMs: 2_100_000,
             cwd: "/worktrees/agentview",
             repoLabel: "agentview",
-            titlePreview: "Investigate backend state store",
+            titlePreview: "implementation · backend-state · Investigate backend state store",
             firstUserMessagePreview: "Investigate backend state store",
             preview: "Child preview fallback",
             model: "gpt-5-codex",

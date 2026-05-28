@@ -10,6 +10,7 @@ import type {
   ThreadSource,
 } from "../../shared/contracts";
 import { deriveRepoName } from "../../shared/repoName";
+import { deriveSessionTitle } from "./threadTitle";
 
 export class StateStoreError extends Error {
   code: string;
@@ -123,7 +124,15 @@ const normalizeThread = (row: ThreadRow): SessionSummary => {
   const updatedAtMs = row.updated_at_ms ?? row.updated_at * 1000;
   const firstUserMessagePreview = trimPreview(row.first_user_message);
   const preview = trimPreview(row.preview);
-  const titlePreview = trimPreview(row.title) || firstUserMessagePreview || preview || row.id;
+  const titlePreview = deriveSessionTitle({
+    id: row.id,
+    title: row.title,
+    firstUserMessage: row.first_user_message,
+    preview: row.preview,
+    threadSource: row.thread_source,
+    agentRole: row.agent_role,
+    agentNickname: row.agent_nickname,
+  });
   const tokenTotal = toNumber(row.tokens_used);
   const branch = row.git_branch ?? "";
   const model = row.model ?? null;

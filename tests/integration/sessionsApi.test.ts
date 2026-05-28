@@ -317,7 +317,7 @@ describe("sessions API routes", () => {
             data: [
               expect.objectContaining({
                 id: "thread-child-open",
-                titlePreview: "Investigate backend state store",
+                titlePreview: "implementation · backend-state · Investigate backend state store",
                 childCount: 0,
                 openChildCount: 0,
                 warningCountStatus: "not_requested",
