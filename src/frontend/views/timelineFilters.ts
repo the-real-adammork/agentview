@@ -31,6 +31,34 @@ export const TIMELINE_FILTERS: TimelineFilterGroup[] = [
   },
 ];
 
+/**
+ * Orders events chronologically by their created-at `timestamp` so every events
+ * list (All Events, Messages, Tools, …) reads in time order. Events reach the UI
+ * in file/append order — pagination chunks and the live SSE stream both concat
+ * onto the tail — which only approximates chronological order and produces slight
+ * mixups when timestamps don't line up with line order.
+ *
+ * The sort is stable: equal timestamps fall back to `sourceLine`, then the
+ * original position, so deterministic input yields deterministic output. Events
+ * with an unparseable timestamp inherit the previous valid event's time, keeping
+ * them anchored where they were instead of jumping to an edge (mirrors how
+ * windowTimelineEvents keeps, rather than drops, such events).
+ */
+export const sortTimelineEvents = (events: TimelineEvent[]): TimelineEvent[] => {
+  let lastValidMs = 0;
+  return events
+    .map((event, index) => {
+      const parsed = Date.parse(event.timestamp);
+      const ms = Number.isFinite(parsed) ? parsed : lastValidMs;
+      if (Number.isFinite(parsed)) {
+        lastValidMs = parsed;
+      }
+      return { event, index, ms };
+    })
+    .sort((a, b) => a.ms - b.ms || a.event.sourceLine - b.event.sourceLine || a.index - b.index)
+    .map((entry) => entry.event);
+};
+
 const groupFor = (key: string): TimelineFilterGroup => TIMELINE_FILTERS.find((group) => group.key === key) ?? TIMELINE_FILTERS[0];
 
 export const filterTimelineEvents = (events: TimelineEvent[], key: string): TimelineEvent[] => {

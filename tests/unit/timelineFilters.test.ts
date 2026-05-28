@@ -4,6 +4,7 @@ import {
   TIME_WINDOWS,
   TIMELINE_FILTERS,
   filterTimelineEvents,
+  sortTimelineEvents,
   timelineFilterCount,
   windowTimelineEvents,
 } from "../../src/frontend/views/timelineFilters";
@@ -110,6 +111,55 @@ describe("TIME_WINDOWS", () => {
   it("exposes 1H/4H/12H/ALL in fixed order with ALL as 0ms", () => {
     expect(TIME_WINDOWS.map((option) => option.label)).toEqual(["1H", "4H", "12H", "ALL"]);
     expect(TIME_WINDOWS.map((option) => option.ms)).toEqual([3_600_000, 14_400_000, 43_200_000, 0]);
+  });
+});
+
+describe("sortTimelineEvents", () => {
+  it("orders events by their created-at timestamp", () => {
+    const out = sortTimelineEvents([
+      at("task_complete", "2026-05-27T18:00:00.000Z"),
+      at("task_started", "2026-05-27T12:00:00.000Z"),
+      at("tool_call", "2026-05-27T15:00:00.000Z"),
+    ]);
+    expect(out.map((event) => event.timestamp)).toEqual([
+      "2026-05-27T12:00:00.000Z",
+      "2026-05-27T15:00:00.000Z",
+      "2026-05-27T18:00:00.000Z",
+    ]);
+  });
+
+  it("breaks timestamp ties by sourceLine for a deterministic order", () => {
+    const ts = "2026-05-27T12:00:00.000Z";
+    const out = sortTimelineEvents([
+      ev("assistant_message", { id: "b", timestamp: ts, sourceLine: 9 }),
+      ev("tool_call", { id: "a", timestamp: ts, sourceLine: 4 }),
+    ]);
+    expect(out.map((event) => event.id)).toEqual(["a", "b"]);
+  });
+
+  it("is stable when both timestamp and sourceLine tie (preserves input order)", () => {
+    const ts = "2026-05-27T12:00:00.000Z";
+    const out = sortTimelineEvents([
+      ev("tool_call", { id: "first", timestamp: ts, sourceLine: 1 }),
+      ev("tool_result", { id: "second", timestamp: ts, sourceLine: 1 }),
+    ]);
+    expect(out.map((event) => event.id)).toEqual(["first", "second"]);
+  });
+
+  it("anchors events with unparseable timestamps next to the prior valid event", () => {
+    const out = sortTimelineEvents([
+      at("task_started", "2026-05-27T12:00:00.000Z"),
+      ev("warning", { id: "bad", timestamp: "not-a-date", severity: "warning" }),
+      at("task_complete", "2026-05-27T18:00:00.000Z"),
+    ]);
+    // "bad" inherits 12:00, so it sorts between the 12:00 and 18:00 events
+    // rather than being flung to the front (time 0) or dropped.
+    expect(out.map((event) => event.id)).toEqual([out[0].id, "bad", out[2].id]);
+    expect(out[2].timestamp).toBe("2026-05-27T18:00:00.000Z");
+  });
+
+  it("returns an empty array unchanged", () => {
+    expect(sortTimelineEvents([])).toEqual([]);
   });
 });
 

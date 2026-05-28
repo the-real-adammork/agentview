@@ -10,6 +10,7 @@ import {
   TIME_WINDOWS,
   TIMELINE_FILTERS,
   filterTimelineEvents,
+  sortTimelineEvents,
   timelineFilterCount,
   windowTimelineEvents,
 } from "./timelineFilters";
@@ -166,7 +167,10 @@ export function TimelineView({
   // the toggle pulses. The real stream is SSE-driven (App owns it); turning this
   // on also pulls the newest bytes immediately.
   const [live, setLive] = useState(false);
-  const events = payload?.events ?? [];
+  // Chronological by created-at: events arrive in file/append order (pagination +
+  // live stream concat onto the tail), so sort before anything derives from them
+  // — the stream, scrubber, tab counts, and token deltas all assume time order.
+  const events = sortTimelineEvents(payload?.events ?? []);
   const facts = payload?.facts;
   const summary = facts?.summary;
   const firstTurn = facts?.turns[0];
