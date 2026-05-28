@@ -25,14 +25,16 @@ describe("graph and token views", () => {
       />,
     );
 
-    expect(screen.getByTestId("agent-graph-canvas")).toBeVisible();
-    expect(screen.getByTestId("agent-graph-edges")).toBeVisible();
+    const canvas = screen.getByTestId("agent-graph-canvas");
+    expect(canvas).toBeVisible();
     expect(screen.getByText(/agent tree · thread_spawn_edges/i)).toBeVisible();
+    // React Flow renders the thread-spawn edges as SVG edge groups.
+    expect(canvas.querySelectorAll(".react-flow__edge").length).toBeGreaterThan(0);
 
-    const graphRegion = screen.getByRole("list", { name: /agent graph nodes/i });
-    expect(within(graphRegion).getByRole("button", { name: /archimedes audit logs_2 noisy targets/i })).toBeVisible();
+    const archimedesNode = within(canvas).getByRole("button", { name: /archimedes audit logs_2 noisy targets/i });
+    expect(archimedesNode).toBeVisible();
 
-    fireEvent.click(within(graphRegion).getByRole("button", { name: /archimedes audit logs_2 noisy targets/i }));
+    fireEvent.click(archimedesNode);
     expect(screen.getByRole("complementary", { name: /selected graph node/i })).toHaveTextContent("ARCHIMEDES");
     expect(screen.getByRole("complementary", { name: /selected graph node/i })).toHaveTextContent("Node · Inspector");
 

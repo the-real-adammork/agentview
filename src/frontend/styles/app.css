@@ -1586,11 +1586,25 @@ tbody tr[aria-current="true"] {
 
 .graph-canvas {
   position: relative;
+  display: flex;
+  flex-direction: column;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   background:
     radial-gradient(60% 60% at 50% 50%, rgba(255, 107, 26, 0.05), transparent 70%),
     var(--bg-0);
+}
+
+.graph-flow {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.graph-flow .react-flow {
+  width: 100%;
+  height: 100%;
+  background: transparent;
 }
 
 .graph-head {
@@ -1636,8 +1650,8 @@ tbody tr[aria-current="true"] {
 }
 
 .graph .graph-toolbar {
-  position: sticky;
-  top: 48px;
+  position: absolute;
+  top: 14px;
   left: 14px;
   z-index: 5;
   width: max-content;
@@ -1645,95 +1659,79 @@ tbody tr[aria-current="true"] {
   display: flex;
   align-items: end;
   gap: 10px;
-  margin: 14px;
   padding: 8px;
   border: var(--border-width) solid var(--rule);
   background: color-mix(in srgb, var(--bg-1) 94%, transparent);
 }
 
-.graph-grid {
-  position: absolute;
-  inset: 36px 36px 0;
-  min-width: 908px;
-  pointer-events: none;
+.graph-flow .react-flow__node {
+  width: 220px;
 }
 
-.graph-grid span {
-  position: absolute;
-  top: 0;
-  bottom: 0;
+.graph-flow .react-flow__handle {
   width: 1px;
-  background: var(--ink-ghost);
-}
-
-.graph-grid b {
-  position: absolute;
-  top: 8px;
-  color: var(--ink-dim);
-  font-family: var(--display);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-}
-
-.graph-edges,
-.graph-nodes {
-  position: absolute;
-  top: 36px;
-  left: 0;
-}
-
-.graph-edges {
-  z-index: 1;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  opacity: 0;
   pointer-events: none;
-  overflow: visible;
 }
 
-.graph-edges marker path {
-  fill: var(--primary);
-}
-
-.graph-edges #graph-arrow-warn path {
-  fill: var(--warn);
-}
-
-.graph-edge path {
-  fill: none;
+.graph-flow .graph-flow-edge .react-flow__edge-path {
   stroke: var(--primary);
   stroke-width: 1;
   opacity: 0.85;
 }
 
-.graph-edge--open path {
+.graph-flow .graph-flow-edge--open .react-flow__edge-path {
   stroke: var(--warn);
   stroke-dasharray: 4 4;
 }
 
-.graph-edge text {
+.graph-flow .react-flow__edge-text {
   fill: var(--primary);
   font-family: var(--display);
   font-size: 9px;
   letter-spacing: 0.18em;
-  text-anchor: middle;
   text-transform: uppercase;
 }
 
-.graph-edge--open text {
+.graph-flow .react-flow__edge-textbg {
+  fill: var(--bg-0);
+}
+
+.graph-flow .graph-flow-edge--open .react-flow__edge-text {
   fill: var(--warn);
 }
 
-.graph-nodes {
-  z-index: 2;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.graph-flow .react-flow__controls {
+  border: var(--border-width) solid var(--rule);
+  box-shadow: none;
 }
 
-.graph-node-item {
-  position: absolute;
-  width: 220px;
-  list-style: none;
+.graph-flow .react-flow__controls-button {
+  border-bottom: var(--border-width) solid var(--rule);
+  background: var(--bg-1);
+  fill: var(--ink);
+}
+
+.graph-flow .react-flow__controls-button:hover {
+  background: var(--bg-2);
+}
+
+.graph-flow .react-flow__minimap {
+  border: var(--border-width) solid var(--rule);
+  background: var(--bg-1);
+}
+
+.graph-flow .react-flow__attribution {
+  background: transparent;
+}
+
+.graph-flow .react-flow__attribution a {
+  color: var(--ink-ghost);
 }
 
 .node {
@@ -1953,10 +1951,13 @@ tbody tr[aria-current="true"] {
 }
 
 .graph-truncated {
-  position: sticky;
-  bottom: 12px;
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
   z-index: 6;
-  margin: 0 14px 14px;
+  width: max-content;
+  max-width: calc(100% - 120px);
+  transform: translateX(-50%);
 }
 
 .tokens-view {

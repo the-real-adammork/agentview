@@ -1,6 +1,8 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 
+import "@xyflow/react/dist/style.css";
+
 import "@fontsource/big-shoulders-display/latin-500.css";
 import "@fontsource/big-shoulders-display/latin-600.css";
 import "@fontsource/big-shoulders-display/latin-700.css";
