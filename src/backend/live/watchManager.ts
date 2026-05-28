@@ -1,6 +1,6 @@
 import { watch as fsWatch, watchFile as fsWatchFile, unwatchFile as fsUnwatchFile, type FSWatcher } from "node:fs";
 
-export type WatchSignalKey = "state-db" | "logs-db" | `rollout:${string}`;
+export type WatchSignalKey = "state-db" | "state-db-wal" | "logs-db" | "logs-db-wal" | `rollout:${string}`;
 
 type WatchFn = (path: string, listener: () => void) => Pick<FSWatcher, "close">;
 type WatchFileFn = (

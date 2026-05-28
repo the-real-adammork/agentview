@@ -173,9 +173,14 @@ export const createLiveSources = ({
         }
       };
 
-      // Always watch the two DBs; watch the active rollout if present.
+      // Always watch the two DBs; watch the active rollout if present. The DBs run
+      // in WAL mode, so committed writes land in the `-wal` sibling and the main
+      // file's mtime only changes on checkpoint (minutes apart). Watch both so a
+      // push fires on every commit, not just on checkpoint.
       unwatchFns.push(watchManager.watch("state-db", `${codexHome}/${STATE_DB_FILE}`, () => void pushSessions()));
+      unwatchFns.push(watchManager.watch("state-db-wal", `${codexHome}/${STATE_DB_FILE}-wal`, () => void pushSessions()));
       unwatchFns.push(watchManager.watch("logs-db", `${codexHome}/${LOGS_DB_FILE}`, () => void pushDiagnostics()));
+      unwatchFns.push(watchManager.watch("logs-db-wal", `${codexHome}/${LOGS_DB_FILE}-wal`, () => void pushDiagnostics()));
       if (rolloutPath && threadId) {
         unwatchFns.push(watchManager.watch(`rollout:${threadId}`, rolloutPath, () => void pushTimelineAndTokens()));
       }
