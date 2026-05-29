@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { reconstructEdges, type ReconstructThread } from "../../src/backend/relationships/reconstruct";
+import { upgradeViaTranscript } from "../../src/backend/relationships/transcriptRunId";
 
 const CWD = "/repo/agentview";
 const orchPrompt = (phase: string, run = "run-a") =>
@@ -133,5 +134,35 @@ describe("reconstructEdges", () => {
     const edges = reconstructEdges(threads);
     expect(edges.get("p1")?.parentId).toBe("sup");
     expect(edges.get("p2")?.parentId).toBe("sup");
+  });
+});
+
+describe("upgradeViaTranscript", () => {
+  it("links an unlinked orchestrator to the root whose transcript references its run id", async () => {
+    const threads: ReconstructThread[] = [
+      { ...base, id: "root", firstUserMessage: "set up the run", createdAtMs: 1000, updatedAtMs: 9000 },
+      { ...base, id: "orch", firstUserMessage: orchPrompt("phase-1", "run-z"), createdAtMs: 2000, updatedAtMs: 3000 },
+    ];
+    const existing = new Map(); // pure linker found nothing (root not a classified supervisor)
+    const rolloutById = new Map<string, string>([["root", "sessions/root.jsonl"]]);
+    const readText = async (path: string) =>
+      path === "sessions/root.jsonl" ? "blah docs/implementation-runs/run-z/run.yaml blah" : "";
+
+    const upgraded = await upgradeViaTranscript(threads, existing, {
+      rolloutPathById: rolloutById,
+      readText,
+    });
+    expect(upgraded.get("orch")).toMatchObject({ parentId: "root", confidence: "medium", via: "run-id" });
+  });
+
+  it("does not override an existing high/certain link", async () => {
+    const threads: ReconstructThread[] = [
+      { ...base, id: "orch", firstUserMessage: orchPrompt("phase-1", "run-z"), createdAtMs: 2000, updatedAtMs: 3000 },
+    ];
+    const existing = new Map([
+      ["orch", { childId: "orch", parentId: "sup", confidence: "high" as const, via: "run-id" as const, runId: "run-z", phase: "phase-1" }],
+    ]);
+    const upgraded = await upgradeViaTranscript(threads, existing, { rolloutPathById: new Map(), readText: async () => "" });
+    expect(upgraded.get("orch")?.parentId).toBe("sup");
   });
 });

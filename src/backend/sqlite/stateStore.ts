@@ -1,5 +1,5 @@
-import { access } from "node:fs/promises";
-import { join } from "node:path";
+import { access, readFile } from "node:fs/promises";
+import { isAbsolute, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 import type {
@@ -15,6 +15,7 @@ import type {
 import { deriveRepoName } from "../../shared/repoName";
 import { deriveSessionTitle } from "./threadTitle";
 import { reconstructEdges, type ReconstructThread, type ReconstructedLink } from "../relationships/reconstruct";
+import { upgradeViaTranscript } from "../relationships/transcriptRunId";
 
 export class StateStoreError extends Error {
   code: string;
@@ -379,36 +380,58 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
     throw error;
   }
 
+  let overlayPromise: Promise<Map<string, ReconstructedLink>> | null = null;
   // Cached for the store's lifetime; safe because the DB is opened readOnly. If the
   // store ever gains write access, invalidate this on write. Building it is a second
   // scan over `threads` (cheap at hundreds–thousands of rows); revisit if that grows.
-  let overlayCache: Map<string, ReconstructedLink> | null = null;
-  const getOverlay = (): Map<string, ReconstructedLink> => {
-    if (overlayCache) {
-      return overlayCache;
+  const getOverlay = (): Promise<Map<string, ReconstructedLink>> => {
+    if (overlayPromise) {
+      return overlayPromise;
     }
-    const rows = db.prepare(selectReconstructInputSql).all() as unknown as Array<{
-      id: string;
-      firstUserMessage: string | null;
-      preview: string | null;
-      cwd: string;
-      createdAtMs: number | bigint | null;
-      updatedAtMs: number | bigint | null;
-      threadSource: ThreadSource | null;
-      hasRealParent: number | bigint;
-    }>;
-    const threads: ReconstructThread[] = rows.map((row) => ({
-      id: row.id,
-      firstUserMessage: row.firstUserMessage,
-      preview: row.preview,
-      cwd: row.cwd,
-      createdAtMs: Number(row.createdAtMs ?? 0),
-      updatedAtMs: Number(row.updatedAtMs ?? 0),
-      threadSource: row.threadSource,
-      hasRealParent: Number(row.hasRealParent) === 1,
-    }));
-    overlayCache = reconstructEdges(threads);
-    return overlayCache;
+    overlayPromise = (async () => {
+      const rows = db.prepare(selectReconstructInputSql).all() as unknown as Array<{
+        id: string;
+        firstUserMessage: string | null;
+        preview: string | null;
+        cwd: string;
+        createdAtMs: number | bigint | null;
+        updatedAtMs: number | bigint | null;
+        threadSource: ThreadSource | null;
+        hasRealParent: number | bigint;
+      }>;
+      const threads: ReconstructThread[] = rows.map((row) => ({
+        id: row.id,
+        firstUserMessage: row.firstUserMessage,
+        preview: row.preview,
+        cwd: row.cwd,
+        createdAtMs: Number(row.createdAtMs ?? 0),
+        updatedAtMs: Number(row.updatedAtMs ?? 0),
+        threadSource: row.threadSource,
+        hasRealParent: Number(row.hasRealParent) === 1,
+      }));
+      const pure = reconstructEdges(threads);
+
+      const rolloutRows = db
+        .prepare("SELECT id, rollout_path AS rolloutPath FROM threads")
+        .all() as unknown as Array<{ id: string; rolloutPath: string }>;
+      const rolloutPathById = new Map(
+        rolloutRows.map(
+          (r) => [r.id, isAbsolute(r.rolloutPath) ? r.rolloutPath : join(codexHome, r.rolloutPath)] as const,
+        ),
+      );
+
+      return upgradeViaTranscript(threads, pure, {
+        rolloutPathById,
+        readText: async (path) => {
+          try {
+            return await readFile(path, "utf8");
+          } catch {
+            return "";
+          }
+        },
+      });
+    })();
+    return overlayPromise;
   };
 
   const store: StateStore = {
@@ -505,6 +528,8 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
       const orderBy = "ORDER BY COALESCE(t.updated_at_ms, t.updated_at * 1000) DESC, t.id DESC";
       const repoFilter = filter.repo?.trim();
 
+      const overlay = await getOverlay();
+
       if (repoFilter) {
         // Repo identity is derived in JS (git origin URL -> repo name, with a cwd
         // basename fallback), so it can't be expressed in SQL. Narrow by every other
@@ -515,7 +540,7 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
           .all(parameters) as unknown as ThreadRow[];
 
         return rows
-          .map((row) => normalizeThread(row, getOverlay()))
+          .map((row) => normalizeThread(row, overlay))
           .filter((session) => session.repoLabel === repoFilter)
           .slice(offset, offset + limit);
       }
@@ -524,7 +549,7 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
         .prepare(`${selectThreadSql} ${where} ${orderBy} LIMIT :limit OFFSET :offset`)
         .all({ ...parameters, limit, offset }) as unknown as ThreadRow[];
 
-      return rows.map((row) => normalizeThread(row, getOverlay()));
+      return rows.map((row) => normalizeThread(row, overlay));
     },
     async getThread(threadId) {
       const row = db
@@ -534,12 +559,13 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
         `)
         .get({ threadId }) as unknown as ThreadRow | undefined;
 
-      return row ? normalizeThread(row, getOverlay()) : null;
+      const overlay = await getOverlay();
+      return row ? normalizeThread(row, overlay) : null;
     },
     async getAgentGraphRows(rootThreadId, scanDepth) {
       const baseRows = db.prepare(graphRecursiveSql).all({ rootThreadId, scanDepth }) as unknown as AgentGraphRow[];
 
-      const overlay = getOverlay();
+      const overlay = await getOverlay();
       if (overlay.size === 0) {
         return baseRows;
       }
