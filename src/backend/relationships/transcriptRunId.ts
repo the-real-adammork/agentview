@@ -4,7 +4,11 @@ import type { ReconstructThread, ReconstructedLink } from "./reconstruct";
 export interface TranscriptReaderDeps {
   /** Maps a thread id to the rollout path to read (already resolved to an absolute path by the caller). */
   rolloutPathById: Map<string, string>;
-  /** Reads a rollout file's text; returns "" if unreadable. */
+  /**
+   * Reads a rollout file's text; returns "" if unreadable.
+   * NOTE: the implementation loads the whole rollout file into memory. A streaming
+   * line-scan is a future option if rollout files grow large.
+   */
   readText: (path: string) => Promise<string>;
 }
 
@@ -36,7 +40,7 @@ export const upgradeViaTranscript = async (
     }
 
     const roots = classified
-      .filter(({ t }) => t.id !== orch.id && !t.hasRealParent && t.threadSource !== "subagent" && t.createdAtMs <= orch.createdAtMs)
+      .filter(({ t, c: rc }) => t.id !== orch.id && !t.hasRealParent && t.threadSource !== "subagent" && !rc.isOrchestrator && t.createdAtMs <= orch.createdAtMs)
       .sort((a, b) => a.t.createdAtMs - b.t.createdAtMs);
 
     for (const { t: root } of roots) {

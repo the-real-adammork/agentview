@@ -278,6 +278,7 @@ const selectReconstructInputSql = `
     t.first_user_message AS firstUserMessage,
     t.preview AS preview,
     t.cwd AS cwd,
+    t.rollout_path AS rolloutPath,
     COALESCE(t.created_at_ms, t.created_at * 1000) AS createdAtMs,
     COALESCE(t.updated_at_ms, t.updated_at * 1000) AS updatedAtMs,
     t.thread_source AS threadSource,
@@ -398,6 +399,7 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
         updatedAtMs: number | bigint | null;
         threadSource: ThreadSource | null;
         hasRealParent: number | bigint;
+        rolloutPath: string;
       }>;
       const threads: ReconstructThread[] = rows.map((row) => ({
         id: row.id,
@@ -411,12 +413,9 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
       }));
       const pure = reconstructEdges(threads);
 
-      const rolloutRows = db
-        .prepare("SELECT id, rollout_path AS rolloutPath FROM threads")
-        .all() as unknown as Array<{ id: string; rolloutPath: string }>;
       const rolloutPathById = new Map(
-        rolloutRows.map(
-          (r) => [r.id, isAbsolute(r.rolloutPath) ? r.rolloutPath : join(codexHome, r.rolloutPath)] as const,
+        rows.map(
+          (row) => [row.id, isAbsolute(row.rolloutPath) ? row.rolloutPath : join(codexHome, row.rolloutPath)] as const,
         ),
       );
 
@@ -431,6 +430,11 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
         },
       });
     })();
+    // If the build fails, clear the cache so the next request retries instead of
+    // permanently serving the rejected promise.
+    overlayPromise.catch(() => {
+      overlayPromise = null;
+    });
     return overlayPromise;
   };
 

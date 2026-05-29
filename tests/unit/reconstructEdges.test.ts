@@ -165,4 +165,20 @@ describe("upgradeViaTranscript", () => {
     const upgraded = await upgradeViaTranscript(threads, existing, { rolloutPathById: new Map(), readText: async () => "" });
     expect(upgraded.get("orch")?.parentId).toBe("sup");
   });
+
+  it("upgrades a low-confidence link (parent may change) on a transcript run-id hit", async () => {
+    const threads: ReconstructThread[] = [
+      { ...base, id: "real-owner", firstUserMessage: "set up the run", createdAtMs: 500, updatedAtMs: 9000 },
+      { ...base, id: "weak-root", firstUserMessage: "unrelated", createdAtMs: 1000, updatedAtMs: 1200 },
+      { ...base, id: "orch", firstUserMessage: orchPrompt("phase-1", "run-z"), createdAtMs: 2000, updatedAtMs: 3000 },
+    ];
+    const existing = new Map([
+      ["orch", { childId: "orch", parentId: "weak-root", confidence: "low" as const, via: "cwd-time" as const, runId: "run-z", phase: "phase-1" }],
+    ]);
+    const upgraded = await upgradeViaTranscript(threads, existing, {
+      rolloutPathById: new Map([["real-owner", "sessions/real-owner.jsonl"]]),
+      readText: async (p) => (p === "sessions/real-owner.jsonl" ? "docs/implementation-runs/run-z/run.yaml" : ""),
+    });
+    expect(upgraded.get("orch")).toMatchObject({ parentId: "real-owner", confidence: "medium", via: "run-id" });
+  });
 });
