@@ -41,7 +41,10 @@ const defaultWatchFile: WatchFileFn = (path, options, listener) =>
 
 export const createWatchManager = ({
   debounceMs = 75,
-  pollIntervalMs = 2000,
+  // fs.watch is the fast path but is unreliable on some filesystems (it silently
+  // misses writes and falls back to this poll). Keep the poll brisk so live events
+  // stream in within ~0.5s even when fs.watch isn't firing.
+  pollIntervalMs = 500,
   watch = defaultWatch,
   watchFile = defaultWatchFile,
   unwatchFile = fsUnwatchFile,

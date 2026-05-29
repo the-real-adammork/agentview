@@ -46,6 +46,11 @@ export function App() {
   const [sessionsError, setSessionsError] = useState<ApiError | null>(null);
   const [activeSessionId, setActiveSessionId] = useState(fixture.sessions[0]?.id ?? "");
   const [timelinePayload, setTimelinePayload] = useState<TimelinePayload | undefined>();
+  // Byte offset the initial timeline load reached; the live stream tails from here
+  // so no events are missed in the fetch→connect window. The seq bumps only on an
+  // initial load (not on appends), so the stream reconnects exactly once per load.
+  const liveBaselineRef = useRef<{ threadId: string; nextByteOffset: number } | null>(null);
+  const [liveBaselineSeq, setLiveBaselineSeq] = useState(0);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineError, setTimelineError] = useState<ApiError | null>(null);
   const [timelineKind, setTimelineKind] = useState("all");
@@ -230,6 +235,13 @@ export function App() {
                   events: [...(current?.events ?? []), ...result.data.events],
                 },
           );
+          if (fromByte === undefined) {
+            // Record the byte offset the initial load reached and signal the live
+            // stream to (re)connect tailing from exactly here — so events appended
+            // between this fetch and the SSE connecting aren't missed.
+            liveBaselineRef.current = { threadId: result.data.threadId, nextByteOffset: result.data.nextByteOffset };
+            setLiveBaselineSeq((seq) => seq + 1);
+          }
         } else {
           setTimelineError(result.error);
         }
@@ -353,8 +365,12 @@ export function App() {
 
     const handle = openLiveStream({
       threadId: liveThreadId,
+      // Tail from exactly where the initial load stopped (closes the fetch→connect
+      // gap). Falls back to null (current EOF) until that load has happened.
       fromByte:
-        timelinePayload && timelinePayload.threadId === liveThreadId ? timelinePayload.nextByteOffset : null,
+        liveBaselineRef.current && liveBaselineRef.current.threadId === liveThreadId
+          ? liveBaselineRef.current.nextByteOffset
+          : null,
       logCursorId: null,
       callbacks: {
         onSessions: ({ sessions: nextSessions }) => {
@@ -389,8 +405,9 @@ export function App() {
     });
 
     return () => handle.close();
-    // Reopen only when the followed session changes; cursor baseline is read at open time.
-  }, [liveThreadId, liveEnabled, liveTokenStore]);
+    // Reopen when the followed session changes OR once its initial load sets the
+    // tail baseline (liveBaselineSeq) — appends don't bump the seq, so no reconnect storm.
+  }, [liveThreadId, liveEnabled, liveTokenStore, liveBaselineSeq]);
 
   const fallbackTimeline: TimelinePayload = {
     threadId: activeSession?.id ?? "",
