@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { createCodexHomeFixture } from "../fixtures/codexHome";
 import { openStateStore } from "../../src/backend/sqlite/stateStore";
+import { deriveAgentGraph } from "../../src/backend/api/agentGraph";
 
 const CWD = "/repo/agentview";
 const orchPrompt = (phase: string, run = "rca-workbench") =>
@@ -66,6 +67,36 @@ describe("reconstructed supervisor->orchestrator edges", () => {
         const child = await store.getThread("c");
         expect(child?.parentId).toBe("p");
         expect(child?.parentEdgeSource).toBe("codex");
+      } finally {
+        await store.close();
+      }
+    } finally {
+      await fixture.cleanup();
+    }
+  });
+});
+
+describe("reconstructed edges in the agent graph", () => {
+  it("includes the orchestrator subtree under the supervisor with reconstructed provenance", async () => {
+    const fixture = await createCodexHomeFixture({
+      threads: [
+        { id: "supervisor", cwd: CWD, createdAtMs: 1_000_000, updatedAtMs: 9_000_000, firstUserMessage: "$implementation-execution go", threadSource: "user" },
+        { id: "orchestrator", cwd: CWD, createdAtMs: 2_000_000, updatedAtMs: 3_000_000, firstUserMessage: orchPrompt("phase-4"), threadSource: "user" },
+        { id: "worker", cwd: CWD, createdAtMs: 2_500_000, updatedAtMs: 2_900_000, firstUserMessage: "do work", threadSource: "subagent" },
+      ],
+      edges: [{ parentThreadId: "orchestrator", childThreadId: "worker", status: "closed" }],
+    });
+
+    try {
+      const store = await openStateStore({ codexHome: fixture.codexHome });
+      try {
+        const rows = await store.getAgentGraphRows("supervisor", 5);
+        const graph = deriveAgentGraph("supervisor", rows, { maxDepth: 5 });
+        const ids = graph.nodes.map((n) => n.id).sort();
+        expect(ids).toEqual(["orchestrator", "supervisor", "worker"]);
+        const recon = graph.edges.find((e) => e.parentId === "supervisor" && e.childId === "orchestrator");
+        expect(recon?.source).toBe("reconstructed");
+        expect(graph.edges.find((e) => e.parentId === "orchestrator" && e.childId === "worker")?.source ?? "codex").toBe("codex");
       } finally {
         await store.close();
       }

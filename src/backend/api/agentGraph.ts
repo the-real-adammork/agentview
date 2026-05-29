@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { resolveCodexHome } from "../codexPaths";
 import { openStateStore, StateStoreError, type AgentGraphRow } from "../sqlite/stateStore";
-import type { AgentEdge, AgentEdgeStatus, AgentGraph, AgentNode, SessionStatus } from "../../shared/contracts";
+import type { AgentEdge, AgentEdgeStatus, AgentGraph, AgentNode, EdgeConfidence, EdgeSource, EdgeVia, SessionStatus } from "../../shared/contracts";
 import { fail, ok, writeJson } from "./http";
 
 export interface AgentGraphOptions {
@@ -99,7 +99,7 @@ export const deriveAgentGraph = (
   const metadataById = new Map<string, AgentGraphRow>();
   const childrenByParent = new Map<
     string,
-    Array<{ childId: string; status: AgentEdgeStatus; row?: AgentGraphRow; edgeOrder: number; sortCreatedAtMs: number }>
+    Array<{ childId: string; status: AgentEdgeStatus; row?: AgentGraphRow; edgeOrder: number; sortCreatedAtMs: number; edgeSource?: EdgeSource; edgeConfidence?: EdgeConfidence; edgeVia?: EdgeVia }>
   >();
 
   for (const row of rows) {
@@ -115,6 +115,9 @@ export const deriveAgentGraph = (
         row: row.id ? row : undefined,
         edgeOrder: Number(row.edgeOrder ?? children.length),
         sortCreatedAtMs: row.createdAtMs ?? Number.MAX_SAFE_INTEGER,
+        edgeSource: row.edgeSource,
+        edgeConfidence: row.edgeConfidence,
+        edgeVia: row.edgeVia,
       });
       childrenByParent.set(row.parentThreadId, children);
     }
@@ -162,6 +165,9 @@ export const deriveAgentGraph = (
         parentId: current.id,
         childId: child.childId,
         status: child.status,
+        ...(child.edgeSource ? { source: child.edgeSource } : {}),
+        ...(child.edgeConfidence ? { confidence: child.edgeConfidence } : {}),
+        ...(child.edgeVia ? { via: child.edgeVia } : {}),
       });
       statusSummary[child.status] += 1;
 

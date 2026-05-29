@@ -57,6 +57,10 @@ export interface AgentGraphRow {
   childThreadId: string | null;
   edgeStatus: AgentEdgeStatus | null;
   edgeOrder?: number | bigint | null;
+  /** Set on synthetic rows produced from the reconstructed overlay. */
+  edgeSource?: import("../../shared/contracts").EdgeSource;
+  edgeConfidence?: import("../../shared/contracts").EdgeConfidence;
+  edgeVia?: import("../../shared/contracts").EdgeVia;
 }
 
 interface ThreadRow {
@@ -278,6 +282,78 @@ const selectReconstructInputSql = `
   LEFT JOIN thread_spawn_edges parent_edge ON parent_edge.child_thread_id = t.id
 `;
 
+const graphRecursiveSql = `
+  WITH RECURSIVE graph_edges(parent_thread_id, child_thread_id, status, depth, path, edge_order) AS (
+    SELECT
+      parent_thread_id,
+      child_thread_id,
+      status,
+      1 AS depth,
+      '|' || parent_thread_id || '|' || child_thread_id || '|' AS path,
+      rowid AS edge_order
+    FROM thread_spawn_edges
+    WHERE parent_thread_id = :rootThreadId
+
+    UNION ALL
+
+    SELECT
+      edge.parent_thread_id,
+      edge.child_thread_id,
+      edge.status,
+      graph_edges.depth + 1 AS depth,
+      graph_edges.path || edge.child_thread_id || '|' AS path,
+      edge.rowid AS edge_order
+    FROM thread_spawn_edges edge
+    INNER JOIN graph_edges ON graph_edges.child_thread_id = edge.parent_thread_id
+    WHERE graph_edges.depth < :scanDepth
+      AND instr(graph_edges.path, '|' || edge.child_thread_id || '|') = 0
+  )
+  SELECT
+    root.id AS id,
+    root.title AS title,
+    root.first_user_message AS firstUserMessage,
+    root.preview AS preview,
+    root.tokens_used AS tokensUsed,
+    COALESCE(root.created_at_ms, root.created_at * 1000) AS createdAtMs,
+    COALESCE(root.updated_at_ms, root.updated_at * 1000) AS updatedAtMs,
+    root.agent_nickname AS agentNickname,
+    root.agent_role AS agentRole,
+    NULL AS parentThreadId,
+    NULL AS childThreadId,
+    NULL AS edgeStatus,
+    NULL AS edgeOrder,
+    0 AS sortDepth,
+    0 AS sortCreatedAtMs,
+    0 AS sortOrder,
+    root.id AS sortChildId
+  FROM threads root
+  WHERE root.id = :rootThreadId
+
+  UNION ALL
+
+  SELECT
+    child.id AS id,
+    child.title AS title,
+    child.first_user_message AS firstUserMessage,
+    child.preview AS preview,
+    child.tokens_used AS tokensUsed,
+    COALESCE(child.created_at_ms, child.created_at * 1000) AS createdAtMs,
+    COALESCE(child.updated_at_ms, child.updated_at * 1000) AS updatedAtMs,
+    child.agent_nickname AS agentNickname,
+    child.agent_role AS agentRole,
+    graph_edges.parent_thread_id AS parentThreadId,
+    graph_edges.child_thread_id AS childThreadId,
+    graph_edges.status AS edgeStatus,
+    graph_edges.edge_order AS edgeOrder,
+    graph_edges.depth AS sortDepth,
+    COALESCE(child.created_at_ms, child.created_at * 1000) AS sortCreatedAtMs,
+    graph_edges.edge_order AS sortOrder,
+    graph_edges.child_thread_id AS sortChildId
+  FROM graph_edges
+  LEFT JOIN threads child ON child.id = graph_edges.child_thread_id
+  ORDER BY sortDepth, sortCreatedAtMs, sortOrder, sortChildId
+`;
+
 export const openStateStore = async ({ codexHome }: { codexHome: string }): Promise<StateStore> => {
   const stateDbPath = join(codexHome, "state_5.sqlite");
 
@@ -458,79 +534,80 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
       return row ? normalizeThread(row, getOverlay()) : null;
     },
     async getAgentGraphRows(rootThreadId, scanDepth) {
-      return db
-        .prepare(`
-          WITH RECURSIVE graph_edges(parent_thread_id, child_thread_id, status, depth, path, edge_order) AS (
-            SELECT
-              parent_thread_id,
-              child_thread_id,
-              status,
-              1 AS depth,
-              '|' || parent_thread_id || '|' || child_thread_id || '|' AS path,
-              rowid AS edge_order
-            FROM thread_spawn_edges
-            WHERE parent_thread_id = :rootThreadId
+      const baseRows = db.prepare(graphRecursiveSql).all({ rootThreadId, scanDepth }) as unknown as AgentGraphRow[];
 
-            UNION ALL
+      const overlay = getOverlay();
+      if (overlay.size === 0) {
+        return baseRows;
+      }
 
-            SELECT
-              edge.parent_thread_id,
-              edge.child_thread_id,
-              edge.status,
-              graph_edges.depth + 1 AS depth,
-              graph_edges.path || edge.child_thread_id || '|' AS path,
-              edge.rowid AS edge_order
-            FROM thread_spawn_edges edge
-            INNER JOIN graph_edges ON graph_edges.child_thread_id = edge.parent_thread_id
-            WHERE graph_edges.depth < :scanDepth
-              AND instr(graph_edges.path, '|' || edge.child_thread_id || '|') = 0
-          )
-          SELECT
-            root.id AS id,
-            root.title AS title,
-            root.first_user_message AS firstUserMessage,
-            root.preview AS preview,
-            root.tokens_used AS tokensUsed,
-            COALESCE(root.created_at_ms, root.created_at * 1000) AS createdAtMs,
-            COALESCE(root.updated_at_ms, root.updated_at * 1000) AS updatedAtMs,
-            root.agent_nickname AS agentNickname,
-            root.agent_role AS agentRole,
-            NULL AS parentThreadId,
-            NULL AS childThreadId,
-            NULL AS edgeStatus,
-            NULL AS edgeOrder,
-            0 AS sortDepth,
-            0 AS sortCreatedAtMs,
-            0 AS sortOrder,
-            root.id AS sortChildId
-          FROM threads root
-          WHERE root.id = :rootThreadId
+      const present = new Set(baseRows.map((row) => row.id).filter((id): id is string => id !== null));
+      const extraRows: AgentGraphRow[] = [];
+      const queue = [...present];
+      const expanded = new Set<string>();
 
-          UNION ALL
+      // For each node already in the graph, attach orchestrators reconstructed under
+      // it, then pull each orchestrator's own real subtree.
+      while (queue.length > 0) {
+        const parentId = queue.shift() as string;
+        for (const link of overlay.values()) {
+          if (link.parentId !== parentId || expanded.has(link.childId) || present.has(link.childId)) {
+            continue;
+          }
+          expanded.add(link.childId);
+          present.add(link.childId);
 
-          SELECT
-            child.id AS id,
-            child.title AS title,
-            child.first_user_message AS firstUserMessage,
-            child.preview AS preview,
-            child.tokens_used AS tokensUsed,
-            COALESCE(child.created_at_ms, child.created_at * 1000) AS createdAtMs,
-            COALESCE(child.updated_at_ms, child.updated_at * 1000) AS updatedAtMs,
-            child.agent_nickname AS agentNickname,
-            child.agent_role AS agentRole,
-            graph_edges.parent_thread_id AS parentThreadId,
-            graph_edges.child_thread_id AS childThreadId,
-            graph_edges.status AS edgeStatus,
-            graph_edges.edge_order AS edgeOrder,
-            graph_edges.depth AS sortDepth,
-            COALESCE(child.created_at_ms, child.created_at * 1000) AS sortCreatedAtMs,
-            graph_edges.edge_order AS sortOrder,
-            graph_edges.child_thread_id AS sortChildId
-          FROM graph_edges
-          LEFT JOIN threads child ON child.id = graph_edges.child_thread_id
-          ORDER BY sortDepth, sortCreatedAtMs, sortOrder, sortChildId
-        `)
-        .all({ rootThreadId, scanDepth }) as unknown as AgentGraphRow[];
+          const childMeta = db
+            .prepare(`
+              SELECT
+                id, title, first_user_message AS firstUserMessage, preview,
+                tokens_used AS tokensUsed,
+                COALESCE(created_at_ms, created_at * 1000) AS createdAtMs,
+                COALESCE(updated_at_ms, updated_at * 1000) AS updatedAtMs,
+                agent_nickname AS agentNickname, agent_role AS agentRole
+              FROM threads WHERE id = :childId
+            `)
+            .get({ childId: link.childId }) as unknown as Partial<AgentGraphRow> | undefined;
+
+          // Synthetic edge row: parent (supervisor) -> child (orchestrator).
+          extraRows.push({
+            id: link.childId,
+            title: childMeta?.title ?? null,
+            firstUserMessage: childMeta?.firstUserMessage ?? null,
+            preview: childMeta?.preview ?? null,
+            tokensUsed: childMeta?.tokensUsed ?? null,
+            createdAtMs: childMeta?.createdAtMs ?? null,
+            updatedAtMs: childMeta?.updatedAtMs ?? null,
+            agentNickname: childMeta?.agentNickname ?? null,
+            agentRole: childMeta?.agentRole ?? null,
+            parentThreadId: parentId,
+            childThreadId: link.childId,
+            edgeStatus: "closed",
+            edgeOrder: null,
+            edgeSource: "reconstructed",
+            edgeConfidence: link.confidence,
+            edgeVia: link.via,
+          });
+
+          // The orchestrator's own (real) subtree.
+          const subRows = db.prepare(graphRecursiveSql).all({ rootThreadId: link.childId, scanDepth }) as unknown as AgentGraphRow[];
+          for (const sub of subRows) {
+            // The recursive query emits a root metadata row (no childThreadId) for the
+            // subtree root; skip that duplicate, keep the edge rows.
+            if (!sub.childThreadId) {
+              continue;
+            }
+            extraRows.push(sub);
+            if (sub.id && !present.has(sub.id)) {
+              present.add(sub.id);
+              queue.push(sub.id);
+            }
+          }
+          queue.push(link.childId);
+        }
+      }
+
+      return [...baseRows, ...extraRows];
     },
     async close() {
       db.close();
