@@ -388,6 +388,66 @@ describe("timeline API", () => {
     );
   });
 
+  it("merges the spawn subtree into one server-side stream when subtree=1 is requested", async () => {
+    const fixture = await createCodexHomeFixture({
+      threads: [
+        {
+          id: "parent-thread",
+          rolloutPath: "sessions/2026/parent.jsonl",
+          createdAtMs: 1_000,
+          updatedAtMs: 5_000,
+          cwd: "/repo/agentview",
+          title: "Parent",
+        },
+        {
+          id: "child-thread",
+          rolloutPath: "sessions/2026/child.jsonl",
+          createdAtMs: 2_000,
+          updatedAtMs: 4_000,
+          cwd: "/repo/agentview",
+          title: "Child",
+        },
+      ],
+      edges: [{ parentThreadId: "parent-thread", childThreadId: "child-thread", status: "closed" }],
+    });
+    const cacheRoot = await mkdtemp(join(tmpdir(), "agentview-subtree-cache-"));
+    tempRoots.push(cacheRoot);
+    await createRolloutFile(fixture, "sessions/2026/parent.jsonl", [
+      { timestamp: "2026-05-26T18:00:00.000Z", type: "message", role: "user", text: "Parent task" },
+      { timestamp: "2026-05-26T18:00:10.000Z", type: "message", role: "assistant", text: "Parent reply" },
+    ]);
+    await createRolloutFile(fixture, "sessions/2026/child.jsonl", [
+      { timestamp: "2026-05-26T18:00:05.000Z", type: "message", role: "assistant", text: "Child sub-agent reply" },
+    ]);
+
+    await withApi(
+      fixture,
+      async ({ baseUrl }) => {
+        const single = await requestJson(baseUrl, "/api/timeline?threadId=parent-thread");
+        const subtree = await requestJson(baseUrl, "/api/timeline?threadId=parent-thread&subtree=1");
+
+        // Without subtree, only the parent thread's events are returned.
+        const singleEvents = (single.body as { data: { events: { threadId: string }[] } }).data.events;
+        expect(singleEvents.every((event) => event.threadId === "parent-thread")).toBe(true);
+
+        // With subtree, the server merges parent + child into one time-ordered stream
+        // while keeping the requested thread as the payload identity (for vitals).
+        const data = (subtree.body as {
+          data: { threadId: string; events: { threadId: string; previewText: string }[] };
+        }).data;
+        expect(subtree.status).toBe(200);
+        expect(data.threadId).toBe("parent-thread");
+        expect(data.events.some((event) => event.threadId === "child-thread")).toBe(true);
+        expect(data.events.map((event) => event.previewText)).toEqual([
+          "Parent task",
+          "Child sub-agent reply",
+          "Parent reply",
+        ]);
+      },
+      { AGENTVIEW_CACHE_ROOT: cacheRoot },
+    );
+  });
+
   it("returns a typed missing-rollout error when the selected thread has no readable rollout file", async () => {
     const fixture = await createCodexHomeFixture({
       threads: [

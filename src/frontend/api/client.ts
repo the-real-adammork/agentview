@@ -239,6 +239,9 @@ export const realApiClient: ObservatoryApi = {
     if (options?.fromByte !== undefined) {
       params.set("fromByte", String(options.fromByte));
     }
+    if (options?.subtree) {
+      params.set("subtree", "1");
+    }
     return getJson<TimelinePayload>(`/api/timeline?${params.toString()}`);
   },
   getAgentGraph(rootThreadId, options) {

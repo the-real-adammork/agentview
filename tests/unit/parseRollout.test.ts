@@ -365,6 +365,175 @@ describe("parseRolloutFile", () => {
     );
   });
 
+  it("reads token usage nested under payload.info and rate_limits.primary.used_percent (real Codex shape)", async () => {
+    const rolloutPath = await createTempRollout([
+      {
+        timestamp: "2026-05-28T22:43:55.379Z",
+        type: "event_msg",
+        payload: {
+          type: "token_count",
+          info: {
+            total_token_usage: {
+              input_tokens: 18730,
+              cached_input_tokens: 14720,
+              output_tokens: 281,
+              reasoning_output_tokens: 124,
+              total_tokens: 19011,
+            },
+            last_token_usage: { input_tokens: 18730, output_tokens: 281 },
+            model_context_window: 258400,
+          },
+          rate_limits: {
+            primary: { used_percent: 29, window_minutes: 300, resets_at: 1780014161 },
+            secondary: { used_percent: 85, window_minutes: 10080 },
+            plan_type: "pro",
+          },
+        },
+      },
+    ]);
+
+    const facts = await parseFixture("thread-token-info", rolloutPath);
+
+    expect(facts.warnings).toEqual([]);
+    expect(facts.tokenSnapshots).toEqual([
+      expect.objectContaining({
+        input: 18730,
+        cachedInput: 14720,
+        output: 281,
+        reasoningOutput: 124,
+        total: 19011,
+        lastInput: 18730,
+        lastOutput: 281,
+        modelContextWindow: 258400,
+        planType: "pro",
+        rateLimitPrimaryPercent: 29,
+        rateLimitSecondaryPercent: 85,
+      }),
+    ]);
+    expect(facts.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "token_snapshot", previewText: expect.stringContaining("19,011") }),
+      ]),
+    );
+    // The raw token_count JSON must never leak into a preview row.
+    expect(JSON.stringify(facts.events)).not.toContain("total_token_usage");
+  });
+
+  it("does not dump encrypted reasoning content into the preview", async () => {
+    const encrypted = "gAAAAABqGMUo9ouw-NttNvTrJ76ZGf6xIHyZ1xf9l1lVwSLc5KLaKcf";
+    const rolloutPath = await createTempRollout([
+      {
+        timestamp: "2026-05-28T22:43:52.485Z",
+        type: "response_item",
+        payload: { type: "reasoning", summary: [], content: null, encrypted_content: encrypted },
+      },
+    ]);
+
+    const facts = await parseFixture("thread-reasoning", rolloutPath);
+
+    expect(facts.warnings).toEqual([]);
+    const reasoning = facts.events.find((event) => event.kind === "reasoning");
+    expect(reasoning).toBeDefined();
+    expect(reasoning?.previewText).not.toContain("gAAAAAB");
+    expect(JSON.stringify(facts.events)).not.toContain(encrypted);
+  });
+
+  it("recognizes Codex metadata and tool event types instead of flagging them as unknown", async () => {
+    const rolloutPath = await createTempRollout([
+      {
+        timestamp: "2026-05-29T01:21:20.536Z",
+        type: "event_msg",
+        payload: { type: "thread_goal_updated", goal: { objective: "Ship the timeline parser fixes." } },
+      },
+      {
+        timestamp: "2026-05-28T22:48:36.447Z",
+        type: "event_msg",
+        payload: {
+          type: "patch_apply_end",
+          call_id: "call-patch-1",
+          stdout: "Success. Updated the following files:\nA docs/overview.md\n",
+          success: true,
+        },
+      },
+      {
+        timestamp: "2026-05-28T23:36:54.170Z",
+        type: "response_item",
+        payload: { type: "web_search_call", status: "completed", action: { type: "search", query: "Robinhood trading UI" } },
+      },
+      { timestamp: "2026-05-29T01:38:11.466Z", type: "event_msg", payload: { type: "context_compacted" } },
+      { timestamp: "2026-05-28T17:42:49.000Z", type: "session_meta", payload: { cwd: "/repo" } },
+    ]);
+
+    const facts = await parseFixture("thread-codex-types", rolloutPath);
+
+    expect(facts.warnings.filter((warning) => /unknown rollout event/i.test(warning))).toEqual([]);
+    expect(facts.events.filter((event) => event.previewText?.includes("Unknown rollout event"))).toEqual([]);
+    expect(facts.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "turn_context", previewText: expect.stringContaining("Ship the timeline parser fixes") }),
+        expect.objectContaining({ kind: "tool_result", callId: "call-patch-1", outputPreview: expect.stringContaining("Success") }),
+        expect.objectContaining({ kind: "tool_call" }),
+      ]),
+    );
+  });
+
+  it("parses custom_tool_call apply_patch input and treats its output as a result", async () => {
+    const rolloutPath = await createTempRollout([
+      {
+        timestamp: "2026-05-28T22:48:36.445Z",
+        type: "response_item",
+        payload: {
+          type: "custom_tool_call",
+          status: "completed",
+          call_id: "call-apply-1",
+          name: "apply_patch",
+          input: "*** Begin Patch\n*** Add File: docs/overview.md\n+# Overview\n*** End Patch",
+        },
+      },
+      {
+        timestamp: "2026-05-28T22:48:36.460Z",
+        type: "response_item",
+        payload: {
+          type: "custom_tool_call_output",
+          call_id: "call-apply-1",
+          output: "Success. Updated docs/overview.md",
+        },
+      },
+    ]);
+
+    const facts = await parseFixture("thread-custom-tool", rolloutPath);
+
+    expect(facts.warnings).toEqual([]);
+    expect(facts.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "tool_call",
+          toolName: "apply_patch",
+          callId: "call-apply-1",
+          argumentsPreview: expect.stringContaining("Begin Patch"),
+        }),
+        expect.objectContaining({ kind: "tool_result", callId: "call-apply-1" }),
+      ]),
+    );
+  });
+
+  it("reads a string agent_message payload instead of dumping the raw envelope", async () => {
+    const rolloutPath = await createTempRollout([
+      {
+        timestamp: "2026-05-29T02:45:51.503Z",
+        type: "event_msg",
+        payload: { type: "agent_message", message: "The dev server is running now.", phase: "commentary" },
+      },
+    ]);
+
+    const facts = await parseFixture("thread-agent-message", rolloutPath);
+
+    expect(facts.warnings).toEqual([]);
+    const agent = facts.events.find((event) => event.kind === "agent_message");
+    expect(agent?.previewText).toBe("The dev server is running now.");
+    expect(JSON.stringify(facts.events)).not.toContain('"type":"agent_message"');
+  });
+
   it("derives observed token, tool, spawn, and wait facts from payload envelopes", async () => {
     const rolloutPath = await createTempRollout([
       {

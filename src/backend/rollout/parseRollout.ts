@@ -8,7 +8,7 @@ import type {
 } from "../../shared/contracts";
 import { maskPreviewSecrets } from "../../shared/redaction";
 
-export const ROLLOUT_PARSER_VERSION = 2;
+export const ROLLOUT_PARSER_VERSION = 3;
 export const LARGE_OUTPUT_COLLAPSE_BYTES = 4 * 1024;
 
 type JsonRecord = Record<string, unknown>;
@@ -144,14 +144,22 @@ const textFromContentItems = (value: unknown) => {
 const previewFromRecord = (record: JsonRecord) => {
   const message = nestedMessage(record);
   const payload = nestedPayload(record);
+  // thread_goal_updated carries the objective under goal.objective.
+  const goal = isRecord(payload.goal) ? payload.goal : isRecord(record.goal) ? record.goal : undefined;
   const content = stringValue(
     record.preview,
     record.text,
     record.body,
     record.task,
     record.last_agent_message,
+    goal?.objective,
+    payload.objective,
+    record.objective,
     message?.content,
     message?.text,
+    // agent_message / assistant payloads carry a plain string `message`.
+    record.message,
+    payload.message,
     payload.preview,
     payload.text,
     payload.body,
@@ -185,7 +193,18 @@ const toolNameFromRecord = (record: JsonRecord) => {
 
 const argsFromRecord = (record: JsonRecord) => {
   const payload = nestedPayload(record);
-  return record.arguments ?? record.args ?? record.params ?? payload.arguments ?? payload.args ?? payload.params;
+  // `input` carries the payload for custom_tool_call entries (e.g. apply_patch),
+  // which use a raw string instead of a JSON `arguments` object.
+  return (
+    record.arguments ??
+    record.args ??
+    record.params ??
+    record.input ??
+    payload.arguments ??
+    payload.args ??
+    payload.params ??
+    payload.input
+  );
 };
 
 const argsObjectFromRecord = (record: JsonRecord) => {
@@ -253,31 +272,50 @@ const agentStatusFromRecord = (record: JsonRecord) => {
 
 const tokenSnapshotFromRecord = (record: JsonRecord, timestamp: string): TokenSnapshot | undefined => {
   const payload = nestedPayload(record);
+  // Real Codex token_count events nest usage one level deeper under `info`.
+  const info = isRecord(payload.info) ? payload.info : isRecord(record.info) ? record.info : undefined;
   const usage = isRecord(record.total_token_usage)
     ? record.total_token_usage
     : isRecord(record.usage)
       ? record.usage
-      : isRecord(payload.total_token_usage)
-        ? payload.total_token_usage
-        : isRecord(payload.usage)
-          ? payload.usage
-          : payload;
+      : isRecord(info?.total_token_usage)
+        ? info.total_token_usage
+        : isRecord(info?.usage)
+          ? info.usage
+          : isRecord(payload.total_token_usage)
+            ? payload.total_token_usage
+            : isRecord(payload.usage)
+              ? payload.usage
+              : payload;
   const lastUsage = isRecord(record.last_token_usage)
     ? record.last_token_usage
-    : isRecord(payload.last_token_usage)
-      ? payload.last_token_usage
-      : undefined;
+    : isRecord(info?.last_token_usage)
+      ? info.last_token_usage
+      : isRecord(payload.last_token_usage)
+        ? payload.last_token_usage
+        : undefined;
   const rateLimits = isRecord(record.rate_limits)
     ? record.rate_limits
     : isRecord(payload.rate_limits)
       ? payload.rate_limits
-      : undefined;
+      : isRecord(info?.rate_limits)
+        ? info.rate_limits
+        : undefined;
+  // Newer rate_limits nest the percent under primary/secondary objects.
+  const primaryRl = isRecord(rateLimits?.primary) ? rateLimits.primary : undefined;
+  const secondaryRl = isRecord(rateLimits?.secondary) ? rateLimits.secondary : undefined;
   const input = numberValue(usage.input, usage.input_tokens, usage.prompt_tokens) ?? 0;
   const output = numberValue(usage.output, usage.output_tokens, usage.completion_tokens) ?? 0;
   const cachedInput = numberValue(usage.cachedInput, usage.cached_input, usage.cached_input_tokens) ?? 0;
   const reasoningOutput = numberValue(usage.reasoningOutput, usage.reasoning_output, usage.reasoning_output_tokens);
   const total = numberValue(usage.total, usage.total_tokens) ?? input + output + cachedInput + (reasoningOutput ?? 0);
-  const contextWindow = numberValue(record.context_window, record.model_context_window, payload.context_window, payload.model_context_window);
+  const contextWindow = numberValue(
+    record.context_window,
+    record.model_context_window,
+    info?.model_context_window,
+    payload.context_window,
+    payload.model_context_window,
+  );
 
   if (total === 0 && input === 0 && output === 0 && cachedInput === 0 && reasoningOutput === undefined) {
     return undefined;
@@ -293,17 +331,19 @@ const tokenSnapshotFromRecord = (record: JsonRecord, timestamp: string): TokenSn
     lastOutput: numberValue(lastUsage?.output, lastUsage?.output_tokens, lastUsage?.completion_tokens),
     reasoningOutput,
     modelContextWindow: contextWindow,
-    planType: stringValue(record.plan_type, record.planType, payload.plan_type, payload.planType),
+    planType: stringValue(record.plan_type, record.planType, payload.plan_type, payload.planType, rateLimits?.plan_type),
     contextUtilization: numberValue(usage.contextUtilization, usage.context_utilization) ?? (contextWindow ? total / contextWindow : undefined),
     rateLimitPrimaryPercent: numberValue(
       usage.rateLimitPrimaryPercent,
       usage.rate_limit_primary_percent,
       rateLimits?.primary_percent,
+      primaryRl?.used_percent,
     ),
     rateLimitSecondaryPercent: numberValue(
       usage.rateLimitSecondaryPercent,
       usage.rate_limit_secondary_percent,
       rateLimits?.secondary_percent,
+      secondaryRl?.used_percent,
     ),
     rateLimitPrimaryPercentRaw: numberValue(usage.rateLimitPrimaryPercentRaw, usage.rate_limit_primary_percent_raw, rateLimits?.primary_percent_raw),
     rateLimitSecondaryPercentRaw: numberValue(
@@ -329,8 +369,28 @@ const classify = (record: JsonRecord): { kind: TimelineEventKind; severity: Even
   if (type.includes("turn_context")) return { kind: "turn_context", severity: "info" };
   if (type.includes("reasoning")) return { kind: "reasoning", severity: "info" };
   if (type.includes("token") || type.includes("usage")) return { kind: "token_snapshot", severity: "info" };
-  if (type.includes("tool_result") || type.includes("function_call_output")) return { kind: "tool_result", severity: "info" };
-  if (type.includes("tool_call") || type.includes("function_call")) return { kind: "tool_call", severity: "info" };
+  // Thread/session metadata events: recognized context, not warnings.
+  if (type.includes("goal") || type.includes("compact") || type.includes("session_meta")) return { kind: "turn_context", severity: "info" };
+  if (type.includes("abort")) return { kind: "warning", severity: "warning" };
+  // Results must be matched before calls so *_output / *_end aren't read as calls.
+  if (
+    type.includes("tool_result") ||
+    type.includes("call_output") ||
+    type.includes("function_call_output") ||
+    type.includes("patch_apply_end") ||
+    type.includes("web_search_end")
+  ) {
+    return { kind: "tool_result", severity: "info" };
+  }
+  if (
+    type.includes("tool_call") ||
+    type.includes("function_call") ||
+    type.includes("custom_tool") ||
+    type.includes("patch_apply") ||
+    type.includes("web_search")
+  ) {
+    return { kind: "tool_call", severity: "info" };
+  }
   if (type.includes("agent_launch") || type.includes("spawn")) return { kind: "agent_launch", severity: "info" };
   if (type.includes("agent_wait") || type.includes("wait")) return { kind: "agent_wait", severity: "info" };
   if (role === "user") return { kind: "user_message", severity: "info" };
@@ -372,6 +432,14 @@ const knownEventType = (record: JsonRecord) => {
     "spawn_agent",
     "wait_agent",
     "message",
+    "custom_tool",
+    "call_output",
+    "patch_apply",
+    "web_search",
+    "goal",
+    "compact",
+    "session_meta",
+    "abort",
   ].some((known) => type.includes(known));
 };
 
@@ -395,6 +463,13 @@ const makeEvent = (record: JsonRecord, options: ParseRolloutOptions, sourceLine:
     if (tokenSnapshot) {
       previewText = `tokens total=${tokenSnapshot.total.toLocaleString("en-US")} input=${tokenSnapshot.input.toLocaleString("en-US")} output=${tokenSnapshot.output.toLocaleString("en-US")} cached=${tokenSnapshot.cachedInput.toLocaleString("en-US")}`;
     }
+  } else if (kind === "reasoning") {
+    // Reasoning is usually encrypted with an empty summary; show the summary
+    // text when present, otherwise a placeholder — never the encrypted blob.
+    const payload = nestedPayload(record);
+    const summaryText = textFromContentItems(payload.summary) ?? textFromContentItems(record.summary);
+    const directText = stringValue(record.text, payload.text);
+    previewText = redactedPreview(summaryText ?? directText ?? "") || "(reasoning summary withheld)";
   } else if ((kind === "tool_call" || kind === "agent_launch") && toolName) {
     previewText = `${toolName} ${redactedPreview(argsFromRecord(record))}`.trim();
   } else if ((kind === "tool_result" || kind === "agent_wait") && toolName) {

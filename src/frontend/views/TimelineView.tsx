@@ -1,11 +1,10 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 import { AnimatedNumber } from "../components/AnimatedNumber";
-import { ShortId } from "../components/ShortId";
-import { TimelineEventRow } from "../components/TimelineEventRow";
+import { TimelineEventRow, type EventSource } from "../components/TimelineEventRow";
 import { TimelineScrubber } from "../components/TimelineScrubber";
-import { flattenAgentTree, toneForDepth } from "./sessionTree";
-import type { AgentEdgeStatus, ApiError, SessionSummary, TimelinePayload } from "../../shared/contracts";
+import { flattenAgentTree, indexSessions, isDescendantOf, sessionDepth, toneForDepth } from "./sessionTree";
+import type { AgentEdgeStatus, ApiError, SessionSummary, TimelineEvent, TimelinePayload } from "../../shared/contracts";
 import {
   TIME_WINDOWS,
   TIMELINE_FILTERS,
@@ -22,6 +21,15 @@ interface TimelineViewProps {
   isLoading?: boolean;
   error?: ApiError | null;
   activeKind: string;
+  /**
+   * "this" shows only the active thread; "all" (+SUBS) shows the whole spawn
+   * subtree. The payload already carries the merged subtree (built server-side)
+   * when the thread has descendants, so scope is purely a client-side filter.
+   */
+  scope?: "this" | "all";
+  /** True while the server-merged subtree is being fetched for +SUBS. */
+  subtreeLoading?: boolean;
+  onScopeChange?(scope: "this" | "all"): void;
   onKindChange(kind: string): void;
   onRefresh(): void;
   onTail(): void;
@@ -33,8 +41,6 @@ const compactFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 1,
   notation: "compact",
 });
-const formatTime = (value?: string) => (value ? new Date(value).toLocaleTimeString("en-US") : "pending");
-const formatPathTail = (value?: string) => value?.split("/").slice(-2).join("/") ?? "rollout pending";
 const sessionTokens = (session: SessionSummary) => session.tokensUsed ?? session.tokenTotal;
 
 const STATUS_TONE: Record<AgentEdgeStatus, "good" | "warn"> = {
@@ -48,6 +54,9 @@ const threadKicker = (session: SessionSummary) =>
   isSubagent(session) ? `SUB · ${(session.agentRole ?? "worker").toUpperCase()}` : "USER · ROOT";
 const threadName = (session: SessionSummary) =>
   isSubagent(session) ? session.agentNickname ?? "agent" : session.title;
+/** Short label for the per-event origin rail (full titles are too long there). */
+const railName = (session: SessionSummary) =>
+  isSubagent(session) ? session.agentNickname ?? "agent" : "root";
 
 /**
  * Agent Tree — the full spawn tree rooted at the current session's root, so from
@@ -128,15 +137,6 @@ function ThreadNav({
   );
 }
 
-function MetricRow({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <>
-      <span className="k">{label}</span>
-      <span className="v">{value}</span>
-    </>
-  );
-}
-
 function Segments({ value, hi = false }: { value: number; hi?: boolean }) {
   const cells = Array.from({ length: 24 }, (_, index) => index < Math.round((Math.max(0, Math.min(100, value)) / 100) * 24));
 
@@ -156,6 +156,9 @@ export function TimelineView({
   isLoading = false,
   error = null,
   activeKind,
+  scope = "this",
+  subtreeLoading = false,
+  onScopeChange,
   onKindChange,
   onRefresh,
   onSelectSession,
@@ -167,10 +170,35 @@ export function TimelineView({
   // the toggle pulses. The real stream is SSE-driven (App owns it); turning this
   // on also pulls the newest bytes immediately.
   const [live, setLive] = useState(false);
-  // Chronological by created-at: events arrive in file/append order (pagination +
-  // live stream concat onto the tail), so sort before anything derives from them
-  // — the stream, scrubber, tab counts, and token deltas all assume time order.
-  const events = sortTimelineEvents(payload?.events ?? []);
+  // +SUBS scope merges descendant agents' events into the stream; each event keeps
+  // its own threadId so its origin (depth + agent name) can be derived per row.
+  const sessionIndex = indexSessions(sessions);
+  const hasDescendants =
+    Boolean(activeSession) && sessions.some((session) => isDescendantOf(session, activeSession!.id, sessionIndex));
+  const showSubs = scope === "all" && hasDescendants;
+  const activeDepth = activeSession ? sessionDepth(activeSession, sessionIndex) : 0;
+  // Show the depth rail when merging sub-agents (+SUBS) OR when the thread itself
+  // is a sub-agent — so a sub-agent's own timeline always marks its depth.
+  const showRail = showSubs || activeDepth > 0;
+
+  // The payload carries the full spawn subtree (merged server-side) when this
+  // thread has descendants. "this" scope is a filter on that incoming stream;
+  // "+SUBS" keeps every thread. Sorting by created-at keeps the stream, scrubber,
+  // tab counts, and token deltas all in time order.
+  const scopedEvents = (payload?.events ?? []).filter(
+    (event) => scope === "all" || !activeSession || event.threadId === activeSession.id,
+  );
+  const events = sortTimelineEvents(scopedEvents);
+
+  // Per-event origin for the depth rail: look the source thread up in the session
+  // index and tone it by tree depth (orange root · amber sub · cyan sub-sub).
+  const sourceForEvent = (event: TimelineEvent): EventSource | undefined => {
+    if (!showRail) return undefined;
+    const source = sessionIndex.get(event.threadId);
+    const depth = source ? sessionDepth(source, sessionIndex) : 0;
+    return { depth, name: source ? railName(source) : "agent", tone: toneForDepth(depth) };
+  };
+
   const facts = payload?.facts;
   const summary = facts?.summary;
   const firstTurn = facts?.turns[0];
@@ -207,13 +235,16 @@ export function TimelineView({
   // events records how much each snapshot's total grew over the previous one.
   const tokenDeltaById = (() => {
     const deltas = new Map<string, number>();
-    let previousTotal: number | undefined;
+    // Track the previous total per source thread so merged sub-agent snapshots
+    // (+SUBS) don't compute deltas against another agent's running total.
+    const previousByThread = new Map<string, number>();
     for (const event of renderableEvents) {
       if (event.kind === "token_snapshot" && event.tokenSnapshot) {
+        const previousTotal = previousByThread.get(event.threadId);
         if (previousTotal !== undefined) {
           deltas.set(event.id, event.tokenSnapshot.total - previousTotal);
         }
-        previousTotal = event.tokenSnapshot.total;
+        previousByThread.set(event.threadId, event.tokenSnapshot.total);
       }
     }
     return deltas;
@@ -276,7 +307,6 @@ export function TimelineView({
   const model = activeSession?.model || firstTurn?.model || "unknown";
   const effort = firstTurn?.reasoningEffort ?? activeSession?.reasoningEffort ?? undefined;
   const sandbox = firstTurn?.sandboxPolicy ?? "unknown";
-  const approval = firstTurn?.approvalMode ?? "unknown";
 
   // Match each spawned agent to its wait (for open/closed status) and to its
   // child session (for token totals) — all from real data, no fabrication.
@@ -301,126 +331,35 @@ export function TimelineView({
 
   return (
     <section className="timeline" aria-labelledby="timeline-title">
-      <aside className="tl-side" aria-label="Session meta">
-        <div className="tl-meta">
-          <div className="chip amber">
-            {activeSession?.threadSource === "subagent" ? `SUB · ${activeSession.agentNickname ?? "worker"}` : "USER · ROOT"}
-          </div>
-          <h1 className="tl-heading" id="timeline-title">Timeline</h1>
-          <div className="title">{activeSession?.title ?? "Fixture timeline"}</div>
-          <div className="sub">{activeSession?.lastMessage ?? activeSession?.preview ?? "Timeline events are loaded lazily from the rollout cache."}</div>
-          <div className="row">
-            <MetricRow label="Session" value={<ShortId value={activeSession?.id ?? payload?.threadId ?? "fixture"} />} />
-            <MetricRow label="Rollout" value={formatPathTail(facts?.rolloutPath)} />
-            <MetricRow label="Repo" value={activeSession?.cwd ?? "fixture://timeline"} />
-            <MetricRow label="Branch" value={gitSha ? `${branch} · ${gitSha.slice(0, 7)}` : branch} />
-            <MetricRow label="Model" value={effort ? `${model} · effort ${effort}` : model} />
-            <MetricRow label="Sandbox" value={`${sandbox} · approval ${approval}`} />
-            <MetricRow label="Started" value={formatTime(startedAt)} />
-            <MetricRow label="Updated" value={formatTime(activeSession?.updatedAt ?? completedAt)} />
-          </div>
-        </div>
-        <div className="tl-side__body">
-          {activeSession ? (
-            <ThreadNav
-              current={activeSession}
-              sessions={sessions}
-              statusByChild={statusByChild}
-              liveTotal={tokenTotal}
-              onSelect={(sessionId) => onSelectSession(sessionId, "Timeline")}
-            />
-          ) : (
-            <div className="faint">-- no session selected --</div>
-          )}
-        </div>
-      </aside>
+      {/* The view name already shows in the top app-bar nav; this heading keeps
+          the section labelled for assistive tech without restating it visually.
+          Handoff: the timeline body is two columns — left sidebar + stream. */}
+      <h1 className="sr-only" id="timeline-title">Timeline</h1>
 
-      <section className="tl-main" aria-label="Timeline detail">
-        <div className="tl-tabs" aria-label="Timeline event filters">
-          {TIMELINE_FILTERS.map((group) => (
-            <button
-              aria-pressed={activeKind === group.key}
-              data-on={activeKind === group.key ? "true" : "false"}
-              key={group.key}
-              onClick={() => onKindChange(group.key)}
-              type="button"
-            >
-              {group.label} <span aria-hidden="true" className="muted">·{timelineFilterCount(windowedEvents, group.key)}</span>
-            </button>
-          ))}
+      {/* Left sidebar (handoff: 320px column) leads with the full Agent Tree,
+          then the Turn vitals title, then the scrollable vitals body. */}
+      <aside className="tl-side" aria-label="Agent tree and turn vitals">
+        {activeSession ? (
+          <ThreadNav
+            current={activeSession}
+            sessions={sessions}
+            statusByChild={statusByChild}
+            liveTotal={tokenTotal}
+            onSelect={(sessionId) => onSelectSession(sessionId, "Timeline")}
+          />
+        ) : (
+          <div className="thread-nav">
+            <div className="panel-tit"><span className="dot" /><span>Agent Tree</span></div>
+            <div className="faint" style={{ padding: 14 }}>-- no session selected --</div>
+          </div>
+        )}
+
+        <div className="panel-tit">
+          <span className="dot" />
+          <span>Turn 01 · Vitals</span>
           <span className="spacer" />
-          <div className="tl-range" role="group" aria-label="Time window">
-            <span aria-hidden="true" className="tl-range-lbl">▸ Window</span>
-            {TIME_WINDOWS.map((option) => (
-              <button
-                aria-pressed={windowMs === option.ms}
-                data-on={windowMs === option.ms ? "true" : "false"}
-                key={option.label}
-                onClick={() => setWindowMs(option.ms)}
-                title={option.ms ? `Show events from the last ${option.label}` : "Show the entire session"}
-                type="button"
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-          <button
-            className="tl-live-btn"
-            type="button"
-            data-on={live ? "true" : "false"}
-            aria-pressed={live}
-            onClick={() => {
-              const next = !live;
-              setLive(next);
-              if (next) onTail();
-            }}
-            title={live ? "Live — new events stream in" : "Tail — follow new events as they arrive"}
-          >
-            <span className="dot" aria-hidden="true" />
-            {live ? "Live" : "Tail"}
-          </button>
-          <button className="tl-tabs__aux" type="button" onClick={onRefresh}>Refresh</button>
+          <span className={`meta${live ? " blink" : ""}`}>{live ? "● live" : "live"}</span>
         </div>
-
-        {error ? <div role="alert" className="inline-alert">{error.message}</div> : null}
-        {isLoading ? <div role="status">Loading timeline</div> : null}
-
-        <div className="tl-scrubber-wrap">
-          <div className="hdr">
-            <span>TURN 01 · {headerSpanLabel}{headerDurationSeconds !== undefined ? ` · DUR ${headerDurationSeconds}s` : ""}</span>
-            <span>TTFT {firstTurn?.firstTokenMs ?? "n/a"}ms · next byte {payload?.nextByteOffset ?? 0}</span>
-          </div>
-          <TimelineScrubber events={windowedEvents} activeKind={activeKind} />
-        </div>
-
-        <ol className="tl-stream" aria-label="Timeline events">
-          {visibleEvents.length === 0 ? (
-            <li className="tl-stream__empty faint">-- no events in this window --</li>
-          ) : null}
-          {visibleEvents.map((event) => {
-            let meta: string | undefined;
-            if (event.kind === "task_started") {
-              meta = `model ${model} · effort ${effort ?? "n/a"} · sandbox ${sandbox}`;
-            } else if (event.kind === "task_complete") {
-              const ttft = firstTurn?.firstTokenMs;
-              meta = `${durationSeconds !== undefined ? `dur ${durationSeconds}s` : "dur n/a"}${ttft !== undefined ? ` · ttft ${ttft}ms` : ""}`;
-            }
-            return (
-              <TimelineEventRow
-                event={event}
-                key={event.id}
-                meta={meta}
-                delta={tokenDeltaById.get(event.id)}
-                isNew={enteringIds.has(event.id)}
-                onOpenThread={(threadId) => onSelectSession(threadId, "Timeline")}
-              />
-            );
-          })}
-        </ol>
-      </section>
-
-      <aside className="tl-side-r" aria-label="Turn vitals">
-        <div className="panel-tit"><span className="dot"></span><span>Turn 01 · Vitals</span><span className="spacer" /><span className={`meta${live ? " blink" : ""}`}>{live ? "● live" : "live"}</span></div>
         <div className="tl-vitals">
           <AnimatedNumber
             className="display tl-token-total"
@@ -482,6 +421,118 @@ export function TimelineView({
           <button className="tl-graph-link" type="button" onClick={() => onOpenGraph?.()}>▸ Open Agent Graph</button>
         </div>
       </aside>
+
+      <section className="tl-main" aria-label="Timeline detail">
+        <div className="tl-tabs" aria-label="Timeline event filters">
+          {TIMELINE_FILTERS.map((group) => (
+            <button
+              aria-pressed={activeKind === group.key}
+              data-on={activeKind === group.key ? "true" : "false"}
+              key={group.key}
+              onClick={() => onKindChange(group.key)}
+              type="button"
+            >
+              {group.label} <span aria-hidden="true" className="muted">·{timelineFilterCount(windowedEvents, group.key)}</span>
+            </button>
+          ))}
+          <span className="spacer" />
+          {hasDescendants ? (
+            <div className="tl-range" role="group" aria-label="Event scope">
+              <span aria-hidden="true" className="tl-range-lbl">▸ Scope</span>
+              <button
+                aria-pressed={scope === "this"}
+                data-on={scope === "this" ? "true" : "false"}
+                onClick={() => onScopeChange?.("this")}
+                title="Only events from this agent thread"
+                type="button"
+              >
+                This
+              </button>
+              <button
+                aria-pressed={scope === "all"}
+                data-on={scope === "all" ? "true" : "false"}
+                onClick={() => onScopeChange?.("all")}
+                title="Include events from sub-agents and their sub-agents"
+                type="button"
+              >
+                +Subs
+              </button>
+            </div>
+          ) : null}
+          <div className="tl-range" role="group" aria-label="Time window">
+            <span aria-hidden="true" className="tl-range-lbl">▸ Window</span>
+            {TIME_WINDOWS.map((option) => (
+              <button
+                aria-pressed={windowMs === option.ms}
+                data-on={windowMs === option.ms ? "true" : "false"}
+                key={option.label}
+                onClick={() => setWindowMs(option.ms)}
+                title={option.ms ? `Show events from the last ${option.label}` : "Show the entire session"}
+                type="button"
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <button
+            className="tl-live-btn"
+            type="button"
+            data-on={live ? "true" : "false"}
+            aria-pressed={live}
+            onClick={() => {
+              const next = !live;
+              setLive(next);
+              if (next) onTail();
+            }}
+            title={live ? "Live — new events stream in" : "Tail — follow new events as they arrive"}
+          >
+            <span className="dot" aria-hidden="true" />
+            {live ? "Live" : "Tail"}
+          </button>
+          <button className="tl-tabs__aux" type="button" onClick={onRefresh}>Refresh</button>
+        </div>
+
+        {error ? <div role="alert" className="inline-alert">{error.message}</div> : null}
+        {isLoading && visibleEvents.length === 0 ? <div role="status">Streaming timeline…</div> : null}
+        {subtreeLoading ? <div role="status">Streaming sub-agent events…</div> : null}
+
+        <div className="tl-scrubber-wrap">
+          <div className="hdr">
+            <span>TURN 01 · {headerSpanLabel}{headerDurationSeconds !== undefined ? ` · DUR ${headerDurationSeconds}s` : ""}</span>
+            <span>TTFT {firstTurn?.firstTokenMs ?? "n/a"}ms · next byte {payload?.nextByteOffset ?? 0}</span>
+          </div>
+          <TimelineScrubber events={windowedEvents} activeKind={activeKind} />
+        </div>
+
+        <ol className="tl-stream" aria-label="Timeline events">
+          {visibleEvents.length === 0 ? (
+            <li className="tl-stream__empty faint">-- no events in this window --</li>
+          ) : null}
+          {visibleEvents.map((event) => {
+            let meta: string | undefined;
+            if (event.kind === "task_started") {
+              // Carries the session identity the sidebar no longer shows (handoff
+              // moves meta out of the timeline body): model, effort, sandbox, branch.
+              const branchMeta = gitSha ? `${branch} · ${gitSha.slice(0, 7)}` : branch;
+              meta = `model ${model} · effort ${effort ?? "n/a"} · sandbox ${sandbox} · ${branchMeta}`;
+            } else if (event.kind === "task_complete") {
+              const ttft = firstTurn?.firstTokenMs;
+              meta = `${durationSeconds !== undefined ? `dur ${durationSeconds}s` : "dur n/a"}${ttft !== undefined ? ` · ttft ${ttft}ms` : ""}`;
+            }
+            return (
+              <TimelineEventRow
+                event={event}
+                key={event.id}
+                meta={meta}
+                delta={tokenDeltaById.get(event.id)}
+                isNew={enteringIds.has(event.id)}
+                source={sourceForEvent(event)}
+                onOpenThread={(threadId) => onSelectSession(threadId, "Timeline")}
+              />
+            );
+          })}
+        </ol>
+      </section>
     </section>
   );
 }
