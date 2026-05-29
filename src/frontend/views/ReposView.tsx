@@ -1,11 +1,13 @@
 import { useMemo } from "react";
 
 import type { SessionSummary } from "../../shared/contracts";
+import { useEnteringIds } from "../live/useEnteringIds";
 import { formatTokens } from "./formatTokens";
 import { type RepoGroup, type RepoRoot, groupSessionsByRepo, sessionUpdatedMs } from "./sessionTree";
 
 interface ReposViewProps {
   sessions: SessionSummary[];
+  isLoading?: boolean;
   onOpenRepo: (repoName: string) => void;
   onSelectSession: (sessionId: string) => void;
 }
@@ -22,11 +24,21 @@ const ago = (ms: number, nowMs: number) => {
 const sessionTokens = (session: SessionSummary) => session.tokensUsed ?? session.tokenTotal ?? 0;
 const roleInitial = (session: SessionSummary) => (session.agentRole ?? "worker").charAt(0).toUpperCase() || "W";
 
-function SubChip({ sub, nowMs, onSelectSession }: { sub: SessionSummary; nowMs: number; onSelectSession: (id: string) => void }) {
+function SubChip({
+  sub,
+  nowMs,
+  entering = false,
+  onSelectSession,
+}: {
+  sub: SessionSummary;
+  nowMs: number;
+  entering?: boolean;
+  onSelectSession: (id: string) => void;
+}) {
   const isOpen = sub.openChildCount > 0;
   return (
     <button
-      className="sub-chip"
+      className={entering ? "sub-chip feed-enter" : "sub-chip"}
       data-status={isOpen ? "open" : "closed"}
       onClick={(event) => {
         event.stopPropagation();
@@ -47,15 +59,20 @@ function SubChip({ sub, nowMs, onSelectSession }: { sub: SessionSummary; nowMs: 
 function RepoTreeRow({
   repoRoot,
   nowMs,
+  enteringIds,
   onSelectSession,
 }: {
   repoRoot: RepoRoot;
   nowMs: number;
+  enteringIds: Set<string>;
   onSelectSession: (id: string) => void;
 }) {
   const { root, subs } = repoRoot;
+  // A brand-new root animates the whole row in; for an existing root only the
+  // newly-spawned sub-chip animates (so we don't double-animate within the row).
+  const rootEntering = enteringIds.has(root.id);
   return (
-    <div className="repo-tree-row">
+    <div className={rootEntering ? "repo-tree-row feed-enter" : "repo-tree-row"}>
       <div
         className="repo-row repo-row-parent"
         onClick={(event) => {
@@ -86,7 +103,13 @@ function RepoTreeRow({
       {subs.length > 0 ? (
         <div className="repo-subs-row">
           {subs.map((sub) => (
-            <SubChip key={sub.id} sub={sub} nowMs={nowMs} onSelectSession={onSelectSession} />
+            <SubChip
+              key={sub.id}
+              sub={sub}
+              nowMs={nowMs}
+              entering={!rootEntering && enteringIds.has(sub.id)}
+              onSelectSession={onSelectSession}
+            />
           ))}
         </div>
       ) : null}
@@ -97,11 +120,13 @@ function RepoTreeRow({
 function RepoCard({
   group,
   nowMs,
+  enteringIds,
   onOpenRepo,
   onSelectSession,
 }: {
   group: RepoGroup;
   nowMs: number;
+  enteringIds: Set<string>;
   onOpenRepo: (repoName: string) => void;
   onSelectSession: (id: string) => void;
 }) {
@@ -169,6 +194,7 @@ function RepoCard({
                   key={repoRoot.root.id}
                   repoRoot={repoRoot}
                   nowMs={nowMs}
+                  enteringIds={enteringIds}
                   onSelectSession={onSelectSession}
                 />
               ))}
@@ -185,9 +211,20 @@ function RepoCard({
   );
 }
 
-export function ReposView({ sessions, onOpenRepo, onSelectSession }: ReposViewProps) {
+export function ReposView({ sessions, isLoading = false, onOpenRepo, onSelectSession }: ReposViewProps) {
   const nowMs = Date.now();
   const groups = useMemo(() => groupSessionsByRepo(sessions, nowMs), [sessions, nowMs]);
+
+  // Feed-enter: animate session rows/chips that just became active in a repo.
+  // isLoading is the reset context so the initial fixture→real swap re-baselines
+  // rather than flashing; afterwards only genuinely new session ids animate
+  // (first paint and reorders stay still).
+  const enteringIds = useEnteringIds(
+    groups.flatMap((group) =>
+      group.active.flatMap((repoRoot) => [repoRoot.root.id, ...repoRoot.subs.map((sub) => sub.id)]),
+    ),
+    { resetKey: String(isLoading) },
+  );
 
   const totalRepos = groups.length;
   const totalActive = groups.reduce((total, group) => total + group.active.length, 0);
@@ -217,6 +254,7 @@ export function ReposView({ sessions, onOpenRepo, onSelectSession }: ReposViewPr
               key={group.repoName}
               group={group}
               nowMs={nowMs}
+              enteringIds={enteringIds}
               onOpenRepo={onOpenRepo}
               onSelectSession={onSelectSession}
             />

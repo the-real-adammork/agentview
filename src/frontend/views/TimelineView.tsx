@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 
 import { AnimatedNumber } from "../components/AnimatedNumber";
+import { useEnteringIds } from "../live/useEnteringIds";
 import { TimelineEventRow, type EventSource } from "../components/TimelineEventRow";
 import { TimelineScrubber } from "../components/TimelineScrubber";
 import { flattenAgentTree, indexSessions, isDescendantOf, sessionDepth, toneForDepth } from "./sessionTree";
@@ -81,6 +82,13 @@ function ThreadNav({
   onSelect: (sessionId: string) => void;
 }) {
   const rows = flattenAgentTree(current, sessions);
+  // Feed-enter: a thread that just joined the spawn tree (new sub-agent) slides
+  // in. The viewed root is the reset key, so switching threads re-baselines
+  // rather than flashing the whole tree.
+  const enteringIds = useEnteringIds(
+    rows.map((row) => row.session.id),
+    { resetKey: current.id },
+  );
 
   return (
     <div className="thread-nav">
@@ -99,7 +107,7 @@ function ThreadNav({
           return (
             <button
               aria-current={here ? "true" : undefined}
-              className="thread-row"
+              className={enteringIds.has(session.id) ? "thread-row feed-enter" : "thread-row"}
               data-depth={depth}
               data-here={here ? "true" : undefined}
               data-tone={tone}
@@ -262,24 +270,18 @@ export function TimelineView({
     return deltas;
   })();
 
-  // Feed-enter animation: while live, events that weren't present at the last
-  // commit slide+fade in. Snapshot the seen ids after each commit.
-  const seenEventIdsRef = useRef<Set<string> | null>(null);
-  const enteringIds = new Set<string>();
-  if (live && seenEventIdsRef.current) {
-    for (const event of visibleEvents) {
-      if (!seenEventIdsRef.current.has(event.id)) {
-        enteringIds.add(event.id);
-      }
-    }
-  }
-  useEffect(() => {
-    const seen = seenEventIdsRef.current ?? new Set<string>();
-    for (const event of visibleEvents) {
-      seen.add(event.id);
-    }
-    seenEventIdsRef.current = seen;
-  }, [visibleEvents]);
+  // Feed-enter animation: events that weren't present at the last commit
+  // slide+fade in as the SSE stream appends them — independent of the tail
+  // toggle, which only governs follow/scroll. Changing the session, scope,
+  // window, or kind re-frames the stream, so that context is the reset key:
+  // the first render of a new frame is a baseline (no flash), later inserts
+  // animate. (visibleEvents is recomputed fresh each render; the hook diffs ids.)
+  const enteringIds = useEnteringIds(
+    visibleEvents.map((event) => event.id),
+    // isLoading is part of the context so the initial fixture→real payload swap
+    // (and any explicit refetch) re-baselines rather than flashing every row.
+    { resetKey: `${activeSession?.id ?? ""}|${scope}|${windowMs}|${activeKind}|${isLoading}` },
+  );
 
   // Changing the filter, window, scope, or session re-frames the stream, so drop
   // back to the most-recent page rather than carrying a grown limit across views.
