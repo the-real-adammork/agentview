@@ -19,7 +19,7 @@ export interface ThreadClassification {
 const ORCHESTRATOR_RE = /as the phase orchestrator for\s+(\S+)/i;
 const SUPERVISOR_TOKEN_RE = /\$implementation-execution\b/;
 const RUN_ID_RE = /docs\/implementation-runs\/([^/\s]+)\//;
-const MARKER_RE = /\[av-parent:([0-9a-f-]+)\]/i;
+const MARKER_RE = /\[av-parent:([^\]\s]+)\]/i;
 
 /** Trailing sentence punctuation that clings to a captured token (e.g. "phase-4."). */
 const stripTrailingPunct = (value: string): string => value.replace(/[.,;:]+$/, "");
