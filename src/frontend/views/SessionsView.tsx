@@ -342,6 +342,11 @@ export function SessionsView({
                   </td>
                   <td className="badge-cell">
                     <span className={source === "subagent" ? "chip amber" : "chip"}>{source === "subagent" ? `SUB · ${(session.agentRole ?? "worker").charAt(0).toUpperCase()}` : "USER"}</span>
+                    {session.parentEdgeSource === "reconstructed" ? (
+                      <span className="chip dim" title={`Inferred parent · ${session.parentEdgeVia ?? "heuristic"} · ${session.parentEdgeConfidence ?? ""}`}>
+                        inferred
+                      </span>
+                    ) : null}
                     <div className="muted">{session.archived ? "archived" : session.status}</div>
                   </td>
                   <td className="numeric badge-cell">

@@ -179,21 +179,29 @@ export function AgentGraphView({
     setEdges(
       graph.edges.map((edge) => {
         const open = edge.status === "open";
+        const reconstructed = edge.source === "reconstructed";
+        const dash = reconstructed ? (edge.confidence === "high" ? "6 4" : "2 4") : undefined;
         return {
           id: `${edge.parentId}-${edge.childId}`,
           source: edge.parentId,
           target: edge.childId,
           type: "default",
-          animated: open,
-          label: edge.status,
-          ariaLabel: `${open ? "Open" : "Closed"} spawn edge`,
+          animated: open && !reconstructed,
+          label: reconstructed ? `${edge.via ?? "inferred"} · ${edge.confidence ?? ""}`.trim() : edge.status,
+          ariaLabel: reconstructed
+            ? `Reconstructed ${edge.confidence ?? ""} edge via ${edge.via ?? "heuristic"}`
+            : `${open ? "Open" : "Closed"} spawn edge`,
           markerEnd: {
             type: MarkerType.ArrowClosed,
             width: 16,
             height: 16,
-            color: open ? "var(--warn)" : "var(--primary)",
+            color: reconstructed ? "var(--ink-ghost)" : open ? "var(--warn)" : "var(--primary)",
           },
-          className: `graph-flow-edge graph-flow-edge--${edge.status}`,
+          style: dash ? { strokeDasharray: dash } : undefined,
+          data: { reconstructed, confidence: edge.confidence, via: edge.via },
+          className: reconstructed
+            ? `graph-flow-edge graph-flow-edge--reconstructed graph-flow-edge--${edge.confidence ?? "low"}`
+            : `graph-flow-edge graph-flow-edge--${edge.status}`,
         };
       }),
     );
@@ -216,7 +224,7 @@ export function AgentGraphView({
               <h1 id="agent-graph-title">
                 <span className="dot" /> Agent Graph
               </h1>
-              <span>Agent Tree · thread_spawn_edges</span>
+              <span>Agent Tree · thread_spawn_edges + reconstructed</span>
               <span>
                 Depth {maxDepth} · {graph.nodes.length} nodes · {graph.edges.length} edges
               </span>
