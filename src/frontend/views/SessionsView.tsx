@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 
 import { ShortId } from "../components/ShortId";
 import { LiveSessionTokens, LiveTokenTotal } from "../live/LiveTokens";
@@ -11,6 +11,7 @@ import {
   rootOf,
   sessionRepoName,
   sessionUpdatedMs,
+  toneForDepth,
 } from "./sessionTree";
 import type { ApiError, ArchivedFilter, DiagnosticsSummary, SessionFilter, SessionSummary, ThreadSource } from "../../shared/contracts";
 
@@ -311,8 +312,10 @@ export function SessionsView({
                   tabIndex={0}
                   data-active={session.id === activeSessionId ? "true" : undefined}
                   data-depth={depth}
+                  data-tone={depth > 0 ? toneForDepth(depth) : undefined}
                   data-last-sub={depth > 0 ? (isLastSub ? "true" : "false") : undefined}
                   data-dim={!matched ? "true" : undefined}
+                  style={{ "--depth": depth } as CSSProperties}
                 >
                   <td className="muted num">{String(index + 1).padStart(3, "0")}</td>
                   <td className="num">

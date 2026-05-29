@@ -4097,20 +4097,31 @@ tbody tr[aria-current="true"] {
    Ported from the design handoff: an amber vertical rail runs down the indent
    column with a horizontal arm into each sub row; the rail stops half-way
    through the last sub of a group. */
-.tbl tbody tr.session-row[data-depth="1"] {
+/* Sub-agent rows carry the same depth tone as the timeline's Agent Tree —
+   amber for sub-agents, cyan for sub-sub-and-deeper — and indent by tree depth
+   (`--depth`) so nesting reads identically in both views. */
+.tbl tbody tr.session-row[data-tone="amber"] {
+  --tone-color: var(--amber);
   background: rgba(255, 184, 0, 0.05);
 }
-.tbl tbody tr.session-row[data-depth="1"]:hover {
+.tbl tbody tr.session-row[data-tone="cyan"] {
+  --tone-color: var(--cyan);
+  background: rgba(70, 216, 255, 0.05);
+}
+.tbl tbody tr.session-row[data-tone="amber"]:hover {
   background: rgba(255, 184, 0, 0.12);
 }
+.tbl tbody tr.session-row[data-tone="cyan"]:hover {
+  background: rgba(70, 216, 255, 0.12);
+}
 /* dim + shrink the leading index column so sub rows step back */
-.tbl tbody tr.session-row[data-depth="1"] > td:first-child {
+.tbl tbody tr.session-row[data-tone] > td:first-child {
   color: var(--ink-faint);
   font-size: 10px;
 }
 /* dashed divider between consecutive sub rows for read rhythm */
-.tbl tbody tr.session-row[data-depth="1"] + tr.session-row[data-depth="1"] > * {
-  border-top: var(--border-width) dashed rgba(255, 184, 0, 0.18);
+.tbl tbody tr.session-row[data-tone] + tr.session-row[data-tone] > * {
+  border-top: var(--border-width) dashed var(--rule-soft);
 }
 /* rows filtered out of the match set read back (parents kept for context) */
 .tbl tbody tr.session-row[data-dim="true"] > * {
@@ -4120,34 +4131,38 @@ tbody tr[aria-current="true"] {
 .session-cell {
   position: relative;
 }
-.tbl tbody tr.session-row[data-depth="1"] .session-cell {
-  padding-left: 36px;
+/* Indent scales per depth; the tree rail + tick sit at the parent's level. */
+.tbl tbody tr.session-row[data-tone] .session-cell {
+  padding-left: calc(36px + (var(--depth, 1) - 1) * 22px);
 }
-.tbl tbody tr.session-row[data-depth="1"] .session-cell::before {
+.tbl tbody tr.session-row[data-tone] .session-cell::before {
   content: "";
   position: absolute;
-  left: 14px;
+  left: calc(14px + (var(--depth, 1) - 1) * 22px);
   top: 0;
   bottom: 0;
   width: 2px;
-  background: var(--amber);
-  opacity: 0.45;
+  background: var(--tone-color, var(--amber));
+  opacity: 0.5;
 }
-.tbl tbody tr.session-row[data-depth="1"][data-last-sub="true"] .session-cell::before {
+.tbl tbody tr.session-row[data-tone][data-last-sub="true"] .session-cell::before {
   bottom: 50%;
 }
-.tbl tbody tr.session-row[data-depth="1"] .session-cell::after {
+.tbl tbody tr.session-row[data-tone] .session-cell::after {
   content: "";
   position: absolute;
-  left: 15px;
+  left: calc(15px + (var(--depth, 1) - 1) * 22px);
   top: 50%;
   width: 12px;
   height: 2px;
-  background: var(--amber);
-  opacity: 0.45;
+  background: var(--tone-color, var(--amber));
+  opacity: 0.5;
 }
-.tbl tbody tr.session-row[data-depth="1"] .session-title {
+.tbl tbody tr.session-row[data-tone] .session-title {
   font-size: 12px;
+}
+.tbl tbody tr.session-row[data-tone] .tree-connector {
+  color: var(--tone-color, var(--amber));
 }
 
 @media (max-width: 960px) {
