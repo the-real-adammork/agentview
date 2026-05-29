@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { createFixtureSnapshot, realApiClient } from "./api/client";
 import { openLiveStream } from "./api/liveStream";
+import { isDemoEnabled, useDemoInserts } from "./live/demoInserts";
 import { createLiveTokenStore } from "./live/liveTokenStore";
 import { LiveTokenStoreContext } from "./live/LiveTokens";
 import { Chrome } from "./components/Chrome";
@@ -343,9 +344,15 @@ export function App() {
     loadTokenSeries();
   }, [activeView, activeSession?.id, loadTokenSeries]);
 
+  // Dev-only demo mode (?demo): synthesises live inserts so the feed-enter
+  // animation is visible against otherwise-static local data. It owns the state
+  // while on, so the real SSE stream stands down to avoid clobbering injected rows.
+  const demoEnabled = useMemo(() => isDemoEnabled(), []);
+  useDemoInserts({ enabled: demoEnabled, setSessions, setTimelinePayload });
+
   // Live updates: initial paint stays the fetch path above; the SSE stream applies deltas
   // through the same state setters. Never load-bearing — VITE_AGENTVIEW_LIVE=0 disables it.
-  const liveEnabled = (import.meta.env.VITE_AGENTVIEW_LIVE ?? "1") !== "0";
+  const liveEnabled = !demoEnabled && (import.meta.env.VITE_AGENTVIEW_LIVE ?? "1") !== "0";
   const liveThreadId = activeSession?.id ?? null;
 
   useEffect(() => {
@@ -460,6 +467,7 @@ export function App() {
           {activeView === "Repos" ? (
             <ReposView
               sessions={sessions}
+              isLoading={sessionsLoading}
               onOpenRepo={openRepo}
               onSelectSession={(sessionId) => selectSession(sessionId, "Timeline")}
             />

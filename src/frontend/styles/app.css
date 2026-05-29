@@ -4220,7 +4220,9 @@ tbody tr[aria-current="true"] {
   }
 }
 
-/* --- Live-stream feed enter: new events slide+fade in with an edge sweep --- */
+/* --- Live-list feed enter: rows that just entered slide+fade in with a brief
+   left-edge accent sweep. One shared mechanism for every live list (timeline
+   events, sessions, repos, thread nav) — see useEnteringIds. --- */
 .ev-wrap {
   position: relative;
 }
@@ -4244,10 +4246,13 @@ tbody tr[aria-current="true"] {
     opacity: 0;
   }
 }
-.ev-enter {
+.feed-enter {
+  /* Anchor the ::after edge bar even on rows that aren't otherwise positioned
+     (table rows, buttons, grid cells). */
+  position: relative;
   animation: feedEnter 380ms cubic-bezier(0.16, 0.84, 0.44, 1) both;
 }
-.ev-enter::after {
+.feed-enter::after {
   content: "";
   position: absolute;
   left: 0;
@@ -4352,8 +4357,8 @@ tbody tr[aria-current="true"] {
   .anim-num.flash-down {
     animation: none;
   }
-  .ev-enter,
-  .ev-enter::after {
+  .feed-enter,
+  .feed-enter::after {
     animation-duration: 1ms;
   }
   .tok-live,

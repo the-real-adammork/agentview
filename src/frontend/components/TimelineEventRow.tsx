@@ -176,7 +176,7 @@ export function TimelineEventRow({ event, meta, delta, isNew, source, onOpenThre
 
   return (
     <li
-      className={`ev ${present.evClass}${isNew ? " ev-enter" : ""}${source ? " with-src" : ""}`.trim()}
+      className={`ev ${present.evClass}${isNew ? " feed-enter" : ""}${source ? " with-src" : ""}`.trim()}
       data-kind={event.kind}
       data-severity={event.severity}
     >

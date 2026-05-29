@@ -1,7 +1,8 @@
 import "@testing-library/jest-dom/vitest";
 
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { act } from "react";
+import { describe, expect, it, vi } from "vitest";
 
 import { sessionSummariesFixture } from "../../src/fixtures/observatoryFixtures";
 import { TimelineView } from "../../src/frontend/views/TimelineView";
@@ -107,5 +108,111 @@ describe("TimelineView · +SUBS scope", () => {
     const rail = row.querySelector(".ev-src-rail") as HTMLElement;
     expect(rail).not.toBeNull();
     expect(rail.dataset.tone).toBe("amber");
+  });
+});
+
+describe("TimelineView · feed-enter on live insert", () => {
+  const event = (id: string, seconds: number): TimelineEvent => ({
+    id,
+    threadId: root.id,
+    timestamp: new Date(Date.UTC(2026, 4, 27, 10, 0, seconds)).toISOString(),
+    sourceLine: seconds + 1,
+    kind: "assistant_message",
+    severity: "info",
+    previewText: `event ${id}`,
+  });
+
+  const renderWith = (events: TimelineEvent[]) => (
+    <TimelineView
+      activeSession={root}
+      sessions={sessionSummariesFixture}
+      payload={{ threadId: root.id, events, nextByteOffset: 0 } as TimelinePayload}
+      activeKind="all"
+      scope="this"
+      onScopeChange={noop}
+      onKindChange={noop}
+      onRefresh={noop}
+      onTail={noop}
+      onSelectSession={noop}
+    />
+  );
+
+  it("does not animate any row on first paint", () => {
+    const { container } = render(renderWith([event("a", 1), event("b", 2)]));
+    expect(container.querySelectorAll("li.ev.feed-enter")).toHaveLength(0);
+  });
+
+  it("animates only the newly-arrived event, regardless of the tail toggle", () => {
+    const { container, rerender } = render(renderWith([event("a", 1), event("b", 2)]));
+    act(() => {
+      rerender(renderWith([event("a", 1), event("b", 2), event("c", 3)]));
+    });
+    const entered = container.querySelectorAll("li.ev.feed-enter");
+    expect(entered).toHaveLength(1);
+    expect(entered[0]).toHaveTextContent("event c");
+  });
+
+  it("clears the animation after it plays and does not re-animate a seen event", () => {
+    vi.useFakeTimers();
+    try {
+      const { container, rerender } = render(renderWith([event("a", 1)]));
+      act(() => {
+        rerender(renderWith([event("a", 1), event("c", 3)]));
+      });
+      expect(container.querySelectorAll("li.ev.feed-enter")).toHaveLength(1);
+      // After the animation window the class is dropped...
+      act(() => {
+        vi.advanceTimersByTime(800);
+      });
+      expect(container.querySelectorAll("li.ev.feed-enter")).toHaveLength(0);
+      // ...and an unrelated re-render does not bring it back.
+      act(() => {
+        rerender(renderWith([event("a", 1), event("c", 3)]));
+      });
+      expect(container.querySelectorAll("li.ev.feed-enter")).toHaveLength(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("TimelineView · ThreadNav feed-enter on new thread", () => {
+  const newChild: SessionSummary = {
+    ...archimedes,
+    id: "freshly-spawned-child",
+    parentId: root.id,
+    threadSource: "subagent",
+    agentRole: "worker",
+    agentNickname: "newbie",
+  };
+
+  const renderNav = (sessions: SessionSummary[]) => (
+    <TimelineView
+      activeSession={root}
+      sessions={sessions}
+      payload={{ threadId: root.id, events: [primaryEvent], nextByteOffset: 0 } as TimelinePayload}
+      activeKind="all"
+      scope="this"
+      onScopeChange={noop}
+      onKindChange={noop}
+      onRefresh={noop}
+      onTail={noop}
+      onSelectSession={noop}
+    />
+  );
+
+  it("does not animate any thread row on first paint", () => {
+    const { container } = render(renderNav(sessionSummariesFixture));
+    expect(container.querySelectorAll(".thread-row.feed-enter")).toHaveLength(0);
+  });
+
+  it("animates only the newly-spawned thread row", () => {
+    const { container, rerender } = render(renderNav(sessionSummariesFixture));
+    act(() => {
+      rerender(renderNav([...sessionSummariesFixture, newChild]));
+    });
+    const entered = container.querySelectorAll(".thread-row.feed-enter");
+    expect(entered).toHaveLength(1);
+    expect(entered[0]).toHaveTextContent(/newbie/);
   });
 });

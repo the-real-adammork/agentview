@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 
 import { ShortId } from "../components/ShortId";
 import { LiveSessionTokens, LiveTokenTotal } from "../live/LiveTokens";
+import { useEnteringIds } from "../live/useEnteringIds";
 import { formatTokens } from "./formatTokens";
 import { countActiveSessions, tokensByHour } from "./sessionStats";
 import {
@@ -122,6 +123,17 @@ export function SessionsView({
   );
 
   const rows = useMemo(() => buildSessionRows(scopedSessions, () => true), [scopedSessions]);
+
+  // Feed-enter: animate rows for sessions that just appeared in the live list.
+  // The active filter/repo/branch context is the reset key, so re-framing the
+  // catalog establishes a fresh baseline instead of flashing every row; a token
+  // tick (same ids, new objects) leaves the id set unchanged and stays still.
+  const enteringIds = useEnteringIds(
+    rows.map((row) => row.session.id),
+    // isLoading is part of the context so the initial fixture→real swap (and any
+    // refetch on a filter change) re-baselines rather than flashing every row.
+    { resetKey: `${repoFilter ?? ""}|${branchFilter ?? ""}|${JSON.stringify(filter)}|${isLoading}` },
+  );
 
   const repoOptions = uniqueValues(sessions, sessionRepoName);
   const updateFilter = (patch: Partial<SessionFilter>) => onFilterChange({ ...filter, ...patch });
@@ -299,7 +311,7 @@ export function SessionsView({
               return (
                 <tr
                   aria-current={session.id === activeSessionId ? "true" : undefined}
-                  className="session-row"
+                  className={enteringIds.has(session.id) ? "session-row feed-enter" : "session-row"}
                   key={session.id}
                   onClick={() => onSelectSession(session.id, "Timeline")}
                   onKeyDown={(event) => {
