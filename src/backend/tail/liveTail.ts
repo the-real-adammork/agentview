@@ -7,6 +7,8 @@ export interface TailRolloutResult {
   payload: Pick<TimelinePayload, "events" | "nextByteOffset">;
   truncated: boolean;
   warnings: string[];
+  /** Number of source lines consumed, so callers can advance a running line counter. */
+  linesRead: number;
 }
 
 export const tailRolloutFile = async ({
@@ -31,6 +33,7 @@ export const tailRolloutFile = async ({
       payload: { events: [], nextByteOffset: sourceStat.size },
       truncated,
       warnings: truncated ? ["Rollout file was truncated; tail restarted from byte 0."] : [],
+      linesRead: 0,
     };
   }
 
@@ -46,6 +49,7 @@ export const tailRolloutFile = async ({
         payload: { events: [], nextByteOffset: offset },
         truncated,
         warnings: truncated ? ["Rollout file was truncated; tail restarted from byte 0."] : [],
+        linesRead: 0,
       };
     }
 
@@ -65,6 +69,7 @@ export const tailRolloutFile = async ({
       payload: { events: facts.events, nextByteOffset },
       truncated,
       warnings: [...(truncated ? ["Rollout file was truncated; tail restarted from byte 0."] : []), ...facts.warnings],
+      linesRead: lines.length,
     };
   } finally {
     await handle.close();

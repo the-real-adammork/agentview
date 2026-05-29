@@ -1,4 +1,4 @@
-import { stat } from "node:fs/promises";
+import { open, stat } from "node:fs/promises";
 
 import type { LiveChannel, PageOptions, RuntimeLog, SessionFilter } from "../../shared/contracts";
 import { getRolloutFactsWithCache } from "../cache/rolloutCache";
@@ -43,6 +43,26 @@ const logIdNumber = (log: RuntimeLog) => {
   return Number.isSafeInteger(parsed) ? parsed : 0;
 };
 
+// Count complete source lines before a byte offset so the live tail can continue
+// the rollout's line numbering. Without this the tail restarts sourceLine at 1,
+// and the timeline's (timestamp, sourceLine) sort then misplaces same-second
+// streamed events ahead of already-loaded ones instead of at the top.
+const countLinesBefore = async (path: string, byteOffset: number): Promise<number> => {
+  if (byteOffset <= 0) return 0;
+  const handle = await open(path, "r");
+  try {
+    const buffer = Buffer.alloc(byteOffset);
+    const { bytesRead } = await handle.read(buffer, 0, byteOffset, 0);
+    let lines = 0;
+    for (let i = 0; i < bytesRead; i += 1) {
+      if (buffer[i] === 0x0a) lines += 1;
+    }
+    return lines;
+  } finally {
+    await handle.close();
+  }
+};
+
 export const createLiveSources = ({
   codexHome,
   hub,
@@ -83,6 +103,9 @@ export const createLiveSources = ({
 
       let rolloutPath: string | null = null;
       let nextByteOffset = 0;
+      // Source-line counter the live tail continues from, so streamed events keep
+      // ascending line numbers (and thus sort to the top, not into the middle).
+      let nextSourceLine = 1;
       let logCursorId = request.logCursorId ?? 0;
 
       // Resolve the active thread's rollout + baseline its cursor.
@@ -98,6 +121,7 @@ export const createLiveSources = ({
               const sourceStat = await stat(rolloutPath);
               nextByteOffset = sourceStat.size;
             }
+            nextSourceLine = (await countLinesBefore(rolloutPath, nextByteOffset).catch(() => 0)) + 1;
           }
         } catch {
           await dropStateStore();
@@ -130,7 +154,9 @@ export const createLiveSources = ({
         if (!rolloutPath || !threadId) return;
         const path = rolloutPath;
         try {
-          const tail = await tailRolloutFile({ path, threadId, fromByte: nextByteOffset });
+          // On truncation the tail restarts at byte 0, so the line counter resets too.
+          const startLine = nextSourceLine;
+          const tail = await tailRolloutFile({ path, threadId, fromByte: nextByteOffset, sourceLine: startLine });
           const reset = tail.truncated;
           const advanced = tail.payload.nextByteOffset;
           if (tail.payload.events.length > 0 || reset) {
@@ -143,6 +169,7 @@ export const createLiveSources = ({
             });
           }
           nextByteOffset = advanced;
+          nextSourceLine = reset ? 1 + tail.linesRead : startLine + tail.linesRead;
 
           const cached = await getRolloutFactsWithCache({
             codexHome,

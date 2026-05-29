@@ -48,6 +48,34 @@ describe("tailRolloutFile", () => {
       }),
     ]);
     expect(result.payload.nextByteOffset).toBeGreaterThan(fromByte);
+    expect(result.linesRead).toBe(1);
+  });
+
+  it("continues sourceLine numbering across tails so streamed events stay newest-last", async () => {
+    const root = await createRoot();
+    const rolloutPath = join(root, "continuity.jsonl");
+    // Two loaded lines, then two appended in the same second as the second one.
+    await writeFile(
+      rolloutPath,
+      `${JSON.stringify({ timestamp: "2026-05-26T18:50:00.000Z", type: "message", role: "user", text: "loaded 1" })}\n` +
+        `${JSON.stringify({ timestamp: "2026-05-26T18:50:01.000Z", type: "message", role: "assistant", text: "loaded 2" })}\n`,
+      "utf8",
+    );
+    const fromByte = (await import("node:fs")).statSync(rolloutPath).size;
+    await appendFile(
+      rolloutPath,
+      `${JSON.stringify({ timestamp: "2026-05-26T18:50:01.000Z", type: "message", role: "assistant", text: "streamed 3" })}\n` +
+        `${JSON.stringify({ timestamp: "2026-05-26T18:50:02.000Z", type: "message", role: "assistant", text: "streamed 4" })}\n`,
+      "utf8",
+    );
+
+    // The live subscription continues from line 3 (two loaded lines).
+    const result = await tailRolloutFile({ path: rolloutPath, threadId: "t", fromByte, sourceLine: 3 });
+    expect(result.linesRead).toBe(2);
+    expect(result.payload.events.map((event) => event.sourceLine)).toEqual([3, 4]);
+    // The same-second streamed event (line 3) has a HIGHER sourceLine than the
+    // loaded line 2, so the (timestamp, sourceLine) sort keeps it after — i.e. on
+    // top once the view reverses — instead of sinking below the loaded event.
   });
 
   it("holds incomplete trailing lines until a newline is present", async () => {
