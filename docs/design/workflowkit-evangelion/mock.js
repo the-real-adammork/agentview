@@ -202,7 +202,7 @@
     push(67800, { kind: "tool_output", call_id: "c07", exit: 1, output: "Error: database is locked", fail: true });
     push(70200, { kind: "warning", text: "DATABASE LOCK ENCOUNTERED // logs_2.sqlite — retrying with WAL fallback" });
     push(72000, { kind: "tool_call", name: "shell", args: { cmd: ["sqlite3", "-readonly", "logs_2.sqlite", "SELECT target, COUNT(*) FROM logs WHERE level='WARN' GROUP BY target;"] }, call_id: "c08" });
-    push(73800, { kind: "tool_output", call_id: "c08", exit: 0, output: "codex_core_skills::loader|14\ncodex_api::sse::responses|6\ncodex_otel.log_only|3\ncodex_core::session::handlers|2\n" });
+    push(73800, { kind: "tool_output", call_id: "c08", exit: 0, output: "codex_core_skills::loader|14\ncodex_api::sse::responses|6\ncodex_otel.log_only|3\ncodex_core::session::handlers|2\n", outputRender: { kind: "table", columns: ["target", "warnings"], rows: [["codex_core_skills::loader","14"],["codex_api::sse::responses","6"],["codex_otel.log_only","3"],["codex_core::session::handlers","2"]], totalRows: 4 } });
     push(75200, { kind: "token_count", total: 31200, input: 27400, output: 3800, cached: 2100, ctx_pct: 15.2, rate_pct: 31 });
     push(88000, { kind: "tool_call", name: "wait_agent", args: { thread_id: subC.id }, call_id: "c09" });
     push(112000, { kind: "tool_output", call_id: "c09", exit: 0, output: "BORGES → 'Graph layout: hierarchical w/ depth-1 spread, status color from edges.status. Ready to render 8-node tree.'" });
@@ -210,7 +210,118 @@
     push(120000, { kind: "assistant", phase: "answer", text: "Integrating reports. Will draft the Sessions overview and timeline next." });
     push(124000, { kind: "tool_call", name: "write_file", args: { path: "dashboard/overview.tsx" }, call_id: "c10" });
     push(124800, { kind: "tool_output", call_id: "c10", exit: 0, output: "Wrote 8,420 bytes." });
+
+    // exec_command: curl (http) → http renderer
+    push(126900, { kind: "tool_call", name: "exec_command", args: { cmd: ["curl", "-sS", "http://localhost:4317/v1/health"] }, command_preview: "curl -sS http://localhost:4317/v1/health", call_id: "c12h" });
+    push(127050, { kind: "tool_output", call_id: "c12h", exit: 0, output: "200 OK",
+      outputRender: { kind: "http", method: "GET", url: "http://localhost:4317/v1/health", status: 200, statusText: "OK", durationMs: 38, size: "142 B", contentType: "application/json", json: true,
+        headers: [
+          { k: "content-type", v: "application/json" },
+          { k: "x-otel-collector", v: "running" },
+          { k: "date", v: "Thu, 29 May 2026 12:51:09 GMT" },
+          { k: "content-length", v: "142" },
+        ],
+        body: "{\n  \"status\": \"healthy\",\n  \"uptime_s\": 84211,\n  \"exporters\": { \"otlp\": \"ok\", \"logging\": \"ok\" },\n  \"queue_depth\": 0\n}" } });
+
+    // exec_command: rg (search) → matches renderer
+    push(127200, { kind: "tool_call", name: "exec_command", args: { cmd: ["rg", "-n", "outputRender", "dashboard/"] }, command_preview: "rg -n outputRender dashboard/", call_id: "c12b" });
+    push(127500, { kind: "tool_output", call_id: "c12b", exit: 0, output: "(9 matches in 3 files)",
+      outputRender: { kind: "matches", files: [
+        { path: "dashboard/EventRow.tsx", matches: [
+          { n: 88, text: "  if (e.outputRender?.kind === \"diff\") return <DiffView r={e.outputRender} />;", col: [9, 21] },
+          { n: 89, text: "  if (e.outputRender?.kind === \"tests\") return <TestsView r={e.outputRender} />;", col: [9, 21] },
+          { n: 96, text: "  return e.outputRender ? <ExecOutput out={e} /> : <PlainOut out={e.output} />;", col: [11, 23] },
+        ] },
+        { path: "dashboard/exec-renderers.tsx", matches: [
+          { n: 12, text: "export function ExecOutput({ out }: { out: ToolOutput }) {", col: [16, 26] },
+          { n: 130, text: "  const r = out.outputRender;", col: [14, 26] },
+          { n: 131, text: "  const kind = r ? r.kind : \"plain\";", col: [13, 14] },
+        ] },
+        { path: "dashboard/types.ts", matches: [
+          { n: 42, text: "  outputRender?: OutputRender;  // server-parsed structured output", col: [2, 14] },
+          { n: 51, text: "export type OutputRender =", col: [12, 24] },
+          { n: 58, text: "  | { kind: \"plain\" };", col: [4, 8] },
+        ] },
+      ] } });
+
+    // exec_command: nl (file peek) → file renderer
+    push(126500, { kind: "tool_call", name: "exec_command", args: { cmd: ["nl", "-ba", "dashboard/overview.tsx"] }, command_preview: "nl -ba dashboard/overview.tsx", call_id: "c12a" });
+    push(126800, { kind: "tool_output", call_id: "c12a", exit: 0, output: "(412 lines)",
+      outputRender: { kind: "file", path: "dashboard/overview.tsx", startLine: 1, totalLines: 412, lines: [
+        { n: 1, text: "import { useMemo, useState } from \"react\";" },
+        { n: 2, text: "import { SessionsTable } from \"./SessionsTable\";" },
+        { n: 3, text: "import { useThreads } from \"../data/threads\";" },
+        { n: 4, text: "" },
+        { n: 5, text: "export function Overview({ repo }: { repo: string }) {" },
+        { n: 6, text: "  const threads = useThreads(repo);" },
+        { n: 7, text: "  const [q, setQ] = useState(\"\");" },
+        { n: 8, text: "  const rows = useMemo(() => filterThreads(threads, q), [threads, q]);" },
+        { n: 9, text: "  const active = rows.filter((r) => r.childrenOpen > 0);" },
+        { n: 10, text: "  return (" },
+        { n: 11, text: "    <section className=\"overview\">" },
+        { n: 12, text: "      <SessionsTable rows={rows} active={active} />" },
+        { n: 13, text: "    </section>" },
+        { n: 14, text: "  );" },
+        { n: 15, text: "}" },
+      ] } });
     push(126000, { kind: "skill_invoke", name: "web_search", call_id: "sk02", summary: "sqlite WAL busy_timeout best practice for concurrent readers", status: "ok" });
+
+    // exec_command: git status --short  → file-list renderer
+    push(128000, { kind: "tool_call", name: "exec_command", args: { cmd: ["git", "status", "--short"] }, command_preview: "git status --short", call_id: "c12" });
+    push(128300, { kind: "tool_output", call_id: "c12", exit: 0,
+      output: " M dashboard/app.tsx\n M dashboard/styles.css\nA  dashboard/overview.tsx\nA  dashboard/timeline.tsx\nD  dashboard/legacy_list.tsx\nR  dashboard/graph.tsx -> dashboard/agent_graph.tsx\n?? scratch/notes.md\n?? scratch/query.sql",
+      outputRender: { kind: "status", files: [
+        { code: "M", path: "dashboard/app.tsx" },
+        { code: "M", path: "dashboard/styles.css" },
+        { code: "A", path: "dashboard/overview.tsx" },
+        { code: "A", path: "dashboard/timeline.tsx" },
+        { code: "D", path: "dashboard/legacy_list.tsx" },
+        { code: "R", path: "dashboard/graph.tsx → dashboard/agent_graph.tsx" },
+        { code: "??", path: "scratch/notes.md" },
+        { code: "??", path: "scratch/query.sql" },
+      ] } });
+
+    // exec_command: git diff  → diff renderer (long → truncated preview + modal)
+    push(131000, { kind: "tool_call", name: "exec_command", args: { cmd: ["git", "diff", "dashboard/timeline.tsx"] }, command_preview: "git diff dashboard/timeline.tsx", call_id: "c13" });
+    push(131600, { kind: "tool_output", call_id: "c13", exit: 0, output: "diff --git a/dashboard/timeline.tsx b/dashboard/timeline.tsx (3 hunks, +38 −9)",
+      outputRender: { kind: "diff", files: [
+        { path: "dashboard/timeline.tsx", added: 38, removed: 9, hunks: [
+          { header: "@@ -14,9 +14,16 @@ function TimelineView({ session }) {", lines: [
+            { t: "ctx", text: "  const [filter, setFilter] = useState(\"all\");" },
+            { t: "del", text: "  const events = TIMELINES[session.id] || [];" },
+            { t: "add", text: "  const [scope, setScope] = useState(\"this\");" },
+            { t: "add", text: "  const descendants = useDescendants(session);" },
+            { t: "add", text: "  const events = useMemo(() => mergeScoped(session, scope), [scope]);" },
+            { t: "ctx", text: "  const t0 = events[0]?.ts;" },
+          ] },
+          { header: "@@ -52,6 +59,21 @@ function TimelineView({ session }) {", lines: [
+            { t: "ctx", text: "  return (" },
+            { t: "add", text: "    <div className=\"tl-range\" role=\"group\">" },
+            { t: "add", text: "      <button data-on={scope===\"this\"}>THIS</button>" },
+            { t: "add", text: "      <button data-on={scope===\"all\"}>+SUBS</button>" },
+            { t: "add", text: "    </div>" },
+            { t: "ctx", text: "    <div className=\"tl-stream\">" },
+            { t: "del", text: "      {events.map(renderRow)}" },
+            { t: "add", text: "      {scoped.map((e) => <EventRow e={e} key={e.id} />)}" },
+            { t: "ctx", text: "    </div>" },
+          ] },
+          { header: "@@ -88,3 +110,9 @@ function EventRow({ e }) {", lines: [
+            { t: "add", text: "  if (e.outputRender?.kind === \"diff\") return <DiffView r={e.outputRender} />;" },
+            { t: "add", text: "  if (e.outputRender?.kind === \"tests\") return <TestsView r={e.outputRender} />;" },
+            { t: "ctx", text: "  return <PlainOut out={e.output} />;" },
+          ] },
+        ] },
+      ] } });
+
+    // exec_command: pytest  → test summary renderer (failures → loud)
+    push(140000, { kind: "tool_call", name: "exec_command", args: { cmd: ["pytest", "-q", "tests/"] }, command_preview: "pytest -q tests/", call_id: "c14" });
+    push(146200, { kind: "tool_output", call_id: "c14", exit: 1, fail: true, output: "==== 3 failed, 42 passed, 1 skipped in 6.2s ====",
+      outputRender: { kind: "tests", passed: 42, failed: 3, skipped: 1, durationMs: 6200, failing: [
+        "tests/test_parser.py::test_lazy_resume_after_token_count",
+        "tests/test_tokens.py::test_negative_delta_guard",
+        "tests/test_db.py::test_wal_busy_timeout_retry",
+      ] } });
+
     push(150000, { kind: "token_count", total: 84200, input: 71200, output: 11000, cached: 5400, ctx_pct: 38.1, rate_pct: 54 });
     push(180000, { kind: "tool_call", name: "wait_agent", args: { thread_id: subB.id }, call_id: "c11" });
     push(180100, { kind: "warning", text: "SOCRATES STILL OPEN // exceeded soft deadline 120s — continuing to poll" });

@@ -669,6 +669,7 @@ function SessionsView({ selected, onPickSession, sessionChosen, setView, repoFil
   const [filterRepo, setFilterRepo] = useState("all");
   const [filterFlag, setFilterFlag] = useState("all");
   const [filterBranch, setFilterBranch] = useState("all");
+  const [sortBy, setSortBy] = useState("created_desc"); // created_desc | created_asc | updated_desc | updated_asc | tokens_desc
 
   // Live token deltas overlaid on active sessions — stands in for the SSE
   // index feed so token counts in the list tick up live.
@@ -749,7 +750,17 @@ function SessionsView({ selected, onPickSession, sessionChosen, setView, repoFil
       }
     }
     const visible = SESSIONS.filter((s) => visibleIds.has(s.id));
-    const parents = visible.filter((s) => !s.parent_id).sort((a, b) => b.updated_at - a.updated_at);
+    const cmp = (a, b) => {
+      switch (sortBy) {
+        case "created_asc": return a.created_at - b.created_at;
+        case "updated_desc": return b.updated_at - a.updated_at;
+        case "updated_asc": return a.updated_at - b.updated_at;
+        case "tokens_desc": return b.tokens_used - a.tokens_used;
+        case "created_desc":
+        default: return b.created_at - a.created_at;
+      }
+    };
+    const parents = visible.filter((s) => !s.parent_id).sort(cmp);
     const rows = [];
     for (const p of parents) {
       rows.push({ s: p, depth: 0, matched: visibleIds.has(p.id) && matched.includes(p), isLastSub: false });
@@ -757,7 +768,7 @@ function SessionsView({ selected, onPickSession, sessionChosen, setView, repoFil
       const walk = (node) => {
         const kids = visible
           .filter((s) => s.parent_id === node.id)
-          .sort((a, b) => b.updated_at - a.updated_at);
+          .sort(cmp);
         kids.forEach((k, i) => {
           rows.push({ s: k, depth: sessionDepth(k), matched: matched.includes(k), isLastSub: i === kids.length - 1 });
           walk(k);
@@ -769,7 +780,7 @@ function SessionsView({ selected, onPickSession, sessionChosen, setView, repoFil
     const orphans = visible.filter((s) => s.parent_id && !SESSIONS.find((x) => x.id === s.parent_id));
     for (const o of orphans) rows.push({ s: o, depth: 0, matched: matched.includes(o), isLastSub: false });
     return { displayRows: rows, matchedCount: matched.length };
-  }, [q, filterSource, filterRepo, filterFlag, repoFilter, filterBranch]);
+  }, [q, filterSource, filterRepo, filterFlag, repoFilter, filterBranch, sortBy]);
 
   const tokensByHour = useMemo(() => {
     // Token usage by hour over the last 12h. Scoped to the repo when one is active.
@@ -924,7 +935,16 @@ function SessionsView({ selected, onPickSession, sessionChosen, setView, repoFil
             />
             <span className="muted" style={{ fontSize: 10, letterSpacing: "0.2em" }}>↵ exec</span>
           </div>
-          <div className="chip dim">SORT · updated_at ↓</div>
+          <label className="ov-sort">
+            <span className="k">SORT</span>
+            <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+              <option value="created_desc">created_at ↓</option>
+              <option value="created_asc">created_at ↑</option>
+              <option value="updated_desc">updated_at ↓</option>
+              <option value="updated_asc">updated_at ↑</option>
+              <option value="tokens_desc">tokens ↓</option>
+            </select>
+          </label>
           <div className="chip dim">JOIN · thread_spawn_edges</div>
           <div className="chip">PROFILE · adam@local</div>
         </div>
@@ -1032,6 +1052,16 @@ function TimelineView({ session, setSelected, setView, onTokenBump }) {
   const [scope, setScope] = useState("this"); // "this" | "all" (incl. sub-agents, recursively)
   const [windowMs, setWindowMs] = useState(0); // 0 === "all"
   const [expanded, setExpanded] = useState(new Set());
+
+  // Loading state — stands in for fetching+parsing the rollout JSONL for the
+  // selected session. Re-fires whenever the viewed session changes.
+  const [loading, setLoading] = useState(true);
+  const [execModal, setExecModal] = useState(null); // { ev, out } | null
+  useEffect(() => {
+    setLoading(true);
+    const t = setTimeout(() => setLoading(false), 620);
+    return () => clearTimeout(t);
+  }, [session.id]);
 
   // descendant sessions (sub-agents, sub-sub-agents, …) that actually have timelines
   const descendants = useMemo(
@@ -1233,13 +1263,13 @@ function TimelineView({ session, setSelected, setView, onTokenBump }) {
           </div>
         </div>
 
-        <div className="tl-scrubber">
+        <div className="tl-scrubber" data-loading={loading ? "true" : undefined}>
           <div className="hdr">
-            <span><Reticle /> TURN 01 · {windowMs ? `LAST ${windowMs/3600000|0}H` : "TASK_STARTED → TASK_COMPLETE"} · DUR {Math.round((tEnd - t0)/1000)}s</span>
+            <span><Reticle /> TURN 01 · {loading ? "LOADING ROLLOUT…" : (windowMs ? `LAST ${windowMs/3600000|0}H` : "TASK_STARTED → TASK_COMPLETE")} · DUR {loading ? "—" : Math.round((tEnd - t0)/1000) + "s"}</span>
             <span>TTFT {session.ttft_ms}ms</span>
           </div>
           <div className="track">
-            {scrubDots.map((d) => (
+            {!loading && scrubDots.map((d) => (
               <span key={d.i} style={{
                 position: "absolute",
                 left: `${d.pct}%`,
@@ -1266,10 +1296,27 @@ function TimelineView({ session, setSelected, setView, onTokenBump }) {
               }}></span>
             ))}
           </div>
+          {loading && <div className="tl-scan" aria-hidden="true"></div>}
         </div>
 
         <div className="tl-stream" ref={streamRef}>
-          {(() => {
+          {loading ? (
+            <div className="tl-skel" aria-busy="true" aria-label="Loading rollout">
+              {Array.from({ length: 7 }).map((_, i) => (
+                <div key={i} className="tl-skel-row" style={{ animationDelay: `${i * 70}ms` }}>
+                  <span className="sk-ts shimmer"></span>
+                  <span className="sk-body">
+                    <span className="sk-head">
+                      <span className="sk-tag shimmer" style={{ width: 90 + (i % 3) * 34 }}></span>
+                      <span className="sk-meta shimmer" style={{ width: 54 }}></span>
+                    </span>
+                    <span className="sk-line shimmer" style={{ width: `${68 - (i % 4) * 12}%` }}></span>
+                    {i % 3 === 0 && <span className="sk-line shimmer" style={{ width: `${44 - (i % 2) * 10}%` }}></span>}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (() => {
             // display newest-first; in "+SUBS" scope each row carries a left gutter
             // with depth bars + agent name so you can read each event's origin
             const display = filtered.slice().reverse();
@@ -1288,7 +1335,7 @@ function TimelineView({ session, setSelected, setView, onTokenBump }) {
                       <span className="ev-src-name">{e._srcName}</span>
                     </div>
                   )}
-                  <EventRow e={e} delta={e._delta} outByCall={outByCall} isOpen={isOpen} toggle={() => toggle(key)} onJump={(id) => { setSelected(id); }} />
+                  <EventRow e={e} delta={e._delta} outByCall={outByCall} isOpen={isOpen} toggle={() => toggle(key)} onJump={(id) => { setSelected(id); }} onExpand={(ev, out) => setExecModal({ ev, out })} />
                 </div>
               );
             });
@@ -1348,11 +1395,19 @@ function TimelineView({ session, setSelected, setView, onTokenBump }) {
         </div>
         </div>
       </aside>
+      {execModal && <ExecModal ev={execModal.ev} out={execModal.out} onClose={() => setExecModal(null)} />}
     </div>
   );
 }
 
-function EventRow({ e, delta, outByCall, isOpen, toggle, onJump }) {
+/* ============================================================
+   exec_command output renderers live in exec-renderers.jsx
+   (shared with the Component Library). Components available here
+   via the shared global scope: DiffView · TestsView · StatusView ·
+   TableView · PlainOut · ExecOutput · ExecModal · execOverflow.
+   ============================================================ */
+
+function EventRow({ e, delta, outByCall, isOpen, toggle, onJump, onExpand }) {
   if (e.kind === "task_started") {
     return (
       <div className="ev" style={{ borderLeft: "1px solid var(--rule-strong)" }}>
@@ -1494,26 +1549,40 @@ function EventRow({ e, delta, outByCall, isOpen, toggle, onJump }) {
       : (e.args.path ? e.args.path
       : (e.args.nickname ? `${e.args.nickname} (${e.args.role}) // ${e.args.task}`
       : (e.args.thread_id ? `await ${e.args.thread_id.slice(0,12)}…` : JSON.stringify(e.args))));
+    const overflow = out ? execOverflow(out) : null;
+    const expandable = !!(out && (out.outputRender || overflow));
+    const openModal = expandable && onExpand ? () => onExpand(e, out) : null;
     return (
-      <div className={`ev tool${isSpawn ? " spawn" : ""}`}>
+      <div className={`ev tool${isSpawn ? " spawn" : ""}${expandable ? " expandable" : ""}`}>
         <div className="ts num">{fmtTimeMs(e.ts).slice(0, 12)}</div>
-        <div className="body" style={{ borderColor: isSpawn ? "var(--good)" : "var(--amber)" }}>
+        <div
+          className="body"
+          style={{ borderColor: isSpawn ? "var(--good)" : "var(--amber)" }}
+          onClick={openModal || undefined}
+          role={openModal ? "button" : undefined}
+          tabIndex={openModal ? 0 : undefined}
+          onKeyDown={openModal ? (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); openModal(); } } : undefined}
+          title={openModal ? "Open full output" : undefined}
+        >
           <div className="head">
             <span className={`who ${isSpawn ? "spawn" : "tool"}`}>
               {isSpawn ? "⊕ SPAWN_AGENT" : isWait ? "◌ WAIT_AGENT" : `▸ ${e.name.toUpperCase()}`}
             </span>
             <span>call_id {e.call_id}</span>
             {out && <span className={"chip " + (out.fail ? "warn" : "good")}>exit {out.exit} · {Math.round((out.ts - e.ts))}ms</span>}
-            {isSpawn && <button onClick={() => onJump(e.spawn_thread_id)} className="chip cyan" style={{ marginLeft: "auto", cursor: "pointer" }}>↗ open child</button>}
+            {isSpawn && <button onClick={(ev) => { ev.stopPropagation(); onJump(e.spawn_thread_id); }} className="chip cyan" style={{ marginLeft: "auto", cursor: "pointer" }}>↗ open child</button>}
           </div>
           <div className="args">$ {argSummary}</div>
-          {out && (
-            <div className={"out" + (out.fail ? " fail" : "")}>
-              <div className="muted" style={{ fontSize: 10, marginBottom: 4, letterSpacing: "0.18em" }}>
-                STDOUT · {(out.output || "").length} bytes {out.fail && "· FAILED"}
+          {out && (out.outputRender
+            ? <ExecOutput out={out} onExpand={openModal} />
+            : (
+              <div className={"out" + (out.fail ? " fail" : "")}>
+                <div className="muted" style={{ fontSize: 10, marginBottom: 4, letterSpacing: "0.18em" }}>
+                  STDOUT · {(out.output || "").length} bytes {out.fail && "· FAILED"}
+                </div>
+                <pre style={{ fontSize: 11 }}>{out.output}</pre>
               </div>
-              <pre style={{ fontSize: 11 }}>{out.output}</pre>
-            </div>
+            )
           )}
         </div>
       </div>
