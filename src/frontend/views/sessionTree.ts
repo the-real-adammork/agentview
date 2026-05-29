@@ -246,15 +246,25 @@ export const buildSessionRows = (
     .filter((session) => isRoot(session, index))
     .sort((left, right) => sessionCreatedMs(right) - sessionCreatedMs(left));
 
+  // Walk each root's subtree depth-first so every node carries its TRUE depth
+  // (sub-sub-agents are depth 2, etc.) — matching the timeline's Agent Tree.
+  // Children are ordered by spawn time (createdAt asc) within each parent.
+  const childrenOf = (parentId: string) =>
+    visible
+      .filter((session) => session.parentId === parentId)
+      .sort((left, right) => sessionCreatedMs(left) - sessionCreatedMs(right));
+
   const rows: SessionRow[] = [];
+  const seen = new Set<string>();
+  const walk = (node: SessionSummary, depth: number, isLastSub: boolean) => {
+    if (seen.has(node.id)) return;
+    seen.add(node.id);
+    rows.push({ session: node, depth, matched: matchedIds.has(node.id), isLastSub });
+    const children = childrenOf(node.id);
+    children.forEach((child, childIndex) => walk(child, depth + 1, childIndex === children.length - 1));
+  };
   for (const root of roots) {
-    rows.push({ session: root, depth: 0, matched: matchedIds.has(root.id), isLastSub: false });
-    const subs = visible
-      .filter((session) => session.id !== root.id && isDescendantOf(session, root.id, index))
-      .sort((left, right) => sessionCreatedMs(right) - sessionCreatedMs(left));
-    subs.forEach((sub, subIndex) => {
-      rows.push({ session: sub, depth: 1, matched: matchedIds.has(sub.id), isLastSub: subIndex === subs.length - 1 });
-    });
+    walk(root, 0, false);
   }
 
   return rows;

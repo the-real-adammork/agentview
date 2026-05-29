@@ -100,6 +100,23 @@ describe("sessionTree helpers", () => {
         ["sub", 1, true],
       ]);
     });
+
+    it("assigns true tree depth so sub-sub-agents are depth 2, nested under their parent", () => {
+      const root = session({ id: "root", parentId: null, createdAtMs: 1 });
+      const sub = session({ id: "sub", parentId: "root", createdAtMs: 2 });
+      const subSub = session({ id: "subSub", parentId: "sub", createdAtMs: 3 });
+      const sibling = session({ id: "sibling", parentId: "root", createdAtMs: 4 });
+
+      const rows = buildSessionRows([sibling, subSub, sub, root], () => true);
+
+      // Depth-first, spawn-ordered: root → sub → subSub → sibling, with true depths.
+      expect(rows.map((row) => [row.session.id, row.depth])).toEqual([
+        ["root", 0],
+        ["sub", 1],
+        ["subSub", 2],
+        ["sibling", 1],
+      ]);
+    });
   });
 
   describe("flattenAgentTree", () => {
