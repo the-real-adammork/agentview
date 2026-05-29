@@ -9,6 +9,9 @@ import { openStateStore, StateStoreError } from "../sqlite/stateStore";
 import { tailRolloutFile } from "../tail/liveTail";
 import { fail, ok, writeJson } from "./http";
 
+// Cap how deep the spawn subtree is walked when merging the unified +SUBS stream.
+const MAX_SUBTREE_DEPTH = 10;
+
 const badRequest = (response: ServerResponse, origin: string | undefined, message: string) => {
   writeJson(
     response,
@@ -89,6 +92,12 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
     return true;
   }
 
+  // +SUBS: merge the active thread's spawn subtree into one stream server-side, so
+  // the UI fetches once and filters ("this" = active threadId) instead of fanning
+  // out N requests and merging on the client. Tail requests stay single-thread.
+  const subtree =
+    fromByte === undefined && (url.searchParams.get("subtree") === "1" || url.searchParams.get("subtree") === "true");
+
   try {
     const codexHome = await resolveCodexHome();
     const store = await openStateStore({ codexHome });
@@ -162,6 +171,60 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
         return true;
       }
 
+      let events = cached.facts.events;
+      const warnings = [...cached.warnings, ...cached.facts.warnings];
+
+      if (subtree) {
+        // Walk the spawn subtree and fold each descendant's events into one
+        // time-ordered stream. Descendants are best-effort: a missing/unreadable
+        // rollout is skipped rather than failing the whole request.
+        const rows = await store.getAgentGraphRows(threadId, MAX_SUBTREE_DEPTH);
+        const descendantIds = [
+          ...new Set(
+            rows
+              .map((row) => row.childThreadId)
+              .filter((id): id is string => Boolean(id) && id !== threadId),
+          ),
+        ];
+
+        for (const descendantId of descendantIds) {
+          const descendant = await store.getThread(descendantId);
+          if (!descendant?.rolloutPath) continue;
+          let descendantRollout: string;
+          try {
+            descendantRollout = await resolveRolloutPath(codexHome, descendant.rolloutPath);
+          } catch {
+            continue;
+          }
+          try {
+            const descendantCached = await getRolloutFactsWithCache({
+              codexHome,
+              threadId: descendantId,
+              rolloutPath: descendantRollout,
+              parse: (sourceMtimeMs, sourceSizeBytes) =>
+                parseRolloutFile(descendantRollout, {
+                  threadId: descendantId,
+                  rolloutPath: descendantRollout,
+                  sourceMtimeMs,
+                  sourceSizeBytes,
+                }),
+            });
+            events = events.concat(descendantCached.facts.events);
+            warnings.push(...descendantCached.warnings, ...descendantCached.facts.warnings);
+          } catch {
+            // Skip a descendant whose rollout failed to parse.
+          }
+        }
+
+        events = [...events].sort((left, right) => {
+          const leftMs = Date.parse(left.timestamp);
+          const rightMs = Date.parse(right.timestamp);
+          if (leftMs !== rightMs) return leftMs - rightMs;
+          if (left.threadId !== right.threadId) return left.threadId < right.threadId ? -1 : 1;
+          return left.sourceLine - right.sourceLine;
+        });
+      }
+
       writeJson(
         response,
         200,
@@ -169,12 +232,12 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
           "rollout-cache",
           {
             threadId,
-            events: cached.facts.events,
+            events,
             facts: cached.facts,
             nextByteOffset: cached.facts.parsedThroughByte,
             cacheStatus: cached.status,
           },
-          [...cached.warnings, ...cached.facts.warnings],
+          warnings,
         ),
         origin,
       );

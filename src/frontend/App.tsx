@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { createFixtureSnapshot, realApiClient } from "./api/client";
 import { openLiveStream } from "./api/liveStream";
@@ -49,6 +49,10 @@ export function App() {
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineError, setTimelineError] = useState<ApiError | null>(null);
   const [timelineKind, setTimelineKind] = useState("all");
+  // Timeline event scope: "this" (active thread only) or "all" (+SUBS — merge the
+  // descendant agents' events). subEvents holds the fetched descendant streams.
+  const [timelineScope, setTimelineScope] = useState<"this" | "all">("this");
+  const [subtreeLoading, setSubtreeLoading] = useState(false);
   const [agentGraph, setAgentGraph] = useState<AgentGraph | undefined>(fixture.agentGraph);
   const [agentGraphLoading, setAgentGraphLoading] = useState(false);
   const [agentGraphError, setAgentGraphError] = useState<ApiError | null>(null);
@@ -193,6 +197,8 @@ export function App() {
 
     setTimelineLoading(true);
     setTimelineError(null);
+    // First paint stays single-thread for fast time-to-first-row; the SSE stream
+    // appends live deltas, and +SUBS lazily swaps in the server-merged subtree.
     realApiClient
       .getTimeline(activeSession.id, fromByte === undefined ? undefined : { fromByte })
       .then((result) => {
@@ -222,6 +228,46 @@ export function App() {
     if (activeView !== "Timeline") return;
     loadTimeline();
   }, [activeView, activeSession?.id, loadTimeline]);
+
+  // +SUBS pulls the server-merged spawn subtree once per session — one request,
+  // server-side merge — then swaps it into the payload so the rows expand in
+  // place (no blocking spinner). "this"/"+SUBS" are then pure client filters.
+  const subtreeSessionRef = useRef<string | null>(null);
+  const loadSubtree = useCallback(() => {
+    if (!activeSession?.id || subtreeSessionRef.current === activeSession.id) return;
+    const sessionId = activeSession.id;
+    setSubtreeLoading(true);
+    realApiClient
+      .getTimeline(sessionId, { subtree: true })
+      .then((result) => {
+        if (result.ok) {
+          subtreeSessionRef.current = sessionId;
+          // Keep the active thread's facts/vitals; expand events to the subtree.
+          setTimelinePayload((current) =>
+            current && current.threadId === sessionId ? { ...current, events: result.data.events } : result.data,
+          );
+        }
+      })
+      .catch(() => {
+        /* +SUBS is best-effort; the single-thread stream stays visible. */
+      })
+      .finally(() => setSubtreeLoading(false));
+  }, [activeSession?.id]);
+
+  const handleScopeChange = useCallback(
+    (next: "this" | "all") => {
+      setTimelineScope(next);
+      if (next === "all") loadSubtree();
+    },
+    [loadSubtree],
+  );
+
+  // Reset to single-thread scope whenever the active session changes; the subtree
+  // is re-merged lazily the next time +SUBS is opened for that session.
+  useEffect(() => {
+    setTimelineScope("this");
+    subtreeSessionRef.current = null;
+  }, [activeSession?.id]);
 
   const loadAgentGraph = useCallback(() => {
     if (!activeSession?.id) return;
@@ -422,6 +468,9 @@ export function App() {
               isLoading={timelineLoading}
               error={timelineError}
               activeKind={timelineKind}
+              scope={timelineScope}
+              subtreeLoading={subtreeLoading}
+              onScopeChange={handleScopeChange}
               onKindChange={setTimelineKind}
               onRefresh={() => loadTimeline()}
               onSelectSession={selectSession}

@@ -129,6 +129,8 @@ export interface TimelineEvent {
   callId?: string;
   toolName?: string;
   argumentsPreview?: string;
+  /** Extracted command line for shell-style tool calls (cmd/command/shell_command). */
+  commandPreview?: string;
   outputPreview?: string;
   outputBytes?: number;
   exitCode?: number;
@@ -421,7 +423,7 @@ export interface ObservatoryApi {
   getHealth(): Promise<ApiResult<HealthStatus>>;
   listSessions(filter?: SessionFilter, page?: PageOptions): Promise<ApiResult<SessionSummary[]>>;
   getThread?(threadId: string): Promise<ApiResult<SessionSummary>>;
-  getTimeline(threadId: string, options?: { fromByte?: number }): Promise<ApiResult<TimelinePayload>>;
+  getTimeline(threadId: string, options?: { fromByte?: number; subtree?: boolean }): Promise<ApiResult<TimelinePayload>>;
   getAgentGraph(rootThreadId: string, options?: { maxDepth?: number }): Promise<ApiResult<AgentGraph>>;
   getTokenSeries(threadId: string): Promise<ApiResult<TokenSeries>>;
   queryLogs(query?: RuntimeLogQuery): Promise<ApiResult<RuntimeLogPage>>;

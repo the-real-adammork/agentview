@@ -135,6 +135,16 @@ function TokenComposition({
   );
 }
 
+/** Origin of an event when the stream merges sub-agent threads (+SUBS scope). */
+export interface EventSource {
+  /** Tree depth: 0 root · 1 sub · 2+ sub-sub. */
+  depth: number;
+  /** Short agent name shown under the depth bars. */
+  name: string;
+  /** Depth tone: orange root · amber sub · cyan sub-sub. */
+  tone: "primary" | "amber" | "cyan";
+}
+
 interface TimelineEventRowProps {
   event: TimelineEvent;
   meta?: string;
@@ -142,10 +152,12 @@ interface TimelineEventRowProps {
   delta?: number;
   /** Whether this row just entered the live stream (feed-enter animation). */
   isNew?: boolean;
+  /** When set (+SUBS scope), prepend a depth-toned rail showing the source agent. */
+  source?: EventSource;
   onOpenThread?(threadId: string): void;
 }
 
-export function TimelineEventRow({ event, meta, delta, isNew, onOpenThread }: TimelineEventRowProps) {
+export function TimelineEventRow({ event, meta, delta, isNew, source, onOpenThread }: TimelineEventRowProps) {
   const present = presentationFor(event);
   const durationMs = event.joinedDurationMs ?? event.durationMs;
   const exitCode = event.joinedExitCode ?? event.exitCode;
@@ -155,6 +167,8 @@ export function TimelineEventRow({ event, meta, delta, isNew, onOpenThread }: Ti
   const showChildAction = event.kind === "agent_launch" && Boolean(event.childThreadId);
 
   const args =
+    // Shell-style tool calls show the clean command line, not the raw args JSON.
+    (event.commandPreview || undefined) ??
     event.argumentsPreview ??
     (event.kind === "agent_launch" && event.agentNickname
       ? `${event.agentNickname}${event.agentRole ? ` (${event.agentRole})` : ""}${event.agentTaskPreview ? ` // ${event.agentTaskPreview}` : ""}`
@@ -162,10 +176,20 @@ export function TimelineEventRow({ event, meta, delta, isNew, onOpenThread }: Ti
 
   return (
     <li
-      className={`ev ${present.evClass}${isNew ? " ev-enter" : ""}`.trim()}
+      className={`ev ${present.evClass}${isNew ? " ev-enter" : ""}${source ? " with-src" : ""}`.trim()}
       data-kind={event.kind}
       data-severity={event.severity}
     >
+      {source ? (
+        <div className="ev-src-rail" data-tone={source.tone} title={source.name}>
+          <span className="ev-src-bars" aria-hidden="true">
+            {Array.from({ length: source.depth + 1 }, (_, level) => (
+              <span className="ev-src-bar" data-lvl={Math.min(level, 2)} key={level} />
+            ))}
+          </span>
+          <span className="ev-src-name">{source.name}</span>
+        </div>
+      ) : null}
       <div className="ts num">{formatTime(event.timestamp)}</div>
       <div className="body" style={{ borderColor: present.border }}>
         <div className="head">

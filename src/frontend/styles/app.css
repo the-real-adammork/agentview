@@ -1063,26 +1063,20 @@ tbody tr[aria-current="true"] {
 
 .timeline {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr) 320px;
+  grid-template-columns: 320px minmax(0, 1fr);
   height: 100%;
   min-height: 0;
 }
 
-.tl-side,
-.tl-side-r {
+/* Single left sidebar (handoff: 320px): Agent Tree (auto) → vitals title (auto)
+   → scrollable vitals body (1fr). The stream owns the right 1fr column. */
+.tl-side {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
   min-height: 0;
   overflow: hidden;
   background: rgba(10, 8, 7, 0.72);
-}
-
-.tl-side {
   border-right: var(--border-width) solid var(--rule);
-}
-
-.tl-side-r {
-  border-left: var(--border-width) solid var(--rule);
 }
 
 .tl-main {
@@ -1090,69 +1084,6 @@ tbody tr[aria-current="true"] {
   grid-template-rows: auto auto auto minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
-}
-
-.tl-meta {
-  padding: 14px;
-  border-bottom: var(--border-width) solid var(--rule);
-}
-
-.tl-heading {
-  margin: 12px 0 8px;
-  color: var(--primary);
-  font-family: var(--display);
-  font-size: 14px;
-  letter-spacing: 0.24em;
-  line-height: 1;
-  text-transform: uppercase;
-}
-
-.tl-meta .title {
-  display: -webkit-box;
-  margin-bottom: 6px;
-  overflow: hidden;
-  color: var(--ink-strong);
-  font-family: var(--display);
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  line-height: 1.05;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-}
-
-.tl-meta .sub {
-  display: -webkit-box;
-  max-height: 8.2em;
-  overflow: hidden;
-  color: var(--ink-dim);
-  font-size: 11px;
-  line-height: 1.45;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 6;
-}
-
-.tl-meta .row {
-  display: grid;
-  grid-template-columns: 86px minmax(0, 1fr);
-  gap: 6px 12px;
-  margin-top: 12px;
-  font-size: 11px;
-}
-
-.tl-meta .row .k {
-  color: var(--ink-dim);
-  font-size: 10px;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-}
-
-.tl-meta .row .v {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--ink-strong);
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .panel-tit {
@@ -1187,11 +1118,6 @@ tbody tr[aria-current="true"] {
   color: var(--ink-dim);
   font-size: 10px;
   letter-spacing: 0.2em;
-}
-
-.tl-side__body {
-  min-height: 0;
-  overflow: auto;
 }
 
 .tl-tabs {
@@ -1270,6 +1196,54 @@ tbody tr[aria-current="true"] {
   border-left: var(--border-width) solid var(--rule-soft);
   padding: 6px 0 6px 14px;
 }
+
+/* +SUBS scope: a leading depth-toned rail names the source agent per row. */
+.ev.with-src {
+  grid-template-columns: 56px 84px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.ev-src-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding-top: 8px;
+  min-width: 0;
+}
+
+.ev-src-bars {
+  display: flex;
+  gap: 2px;
+}
+
+.ev-src-bar {
+  width: 3px;
+  height: 16px;
+  background: var(--ink-faint);
+}
+
+.ev-src-bar[data-lvl="0"] { background: var(--primary); }
+.ev-src-bar[data-lvl="1"] { background: var(--amber); }
+.ev-src-bar[data-lvl="2"] { background: var(--cyan); }
+
+.ev-src-name {
+  max-width: 54px;
+  overflow: hidden;
+  color: var(--ink-dim);
+  font-family: var(--display);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ev-src-rail[data-tone="primary"] .ev-src-name { color: var(--primary); }
+.ev-src-rail[data-tone="amber"] .ev-src-name { color: var(--amber); }
+.ev-src-rail[data-tone="cyan"] .ev-src-name { color: var(--cyan); }
 
 .ev .ts {
   padding-top: 2px;
@@ -2707,7 +2681,7 @@ tbody tr[aria-current="true"] {
   .top-hazard .center { padding: 0 14px; letter-spacing: 0.28em; font-size: 13px; gap: 12px; }
 
   .overview { grid-template-columns: 280px minmax(0, 1fr); }
-  .timeline { grid-template-columns: 300px minmax(0, 1fr) 280px; }
+  .timeline { grid-template-columns: 300px minmax(0, 1fr); }
   .diag { grid-template-columns: 240px minmax(0, 1fr) 260px; }
   .graph { grid-template-columns: minmax(0, 1fr) 300px; }
 }
@@ -2727,8 +2701,8 @@ tbody tr[aria-current="true"] {
   .tbl thead th:nth-child(7), .tbl tbody td:nth-child(7),
   .tbl thead th:nth-child(8), .tbl tbody td:nth-child(8) { display: none; }
 
-  .timeline { grid-template-columns: 300px minmax(0, 1fr); }
-  .tl-side-r { display: none; }
+  /* Sidebar (Agent Tree + Vitals) stays — it is the only side panel now. */
+  .timeline { grid-template-columns: 280px minmax(0, 1fr); }
 
   .diag { grid-template-columns: 240px minmax(0, 1fr); }
   .diag-side.right { display: none; }
@@ -2762,9 +2736,16 @@ tbody tr[aria-current="true"] {
 
   .tbl thead th:nth-child(5), .tbl tbody td:nth-child(5) { display: none; } /* Model */
 
-  /* Timeline: hide left meta (nav handles return); window chips scroll inline. */
-  .timeline { grid-template-columns: 1fr; }
-  .tl-side { display: none; }
+  /* Timeline: stack the sidebar (Agent Tree + Vitals) above the stream;
+     window chips scroll inline. */
+  .timeline { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .tl-side {
+    border-right: 0;
+    border-bottom: var(--border-width) solid var(--rule);
+    grid-template-rows: auto auto auto;
+    max-height: 300px;
+    overflow-y: auto;
+  }
   .tl-tabs { overflow-x: auto; }
   .tl-tabs button { white-space: nowrap; padding: 10px 12px; }
   .tl-range { margin-left: 0; border-left: 0; padding-left: 8px; }

@@ -63,3 +63,67 @@ describe("TimelineEventRow · token_count composition", () => {
     expect(screen.queryByText(/since last/)).toBeNull();
   });
 });
+
+describe("TimelineEventRow · sub-agent source rail", () => {
+  const baseEvent: TimelineEvent = {
+    id: "ev-sub",
+    threadId: "thread-sub",
+    timestamp: "2026-05-27T10:00:00.000Z",
+    sourceLine: 1,
+    kind: "assistant_message",
+    severity: "info",
+    previewText: "Worker did the thing.",
+  };
+
+  it("renders a depth-toned origin rail with bars and agent name when a source is given", () => {
+    render(
+      <ol>
+        <TimelineEventRow event={baseEvent} source={{ depth: 1, name: "archimedes", tone: "amber" }} />
+      </ol>,
+    );
+    const row = screen.getByText("Worker did the thing.").closest("li") as HTMLElement;
+    const rail = row.querySelector(".ev-src-rail") as HTMLElement;
+    expect(rail).not.toBeNull();
+    expect(rail.dataset.tone).toBe("amber");
+    expect(within(rail).getByText("archimedes")).toBeVisible();
+    // depth 1 → two bars (root + one sub level).
+    expect(rail.querySelectorAll(".ev-src-bar")).toHaveLength(2);
+    expect(row).toHaveClass("with-src");
+  });
+
+  it("renders no origin rail when no source is given", () => {
+    render(
+      <ol>
+        <TimelineEventRow event={baseEvent} />
+      </ol>,
+    );
+    const row = screen.getByText("Worker did the thing.").closest("li") as HTMLElement;
+    expect(row.querySelector(".ev-src-rail")).toBeNull();
+    expect(row).not.toHaveClass("with-src");
+  });
+});
+
+describe("TimelineEventRow · tool call command", () => {
+  const execEvent: TimelineEvent = {
+    id: "ev-exec",
+    threadId: "thread-1",
+    timestamp: "2026-05-27T10:00:00.000Z",
+    sourceLine: 1,
+    kind: "tool_call",
+    severity: "info",
+    previewText: "",
+    toolName: "exec_command",
+    argumentsPreview: '{"cmd":"curl -s https://example.test","workdir":"/repo","yield_time_ms":1000}',
+    commandPreview: "curl -s https://example.test",
+  };
+
+  it("shows the extracted command, not the raw arguments JSON", () => {
+    render(
+      <ol>
+        <TimelineEventRow event={execEvent} />
+      </ol>,
+    );
+    expect(screen.getByText("$ curl -s https://example.test")).toBeVisible();
+    expect(screen.queryByText(/"yield_time_ms"/)).toBeNull();
+  });
+});
