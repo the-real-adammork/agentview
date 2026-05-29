@@ -4,6 +4,9 @@ import { DatabaseSync } from "node:sqlite";
 
 import type {
   AgentEdgeStatus,
+  EdgeConfidence,
+  EdgeSource,
+  EdgeVia,
   PageOptions,
   SessionFilter,
   SessionSummary,
@@ -58,9 +61,9 @@ export interface AgentGraphRow {
   edgeStatus: AgentEdgeStatus | null;
   edgeOrder?: number | bigint | null;
   /** Set on synthetic rows produced from the reconstructed overlay. */
-  edgeSource?: import("../../shared/contracts").EdgeSource;
-  edgeConfidence?: import("../../shared/contracts").EdgeConfidence;
-  edgeVia?: import("../../shared/contracts").EdgeVia;
+  edgeSource?: EdgeSource;
+  edgeConfidence?: EdgeConfidence;
+  edgeVia?: EdgeVia;
 }
 
 interface ThreadRow {
@@ -582,7 +585,7 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
             agentRole: childMeta?.agentRole ?? null,
             parentThreadId: parentId,
             childThreadId: link.childId,
-            edgeStatus: "closed",
+            edgeStatus: "closed", // status unknown for reconstructed edges; "closed" is the least-surprising default
             edgeOrder: null,
             edgeSource: "reconstructed",
             edgeConfidence: link.confidence,
@@ -603,6 +606,8 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
               queue.push(sub.id);
             }
           }
+          // Enqueue the orchestrator itself so its own overlay children (a reconstructed
+          // orchestrator that is itself a parent) are discovered on a later iteration.
           queue.push(link.childId);
         }
       }

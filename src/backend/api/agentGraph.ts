@@ -90,6 +90,17 @@ const createNode = ({
   return node;
 };
 
+type ChildEntry = {
+  childId: string;
+  status: AgentEdgeStatus;
+  row?: AgentGraphRow;
+  edgeOrder: number;
+  sortCreatedAtMs: number;
+  edgeSource?: EdgeSource;
+  edgeConfidence?: EdgeConfidence;
+  edgeVia?: EdgeVia;
+};
+
 export const deriveAgentGraph = (
   rootThreadId: string,
   rows: AgentGraphRow[],
@@ -97,10 +108,7 @@ export const deriveAgentGraph = (
 ): AgentGraph => {
   const maxDepth = options.maxDepth ?? defaultMaxDepth;
   const metadataById = new Map<string, AgentGraphRow>();
-  const childrenByParent = new Map<
-    string,
-    Array<{ childId: string; status: AgentEdgeStatus; row?: AgentGraphRow; edgeOrder: number; sortCreatedAtMs: number; edgeSource?: EdgeSource; edgeConfidence?: EdgeConfidence; edgeVia?: EdgeVia }>
-  >();
+  const childrenByParent = new Map<string, ChildEntry[]>();
 
   for (const row of rows) {
     if (row.id) {
