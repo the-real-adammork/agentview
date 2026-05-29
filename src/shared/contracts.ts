@@ -442,6 +442,12 @@ export interface ObservatoryApi {
   getAgentGraph(rootThreadId: string, options?: { maxDepth?: number }): Promise<ApiResult<AgentGraph>>;
   getTokenSeries(threadId: string): Promise<ApiResult<TokenSeries>>;
   queryLogs(query?: RuntimeLogQuery): Promise<ApiResult<RuntimeLogPage>>;
-  getDiagnosticsSummary?(options?: { threadIds?: string[]; targetLimit?: number }): Promise<ApiResult<DiagnosticsSummary>>;
+  getDiagnosticsSummary?(options?: {
+    threadIds?: string[];
+    targetLimit?: number;
+    /** Parse rollouts for per-thread failed-command counts (slow). Default true; the
+     *  sessions-list badge call sets false to skip the 500-rollout scan. */
+    includeFailedCommands?: boolean;
+  }): Promise<ApiResult<DiagnosticsSummary>>;
   tailRawTuiLog?(options?: { fromByte?: number; maxBytes?: number }): Promise<ApiResult<RawTuiLogTail>>;
 }

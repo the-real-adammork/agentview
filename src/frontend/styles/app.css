@@ -1495,6 +1495,29 @@ tbody tr[aria-current="true"] {
   text-transform: uppercase;
 }
 
+.tl-stream__more {
+  display: flex;
+  justify-content: center;
+  padding: 14px;
+}
+
+.tl-load-older {
+  border: var(--border-width) solid var(--rule);
+  background: var(--bg-0);
+  color: var(--ink-dim);
+  cursor: pointer;
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  padding: 8px 16px;
+  text-transform: uppercase;
+}
+
+.tl-load-older:hover {
+  color: var(--ink);
+  border-color: var(--rule-strong);
+}
+
 .tl-vitals {
   min-height: 0;
   overflow: auto;

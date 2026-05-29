@@ -13,7 +13,7 @@ import { ReposView } from "./views/ReposView";
 import { SessionsView } from "./views/SessionsView";
 import { TimelineView } from "./views/TimelineView";
 import { TokensView } from "./views/TokensView";
-import { indexSessions, rootOf, sessionRepoName } from "./views/sessionTree";
+import { indexSessions, isDescendantOf, rootOf, sessionRepoName } from "./views/sessionTree";
 import type {
   AgentGraph,
   ApiError,
@@ -62,17 +62,26 @@ export function App() {
   const [tokenSeriesError, setTokenSeriesError] = useState<ApiError | null>(null);
   const [sessionDiagnostics, setSessionDiagnostics] = useState<Record<string, DiagnosticsSummary["sessionsWarningBadges"][number]>>({});
 
+  // Stable key over the session *set* so this badge fetch doesn't re-fire on every
+  // SSE token tick (which mutates `sessions` constantly) — only when ids change.
+  const sessionIdsKey = useMemo(
+    () => sessions.map((session) => session.id).sort().join(","),
+    [sessions],
+  );
+
   useEffect(() => {
     let cancelled = false;
 
-    if (!realApiClient.getDiagnosticsSummary || sessions.length === 0) {
+    if (!realApiClient.getDiagnosticsSummary || sessionIdsKey === "") {
       setSessionDiagnostics({});
       return () => undefined;
     }
 
     const timeout = setTimeout(() => {
       void realApiClient
-        .getDiagnosticsSummary?.({ threadIds: sessions.map((session) => session.id), targetLimit: 1 })
+        // List badges only need cheap logs_2 warning counts — skip the per-thread
+        // rollout parse (that detail lives in the Diagnostics view, on demand).
+        .getDiagnosticsSummary?.({ threadIds: sessionIdsKey.split(","), targetLimit: 1, includeFailedCommands: false })
         .then((result) => {
           if (cancelled || !result?.ok) {
             return;
@@ -89,7 +98,7 @@ export function App() {
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [sessions]);
+  }, [sessionIdsKey]);
 
   useEffect(() => {
     let cancelled = false;
@@ -192,13 +201,23 @@ export function App() {
     setActiveView("Sessions");
   }, []);
 
+  // Whether the active thread has descendants — a stable boolean so loadTimeline's
+  // identity doesn't change on every SSE session tick (which would re-fire the load
+  // effect in a loop and leave the stream stuck "Streaming timeline…").
+  const activeHasDescendants = useMemo(() => {
+    if (!activeSession?.id) return false;
+    const index = indexSessions(sessions);
+    return sessions.some((session) => isDescendantOf(session, activeSession.id, index));
+  }, [sessions, activeSession?.id]);
+
   const loadTimeline = useCallback((fromByte?: number) => {
     if (!activeSession?.id) return;
 
     setTimelineLoading(true);
     setTimelineError(null);
-    // First paint stays single-thread for fast time-to-first-row; the SSE stream
-    // appends live deltas, and +SUBS lazily swaps in the server-merged subtree.
+    // First paint is the active thread alone — one small rollout, fast even for a
+    // huge live orchestrator. +SUBS lazily pulls the server-merged subtree (still
+    // ONE server call — the merge is server-side, not a client fan-out).
     realApiClient
       .getTimeline(activeSession.id, fromByte === undefined ? undefined : { fromByte })
       .then((result) => {
@@ -229,12 +248,12 @@ export function App() {
     loadTimeline();
   }, [activeView, activeSession?.id, loadTimeline]);
 
-  // +SUBS pulls the server-merged spawn subtree once per session — one request,
-  // server-side merge — then swaps it into the payload so the rows expand in
-  // place (no blocking spinner). "this"/"+SUBS" are then pure client filters.
+  // +SUBS pulls the server-merged spawn subtree once per session (one server call;
+  // the merge is server-side). It swaps into the payload so rows expand in place;
+  // "this" then filters that stream back down to the active thread.
   const subtreeSessionRef = useRef<string | null>(null);
   const loadSubtree = useCallback(() => {
-    if (!activeSession?.id || subtreeSessionRef.current === activeSession.id) return;
+    if (!activeSession?.id || !activeHasDescendants || subtreeSessionRef.current === activeSession.id) return;
     const sessionId = activeSession.id;
     setSubtreeLoading(true);
     realApiClient
@@ -242,7 +261,6 @@ export function App() {
       .then((result) => {
         if (result.ok) {
           subtreeSessionRef.current = sessionId;
-          // Keep the active thread's facts/vitals; expand events to the subtree.
           setTimelinePayload((current) =>
             current && current.threadId === sessionId ? { ...current, events: result.data.events } : result.data,
           );
@@ -252,7 +270,7 @@ export function App() {
         /* +SUBS is best-effort; the single-thread stream stays visible. */
       })
       .finally(() => setSubtreeLoading(false));
-  }, [activeSession?.id]);
+  }, [activeSession?.id, activeHasDescendants]);
 
   const handleScopeChange = useCallback(
     (next: "this" | "all") => {
@@ -262,8 +280,8 @@ export function App() {
     [loadSubtree],
   );
 
-  // Reset to single-thread scope whenever the active session changes; the subtree
-  // is re-merged lazily the next time +SUBS is opened for that session.
+  // Scope resets to single-thread when the session changes; the subtree re-merges
+  // lazily the next time +SUBS is opened for that session.
   useEffect(() => {
     setTimelineScope("this");
     subtreeSessionRef.current = null;

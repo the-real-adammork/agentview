@@ -1,4 +1,4 @@
-import { access, readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { isAbsolute, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
@@ -359,11 +359,90 @@ const graphRecursiveSql = `
   ORDER BY sortDepth, sortCreatedAtMs, sortOrder, sortChildId
 `;
 
+// The relationship overlay (reconstructEdges + transcript scan) is expensive — it
+// reads rollout files — and the API opens a fresh store per request, so a
+// per-store memo never helps. Cache it module-wide, keyed by the state-db's
+// mtime/size, so concurrent and repeated requests reuse one build until the DB
+// changes. Read-only, so this is safe; bump the key when the file changes.
+let sharedOverlay: {
+  path: string;
+  key: string;
+  builtAtMs: number;
+  rebuilding: boolean;
+  value: Promise<Map<string, ReconstructedLink>>;
+} | null = null;
+// Max staleness before a background refresh is triggered (stale-while-revalidate).
+const OVERLAY_MIN_REBUILD_MS = 15_000;
+
+/**
+ * Build the reconstructed-edge overlay with its own short-lived read-only DB
+ * handle, so a background refresh never depends on a request store that may have
+ * already closed. This is the expensive part (a transcript scan over rollouts).
+ */
+const buildOverlay = async (stateDbPath: string, codexHome: string): Promise<Map<string, ReconstructedLink>> => {
+  const db = new DatabaseSync(stateDbPath, { readOnly: true });
+  try {
+    const rows = db.prepare(selectReconstructInputSql).all() as unknown as Array<{
+      id: string;
+      firstUserMessage: string | null;
+      preview: string | null;
+      cwd: string;
+      createdAtMs: number | bigint | null;
+      updatedAtMs: number | bigint | null;
+      threadSource: ThreadSource | null;
+      hasRealParent: number | bigint;
+      rolloutPath: string;
+    }>;
+    const threads: ReconstructThread[] = rows.map((row) => ({
+      id: row.id,
+      firstUserMessage: row.firstUserMessage,
+      preview: row.preview,
+      cwd: row.cwd,
+      createdAtMs: Number(row.createdAtMs ?? 0),
+      updatedAtMs: Number(row.updatedAtMs ?? 0),
+      threadSource: row.threadSource,
+      hasRealParent: Number(row.hasRealParent) === 1,
+    }));
+    const pure = reconstructEdges(threads);
+    const rolloutPathById = new Map(
+      rows.map((row) => [row.id, isAbsolute(row.rolloutPath) ? row.rolloutPath : join(codexHome, row.rolloutPath)] as const),
+    );
+    return await upgradeViaTranscript(threads, pure, {
+      rolloutPathById,
+      readText: async (path) => {
+        try {
+          return await readFile(path, "utf8");
+        } catch {
+          return "";
+        }
+      },
+    });
+  } finally {
+    db.close();
+  }
+};
+
+/** Warm the overlay cache (e.g. at server startup) so the first request is fast. */
+export const warmStateStore = async (codexHome: string): Promise<void> => {
+  try {
+    const store = await openStateStore({ codexHome });
+    try {
+      await store.listSessions({}, { limit: 1, offset: 0 });
+    } finally {
+      await store.close();
+    }
+  } catch {
+    /* Best-effort warmup; real requests will surface any error. */
+  }
+};
+
 export const openStateStore = async ({ codexHome }: { codexHome: string }): Promise<StateStore> => {
   const stateDbPath = join(codexHome, "state_5.sqlite");
 
+  let overlayKey: string;
   try {
-    await access(stateDbPath);
+    const dbStat = await stat(stateDbPath);
+    overlayKey = `${stateDbPath}:${dbStat.mtimeMs}:${dbStat.size}`;
   } catch (error) {
     throw new StateStoreError(
       "STATE_DB_MISSING",
@@ -381,61 +460,35 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
     throw error;
   }
 
-  let overlayPromise: Promise<Map<string, ReconstructedLink>> | null = null;
-  // Cached for the store's lifetime; safe because the DB is opened readOnly. If the
-  // store ever gains write access, invalidate this on write. Building it is a second
-  // scan over `threads` (cheap at hundreds–thousands of rows); revisit if that grows.
+  // Stale-while-revalidate: always return the cached overlay immediately, and when
+  // it's gone stale (DB changed and older than OVERLAY_MIN_REBUILD_MS) kick off a
+  // background rebuild so no request ever blocks on the transcript scan. Only the
+  // very first build (cold) is awaited — startup warming covers that.
   const getOverlay = (): Promise<Map<string, ReconstructedLink>> => {
-    if (overlayPromise) {
-      return overlayPromise;
+    // Only reuse the cache for the *same* DB file — the TTL grace period must not
+    // serve one DB's overlay for another (e.g. across tests with separate temp DBs).
+    if (sharedOverlay && sharedOverlay.path === stateDbPath) {
+      const fresh = sharedOverlay.key === overlayKey || Date.now() - sharedOverlay.builtAtMs < OVERLAY_MIN_REBUILD_MS;
+      if (!fresh && !sharedOverlay.rebuilding) {
+        sharedOverlay.rebuilding = true;
+        const value = buildOverlay(stateDbPath, codexHome);
+        value
+          .then(() => {
+            sharedOverlay = { path: stateDbPath, key: overlayKey, builtAtMs: Date.now(), rebuilding: false, value };
+          })
+          .catch(() => {
+            if (sharedOverlay) sharedOverlay.rebuilding = false;
+          });
+      }
+      return sharedOverlay.value;
     }
-    overlayPromise = (async () => {
-      const rows = db.prepare(selectReconstructInputSql).all() as unknown as Array<{
-        id: string;
-        firstUserMessage: string | null;
-        preview: string | null;
-        cwd: string;
-        createdAtMs: number | bigint | null;
-        updatedAtMs: number | bigint | null;
-        threadSource: ThreadSource | null;
-        hasRealParent: number | bigint;
-        rolloutPath: string;
-      }>;
-      const threads: ReconstructThread[] = rows.map((row) => ({
-        id: row.id,
-        firstUserMessage: row.firstUserMessage,
-        preview: row.preview,
-        cwd: row.cwd,
-        createdAtMs: Number(row.createdAtMs ?? 0),
-        updatedAtMs: Number(row.updatedAtMs ?? 0),
-        threadSource: row.threadSource,
-        hasRealParent: Number(row.hasRealParent) === 1,
-      }));
-      const pure = reconstructEdges(threads);
-
-      const rolloutPathById = new Map(
-        rows.map(
-          (row) => [row.id, isAbsolute(row.rolloutPath) ? row.rolloutPath : join(codexHome, row.rolloutPath)] as const,
-        ),
-      );
-
-      return upgradeViaTranscript(threads, pure, {
-        rolloutPathById,
-        readText: async (path) => {
-          try {
-            return await readFile(path, "utf8");
-          } catch {
-            return "";
-          }
-        },
-      });
-    })();
-    // If the build fails, clear the cache so the next request retries instead of
-    // permanently serving the rejected promise.
-    overlayPromise.catch(() => {
-      overlayPromise = null;
+    // Cold path (first build, different DB, or after a failure cleared the cache).
+    const value = buildOverlay(stateDbPath, codexHome);
+    sharedOverlay = { path: stateDbPath, key: overlayKey, builtAtMs: Date.now(), rebuilding: false, value };
+    value.catch(() => {
+      if (sharedOverlay?.value === value) sharedOverlay = null;
     });
-    return overlayPromise;
+    return value;
   };
 
   const store: StateStore = {

@@ -264,6 +264,7 @@ export const realApiClient: ObservatoryApi = {
     return postJson("/api/diagnostics/summary", {
       threadIds,
       ...(options?.targetLimit !== undefined ? { targetLimit: options.targetLimit } : {}),
+      ...(options?.includeFailedCommands !== undefined ? { includeFailedCommands: options.includeFailedCommands } : {}),
     });
   },
   tailRawTuiLog(options) {

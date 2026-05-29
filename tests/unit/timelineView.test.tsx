@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { sessionSummariesFixture } from "../../src/fixtures/observatoryFixtures";
@@ -74,6 +74,31 @@ describe("TimelineView · +SUBS scope", () => {
     expect(rail).not.toBeNull();
     expect(rail.dataset.tone).toBe("amber"); // ARCHIMEDES is a depth-1 sub-agent
     expect(rail.textContent).toMatch(/archimedes/i);
+  });
+
+  it("renders only the most recent 1000 events and reveals older ones on demand", () => {
+    const many: TimelineEvent[] = Array.from({ length: 1100 }, (_, index) => ({
+      id: `e${index}`,
+      threadId: root.id,
+      timestamp: new Date(Date.UTC(2026, 4, 27, 0, 0, index)).toISOString(),
+      sourceLine: index + 1,
+      kind: "assistant_message",
+      severity: "info",
+      previewText: `event ${index}`,
+    }));
+    renderTimeline({ activeSession: root, events: many, scope: "this" });
+
+    const stream = screen.getByRole("list", { name: /timeline events/i });
+    expect(stream.querySelectorAll("li.ev")).toHaveLength(1000);
+    // Newest-first: the most recent event renders, the oldest is withheld.
+    expect(screen.getByText("event 1099")).toBeVisible();
+    expect(screen.queryByText("event 0")).toBeNull();
+
+    const loadOlder = screen.getByRole("button", { name: /load older events/i });
+    expect(loadOlder).toHaveTextContent(/100 more/);
+    fireEvent.click(loadOlder);
+    expect(stream.querySelectorAll("li.ev")).toHaveLength(1100);
+    expect(screen.getByText("event 0")).toBeVisible();
   });
 
   it("marks each event with the agent's depth when viewing a sub-agent thread (THIS scope)", () => {

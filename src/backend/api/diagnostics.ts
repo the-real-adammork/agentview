@@ -334,6 +334,10 @@ export const handleDiagnosticsApiRequest = async (request: IncomingMessage, resp
 
   let threadIds: string[];
   let targetLimit: number | undefined;
+  // Parsing rollouts for per-thread failed-command counts is the slow part of the
+  // summary (O(threads) file parses). The sessions-list badge call opts out so it
+  // gets only the cheap logs_2 warning counts; the Diagnostics view opts in.
+  let includeFailedCommands = true;
   if (isSummaryPost) {
     let body: unknown;
     try {
@@ -342,14 +346,16 @@ export const handleDiagnosticsApiRequest = async (request: IncomingMessage, resp
       writeJson(response, 400, fail("logs-db", { code: "INVALID_BODY", message: "Request body must be valid JSON." }), origin);
       return true;
     }
-    const payload = (body ?? {}) as { threadIds?: unknown; targetLimit?: unknown };
+    const payload = (body ?? {}) as { threadIds?: unknown; targetLimit?: unknown; includeFailedCommands?: unknown };
     threadIds = Array.isArray(payload.threadIds)
       ? payload.threadIds.filter((threadId): threadId is string => typeof threadId === "string" && threadId.trim() !== "")
       : [];
     targetLimit = typeof payload.targetLimit === "number" && Number.isSafeInteger(payload.targetLimit) && payload.targetLimit >= 1
       ? payload.targetLimit
       : undefined;
+    if (payload.includeFailedCommands === false) includeFailedCommands = false;
   } else {
+    if (url.searchParams.get("includeFailedCommands") === "false") includeFailedCommands = false;
     const parsed = parseSummaryQuery(url);
     if (!parsed.ok) {
       writeJson(
@@ -374,7 +380,7 @@ export const handleDiagnosticsApiRequest = async (request: IncomingMessage, resp
     try {
       const summary = await store.getDiagnosticsSummary({ threadIds, targetLimit });
       const failedCommands =
-        threadIds.length > 0
+        includeFailedCommands && threadIds.length > 0
           ? await failedCommandsFromRolloutCache({ codexHome, threadIds })
           : [];
       writeJson(

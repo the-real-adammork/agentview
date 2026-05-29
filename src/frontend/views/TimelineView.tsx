@@ -27,7 +27,7 @@ interface TimelineViewProps {
    * when the thread has descendants, so scope is purely a client-side filter.
    */
   scope?: "this" | "all";
-  /** True while the server-merged subtree is being fetched for +SUBS. */
+  /** True while the one server-merged subtree call for +SUBS is in flight. */
   subtreeLoading?: boolean;
   onScopeChange?(scope: "this" | "all"): void;
   onKindChange(kind: string): void;
@@ -41,6 +41,11 @@ const compactFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 1,
   notation: "compact",
 });
+// Render only the most recent slice by default — a busy +SUBS subtree can be
+// thousands of rows, and mounting them all locks the main thread. Older events
+// stay in memory and reveal in chunks on demand.
+const DEFAULT_RENDER_LIMIT = 1000;
+const RENDER_LIMIT_STEP = 1000;
 const sessionTokens = (session: SessionSummary) => session.tokensUsed ?? session.tokenTotal;
 
 const STATUS_TONE: Record<AgentEdgeStatus, "good" | "warn"> = {
@@ -170,6 +175,9 @@ export function TimelineView({
   // the toggle pulses. The real stream is SSE-driven (App owns it); turning this
   // on also pulls the newest bytes immediately.
   const [live, setLive] = useState(false);
+  // How many of the most-recent visible events to actually render; "load older"
+  // grows it. Reset when the filter/window/scope/session changes (below).
+  const [renderLimit, setRenderLimit] = useState(DEFAULT_RENDER_LIMIT);
   // +SUBS scope merges descendant agents' events into the stream; each event keeps
   // its own threadId so its origin (depth + agent name) can be derived per row.
   const sessionIndex = indexSessions(sessions);
@@ -230,6 +238,10 @@ export function TimelineView({
   // Newest first: the stream renders most-recent events at the top. filter()
   // returns a fresh array, so reversing it does not mutate shared data.
   const visibleEvents = filterTimelineEvents(windowedEvents, activeKind).reverse();
+  // Render only the most-recent `renderLimit` (newest-first, so the slice head is
+  // the most recent); the rest reveal via "load older".
+  const renderedEvents = visibleEvents.slice(0, renderLimit);
+  const hiddenOlderCount = visibleEvents.length - renderedEvents.length;
 
   // Δ-since-last for token_count rows: chronological pass over the renderable
   // events records how much each snapshot's total grew over the previous one.
@@ -268,6 +280,12 @@ export function TimelineView({
     }
     seenEventIdsRef.current = seen;
   }, [visibleEvents]);
+
+  // Changing the filter, window, scope, or session re-frames the stream, so drop
+  // back to the most-recent page rather than carrying a grown limit across views.
+  useEffect(() => {
+    setRenderLimit(DEFAULT_RENDER_LIMIT);
+  }, [activeKind, windowMs, scope, activeSession?.id]);
 
   const latestSnapshot = facts?.tokenSnapshots.at(-1);
   const tokenTotal = activeSession?.tokensUsed ?? activeSession?.tokenTotal ?? latestSnapshot?.total ?? 0;
@@ -451,11 +469,12 @@ export function TimelineView({
               <button
                 aria-pressed={scope === "all"}
                 data-on={scope === "all" ? "true" : "false"}
+                data-loading={subtreeLoading ? "true" : undefined}
                 onClick={() => onScopeChange?.("all")}
                 title="Include events from sub-agents and their sub-agents"
                 type="button"
               >
-                +Subs
+                {subtreeLoading ? "+Subs…" : "+Subs"}
               </button>
             </div>
           ) : null}
@@ -494,7 +513,6 @@ export function TimelineView({
 
         {error ? <div role="alert" className="inline-alert">{error.message}</div> : null}
         {isLoading && visibleEvents.length === 0 ? <div role="status">Streaming timeline…</div> : null}
-        {subtreeLoading ? <div role="status">Streaming sub-agent events…</div> : null}
 
         <div className="tl-scrubber-wrap">
           <div className="hdr">
@@ -508,7 +526,7 @@ export function TimelineView({
           {visibleEvents.length === 0 ? (
             <li className="tl-stream__empty faint">-- no events in this window --</li>
           ) : null}
-          {visibleEvents.map((event) => {
+          {renderedEvents.map((event) => {
             let meta: string | undefined;
             if (event.kind === "task_started") {
               // Carries the session identity the sidebar no longer shows (handoff
@@ -531,6 +549,13 @@ export function TimelineView({
               />
             );
           })}
+          {hiddenOlderCount > 0 ? (
+            <li className="tl-stream__more">
+              <button type="button" className="tl-load-older" onClick={() => setRenderLimit((limit) => limit + RENDER_LIMIT_STEP)}>
+                ↓ Load older events · {compactFormatter.format(hiddenOlderCount)} more
+              </button>
+            </li>
+          ) : null}
         </ol>
       </section>
     </section>

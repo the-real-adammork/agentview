@@ -9,6 +9,9 @@ import { handleSessionsApiRequest } from "./api/sessions";
 import { handleStreamApiRequest } from "./api/stream";
 import { handleTimelineApiRequest } from "./api/timeline";
 import { handleTokensApiRequest } from "./api/tokens";
+import { resolveCodexHome } from "./codexPaths";
+import { openLogStore } from "./sqlite/logStore";
+import { warmStateStore } from "./sqlite/stateStore";
 
 const port = Number.parseInt(process.env.AGENTVIEW_API_PORT ?? "4317", 10);
 const host = "127.0.0.1";
@@ -92,4 +95,15 @@ const server = createServer(async (request, response) => {
 
 server.listen(port, host, () => {
   console.log(`AgentView API listening on http://${host}:${port}`);
+  // Warm the local DBs during idle boot time so the first sessions/timeline
+  // request skips the reconstructed-edge scan and the first Diagnostics open
+  // skips the cold logs_2 open.
+  void resolveCodexHome()
+    .then(async (codexHome) => {
+      await warmStateStore(codexHome);
+      await openLogStore({ codexHome })
+        .then((store) => store.close())
+        .catch(() => undefined);
+    })
+    .catch(() => undefined);
 });
