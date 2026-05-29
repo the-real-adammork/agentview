@@ -300,6 +300,9 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
     throw error;
   }
 
+  // Cached for the store's lifetime; safe because the DB is opened readOnly. If the
+  // store ever gains write access, invalidate this on write. Building it is a second
+  // scan over `threads` (cheap at hundreds–thousands of rows); revisit if that grows.
   let overlayCache: Map<string, ReconstructedLink> | null = null;
   const getOverlay = (): Map<string, ReconstructedLink> => {
     if (overlayCache) {

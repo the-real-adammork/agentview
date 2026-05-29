@@ -38,6 +38,7 @@ describe("reconstructed supervisor->orchestrator edges", () => {
         expect(orch?.parentId).toBe("supervisor");
         expect(orch?.parentEdgeSource).toBe("reconstructed");
         expect(orch?.parentEdgeConfidence).toBe("high");
+        expect(orch?.parentEdgeVia).toBe("cwd-time");
 
         const supervisor = await store.getThread("supervisor");
         expect(supervisor?.parentId ?? null).toBeNull();
