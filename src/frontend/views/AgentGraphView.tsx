@@ -180,14 +180,21 @@ export function AgentGraphView({
       graph.edges.map((edge) => {
         const open = edge.status === "open";
         const reconstructed = edge.source === "reconstructed";
-        const dash = reconstructed ? (edge.confidence === "high" ? "6 4" : "2 4") : undefined;
+        // marker/certain = solid (no dash), high = dashed, medium/low = dotted.
+        const dash = !reconstructed
+          ? undefined
+          : edge.confidence === "certain"
+            ? undefined
+            : edge.confidence === "high"
+              ? "6 4"
+              : "2 4";
         return {
           id: `${edge.parentId}-${edge.childId}`,
           source: edge.parentId,
           target: edge.childId,
           type: "default",
           animated: open && !reconstructed,
-          label: reconstructed ? `${edge.via ?? "inferred"} · ${edge.confidence ?? ""}`.trim() : edge.status,
+          label: reconstructed ? [edge.via ?? "inferred", edge.confidence].filter(Boolean).join(" · ") : edge.status,
           ariaLabel: reconstructed
             ? `Reconstructed ${edge.confidence ?? ""} edge via ${edge.via ?? "heuristic"}`
             : `${open ? "Open" : "Closed"} spawn edge`,
@@ -199,6 +206,7 @@ export function AgentGraphView({
           },
           style: dash ? { strokeDasharray: dash } : undefined,
           data: { reconstructed, confidence: edge.confidence, via: edge.via },
+          // --reconstructed/--<confidence> CSS is deferred; inline strokeDasharray is the v1 styling.
           className: reconstructed
             ? `graph-flow-edge graph-flow-edge--reconstructed graph-flow-edge--${edge.confidence ?? "low"}`
             : `graph-flow-edge graph-flow-edge--${edge.status}`,
