@@ -105,3 +105,39 @@ describe("reconstructed edges in the agent graph", () => {
     }
   });
 });
+
+describe("full rca-workbench-style run", () => {
+  it("reconstructs one supervisor over two phase orchestrators, each with a worker", async () => {
+    const fixture = await createCodexHomeFixture({
+      threads: [
+        { id: "supervisor", cwd: CWD, createdAtMs: 1_000_000, updatedAtMs: 9_000_000, firstUserMessage: "$implementation-execution rca-workbench", threadSource: "user" },
+        { id: "orch-1", cwd: CWD, createdAtMs: 2_000_000, updatedAtMs: 4_000_000, firstUserMessage: orchPrompt("phase-1"), threadSource: "user" },
+        { id: "orch-4", cwd: CWD, createdAtMs: 5_000_000, updatedAtMs: 6_000_000, firstUserMessage: orchPrompt("phase-4"), threadSource: "user" },
+        { id: "w1", cwd: CWD, createdAtMs: 2_500_000, updatedAtMs: 3_000_000, firstUserMessage: "phase 1 work", threadSource: "subagent" },
+        { id: "w4", cwd: CWD, createdAtMs: 5_500_000, updatedAtMs: 5_800_000, firstUserMessage: "phase 4 work", threadSource: "subagent" },
+      ],
+      edges: [
+        { parentThreadId: "orch-1", childThreadId: "w1", status: "closed" },
+        { parentThreadId: "orch-4", childThreadId: "w4", status: "closed" },
+      ],
+    });
+
+    try {
+      const store = await openStateStore({ codexHome: fixture.codexHome });
+      try {
+        const sessions = await store.listSessions({ archived: "exclude" }, { limit: 100, offset: 0 });
+        const byId = new Map(sessions.map((s) => [s.id, s]));
+        expect(byId.get("orch-1")?.parentId).toBe("supervisor");
+        expect(byId.get("orch-4")?.parentId).toBe("supervisor");
+        expect(byId.get("orch-1")?.parentEdgeSource).toBe("reconstructed");
+
+        const graph = deriveAgentGraph("supervisor", await store.getAgentGraphRows("supervisor", 5), { maxDepth: 5 });
+        expect(graph.nodes.map((n) => n.id).sort()).toEqual(["orch-1", "orch-4", "supervisor", "w1", "w4"]);
+      } finally {
+        await store.close();
+      }
+    } finally {
+      await fixture.cleanup();
+    }
+  });
+});
