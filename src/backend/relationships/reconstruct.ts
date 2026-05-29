@@ -59,7 +59,7 @@ export const reconstructEdges = (threads: ReconstructThread[]): Map<string, Reco
     if (supCandidates.length > 0) {
       const runMatches = runId ? supCandidates.filter((s) => s.c.runId === runId) : [];
       const pool = runMatches.length > 0 ? runMatches : supCandidates;
-      const windowMatches = pool.filter((s) => s.createdAtMs <= orch.createdAtMs && orch.createdAtMs <= s.updatedAtMs);
+      const windowMatches = pool.filter((s) => orch.createdAtMs <= s.updatedAtMs);
 
       if (windowMatches.length > 0) {
         const parent = windowMatches[0];
@@ -69,9 +69,11 @@ export const reconstructEdges = (threads: ReconstructThread[]): Map<string, Reco
       }
 
       const parent = pool[0];
-      links.set(orch.id, { childId: orch.id, parentId: parent.id, confidence: "medium", via: "cwd-time", runId, phase });
+      links.set(orch.id, { childId: orch.id, parentId: parent.id, confidence: "medium", via: runMatches.length > 0 ? "run-id" : "cwd-time", runId, phase });
       continue;
     }
+
+    // Tier 3 (transcript run-id scan) is layered on later in the store, not here.
 
     // Tier 4 — nearest preceding non-orchestrator user root in the same cwd.
     const fallback = classified

@@ -101,6 +101,29 @@ describe("reconstructEdges", () => {
     expect(reconstructEdges(threads).has("orch")).toBe(false);
   });
 
+  it("reports via run-id at medium confidence when a run-id match is out of the time window", () => {
+    const threads: ReconstructThread[] = [
+      {
+        ...base,
+        id: "sup",
+        firstUserMessage: "$implementation-execution docs/implementation-runs/run-a/run.yaml",
+        createdAtMs: 1000,
+        updatedAtMs: 1500, // window ends before the orchestrator spawns at 2000
+      },
+      { ...base, id: "orch", firstUserMessage: orchPrompt("phase-1", "run-a"), createdAtMs: 2000, updatedAtMs: 3000 },
+    ];
+    const edges = reconstructEdges(threads);
+    expect(edges.get("orch")).toMatchObject({ parentId: "sup", confidence: "medium", via: "run-id" });
+  });
+
+  it("ignores a dangling marker and falls through to the supervisor", () => {
+    const threads: ReconstructThread[] = [
+      { ...base, id: "sup", firstUserMessage: "$implementation-execution go", createdAtMs: 1000, updatedAtMs: 9000 },
+      { ...base, id: "orch", firstUserMessage: `[av-parent:does-not-exist] ${orchPrompt("phase-1")}`, createdAtMs: 2000, updatedAtMs: 3000 },
+    ];
+    expect(reconstructEdges(threads).get("orch")).toMatchObject({ parentId: "sup", via: "cwd-time" });
+  });
+
   it("links every phase orchestrator of one run to the same supervisor", () => {
     const threads: ReconstructThread[] = [
       { ...base, id: "sup", firstUserMessage: "$implementation-execution go", createdAtMs: 1000, updatedAtMs: 9000 },
