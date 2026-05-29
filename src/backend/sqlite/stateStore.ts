@@ -131,6 +131,7 @@ const toNumber = (value: number | bigint | null | undefined) => Number(value ?? 
 const normalizeThread = (row: ThreadRow, overlay?: Map<string, ReconstructedLink>): SessionSummary => {
   const createdAtMs = row.created_at_ms ?? row.created_at * 1000;
   const updatedAtMs = row.updated_at_ms ?? row.updated_at * 1000;
+  // Sanitize previews for display: strip the [av-parent:] marker and normalize whitespace.
   const firstUserMessagePreview = stripParentMarker(row.first_user_message);
   const preview = stripParentMarker(row.preview);
   const titlePreview = deriveSessionTitle({
