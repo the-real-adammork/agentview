@@ -34,6 +34,12 @@ export interface HealthStatus {
 }
 
 export type ThreadSource = "user" | "subagent";
+/** How confident we are in a reconstructed (non-codex) parent edge. */
+export type EdgeConfidence = "certain" | "high" | "medium" | "low";
+/** Which signal produced a reconstructed parent edge. */
+export type EdgeVia = "marker" | "run-id" | "cwd-time";
+/** Origin of a parent edge: codex's own spawn record vs. agentview's reconstruction. */
+export type EdgeSource = "codex" | "reconstructed";
 export type CountStatus = "not_requested" | "loading" | "ready" | "unavailable";
 export type FailedToolCountStatus = CountStatus | "unknown";
 export type ArchivedFilter = "include" | "exclude" | "only";
@@ -74,6 +80,12 @@ export interface SessionSummary {
   openChildCount: number;
   /** Parent thread id when this thread was spawned as a sub-agent; null/undefined for user roots. */
   parentId?: string | null;
+  /** "codex" when parentId came from thread_spawn_edges; "reconstructed" when inferred. */
+  parentEdgeSource?: EdgeSource;
+  /** Confidence of a reconstructed parent edge (absent for codex edges). */
+  parentEdgeConfidence?: EdgeConfidence;
+  /** Signal that produced a reconstructed parent edge (absent for codex edges). */
+  parentEdgeVia?: EdgeVia;
   tokenTotal: number;
   rolloutPath?: string;
   createdAtMs?: number;
@@ -255,6 +267,9 @@ export interface AgentEdge {
   parentId: string;
   childId: string;
   status: AgentEdgeStatus;
+  source?: EdgeSource;
+  confidence?: EdgeConfidence;
+  via?: EdgeVia;
 }
 
 export interface AgentGraph {
