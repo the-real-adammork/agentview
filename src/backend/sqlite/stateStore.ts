@@ -11,6 +11,7 @@ import type {
 } from "../../shared/contracts";
 import { deriveRepoName } from "../../shared/repoName";
 import { deriveSessionTitle } from "./threadTitle";
+import { reconstructEdges, type ReconstructThread, type ReconstructedLink } from "../relationships/reconstruct";
 
 export class StateStoreError extends Error {
   code: string;
@@ -120,7 +121,7 @@ const stripGitOrigin = (value: string | null) => {
 
 const toNumber = (value: number | bigint | null | undefined) => Number(value ?? 0);
 
-const normalizeThread = (row: ThreadRow): SessionSummary => {
+const normalizeThread = (row: ThreadRow, overlay?: Map<string, ReconstructedLink>): SessionSummary => {
   const createdAtMs = row.created_at_ms ?? row.created_at * 1000;
   const updatedAtMs = row.updated_at_ms ?? row.updated_at * 1000;
   const firstUserMessagePreview = trimPreview(row.first_user_message);
@@ -137,6 +138,8 @@ const normalizeThread = (row: ThreadRow): SessionSummary => {
   const tokenTotal = toNumber(row.tokens_used);
   const branch = row.git_branch ?? "";
   const model = row.model ?? null;
+  const realParentId = row.parent_thread_id ?? null;
+  const reconstructed = !realParentId ? overlay?.get(row.id) : undefined;
 
   return {
     id: row.id,
@@ -149,7 +152,10 @@ const normalizeThread = (row: ThreadRow): SessionSummary => {
     lastMessage: preview || firstUserMessagePreview,
     childCount: toNumber(row.child_count),
     openChildCount: toNumber(row.open_child_count),
-    parentId: row.parent_thread_id ?? null,
+    parentId: realParentId ?? reconstructed?.parentId ?? null,
+    parentEdgeSource: realParentId ? "codex" : reconstructed ? "reconstructed" : undefined,
+    parentEdgeConfidence: reconstructed?.confidence,
+    parentEdgeVia: reconstructed?.via,
     tokenTotal,
     rolloutPath: row.rollout_path,
     createdAtMs,
@@ -258,6 +264,20 @@ const selectThreadSql = `
   LEFT JOIN thread_spawn_edges parent_edge ON parent_edge.child_thread_id = t.id
 `;
 
+const selectReconstructInputSql = `
+  SELECT
+    t.id AS id,
+    t.first_user_message AS firstUserMessage,
+    t.preview AS preview,
+    t.cwd AS cwd,
+    COALESCE(t.created_at_ms, t.created_at * 1000) AS createdAtMs,
+    COALESCE(t.updated_at_ms, t.updated_at * 1000) AS updatedAtMs,
+    t.thread_source AS threadSource,
+    CASE WHEN parent_edge.child_thread_id IS NULL THEN 0 ELSE 1 END AS hasRealParent
+  FROM threads t
+  LEFT JOIN thread_spawn_edges parent_edge ON parent_edge.child_thread_id = t.id
+`;
+
 export const openStateStore = async ({ codexHome }: { codexHome: string }): Promise<StateStore> => {
   const stateDbPath = join(codexHome, "state_5.sqlite");
 
@@ -279,6 +299,35 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
     db.close();
     throw error;
   }
+
+  let overlayCache: Map<string, ReconstructedLink> | null = null;
+  const getOverlay = (): Map<string, ReconstructedLink> => {
+    if (overlayCache) {
+      return overlayCache;
+    }
+    const rows = db.prepare(selectReconstructInputSql).all() as unknown as Array<{
+      id: string;
+      firstUserMessage: string | null;
+      preview: string | null;
+      cwd: string;
+      createdAtMs: number | bigint | null;
+      updatedAtMs: number | bigint | null;
+      threadSource: ThreadSource | null;
+      hasRealParent: number | bigint;
+    }>;
+    const threads: ReconstructThread[] = rows.map((row) => ({
+      id: row.id,
+      firstUserMessage: row.firstUserMessage,
+      preview: row.preview,
+      cwd: row.cwd,
+      createdAtMs: Number(row.createdAtMs ?? 0),
+      updatedAtMs: Number(row.updatedAtMs ?? 0),
+      threadSource: row.threadSource,
+      hasRealParent: Number(row.hasRealParent) === 1,
+    }));
+    overlayCache = reconstructEdges(threads);
+    return overlayCache;
+  };
 
   const store: StateStore = {
     async getHealth() {
@@ -384,7 +433,7 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
           .all(parameters) as unknown as ThreadRow[];
 
         return rows
-          .map(normalizeThread)
+          .map((row) => normalizeThread(row, getOverlay()))
           .filter((session) => session.repoLabel === repoFilter)
           .slice(offset, offset + limit);
       }
@@ -393,7 +442,7 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
         .prepare(`${selectThreadSql} ${where} ${orderBy} LIMIT :limit OFFSET :offset`)
         .all({ ...parameters, limit, offset }) as unknown as ThreadRow[];
 
-      return rows.map(normalizeThread);
+      return rows.map((row) => normalizeThread(row, getOverlay()));
     },
     async getThread(threadId) {
       const row = db
@@ -403,7 +452,7 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
         `)
         .get({ threadId }) as unknown as ThreadRow | undefined;
 
-      return row ? normalizeThread(row) : null;
+      return row ? normalizeThread(row, getOverlay()) : null;
     },
     async getAgentGraphRows(rootThreadId, scanDepth) {
       return db
