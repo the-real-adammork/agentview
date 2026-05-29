@@ -577,21 +577,8 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
       const present = new Set(baseRows.map((row) => row.id).filter((id): id is string => id !== null));
       const extraRows: AgentGraphRow[] = [];
       const queue = [...present];
-      const expanded = new Set<string>();
 
-      // For each node already in the graph, attach orchestrators reconstructed under
-      // it, then pull each orchestrator's own real subtree.
-      while (queue.length > 0) {
-        const parentId = queue.shift() as string;
-        for (const link of overlay.values()) {
-          if (link.parentId !== parentId || expanded.has(link.childId) || present.has(link.childId)) {
-            continue;
-          }
-          expanded.add(link.childId);
-          present.add(link.childId);
-
-          const childMeta = db
-            .prepare(`
+      const childMetaStmt = db.prepare(`
               SELECT
                 id, title, first_user_message AS firstUserMessage, preview,
                 tokens_used AS tokensUsed,
@@ -599,7 +586,20 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
                 COALESCE(updated_at_ms, updated_at * 1000) AS updatedAtMs,
                 agent_nickname AS agentNickname, agent_role AS agentRole
               FROM threads WHERE id = :childId
-            `)
+            `);
+      const subtreeStmt = db.prepare(graphRecursiveSql);
+
+      // For each node already in the graph, attach orchestrators reconstructed under
+      // it, then pull each orchestrator's own real subtree.
+      while (queue.length > 0) {
+        const parentId = queue.shift() as string;
+        for (const link of overlay.values()) {
+          if (link.parentId !== parentId || present.has(link.childId)) {
+            continue;
+          }
+          present.add(link.childId);
+
+          const childMeta = childMetaStmt
             .get({ childId: link.childId }) as unknown as Partial<AgentGraphRow> | undefined;
 
           // Synthetic edge row: parent (supervisor) -> child (orchestrator).
@@ -623,7 +623,7 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
           });
 
           // The orchestrator's own (real) subtree.
-          const subRows = db.prepare(graphRecursiveSql).all({ rootThreadId: link.childId, scanDepth }) as unknown as AgentGraphRow[];
+          const subRows = subtreeStmt.all({ rootThreadId: link.childId, scanDepth }) as unknown as AgentGraphRow[];
           for (const sub of subRows) {
             // The recursive query emits a root metadata row (no childThreadId) for the
             // subtree root; skip that duplicate, keep the edge rows.
