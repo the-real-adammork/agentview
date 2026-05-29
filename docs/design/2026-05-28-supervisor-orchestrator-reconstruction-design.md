@@ -87,17 +87,23 @@ Notes:
 For each detected orchestrator (orphan root, `parentId == null`,
 `isOrchestrator`), choose its supervisor by the first tier that hits:
 
+The **positive supervisor classifier (`$implementation-execution`) anchors tier
+1** — not the run id. A supervisor's `first_user_message` is the skill
+invocation and frequently does *not* contain the run path (the run is set up
+mid-session), so the run id is used to **confirm/tie-break** rather than as a hard
+requirement.
+
 | Tier | Rule | Confidence | `via` |
 | --- | --- | --- | --- |
-| 0 | `markerParentId` present → parent id is explicit | **certain** | `marker` |
-| 1 | A **classified supervisor** referencing the **same `runId`**, **same cwd**, whose active window `[createdAt, updatedAt]` contains the orchestrator's `createdAt` | **high** | `run-id` |
-| 2 | As tier 1 but active window does not contain spawn time (run id + cwd only) | **medium** | `run-id` |
-| 3 | No db run-id match → **transcript scan**: user-root whose rollout JSONL references `docs/implementation-runs/<runId>/` | **medium** | `run-id` |
-| 4 | Nothing references the run id → nearest preceding user-root in the **same cwd** | **low** | `cwd-time` |
+| 0 | `markerParentId` present and resolves to a known thread → parent id is explicit | **certain** | `marker` |
+| 1 | A **classified supervisor**, **same cwd**, created no later than the orchestrator, whose active window `[createdAt, updatedAt]` contains the orchestrator's `createdAt`. A matching `runId` (when both carry one) confirms and sets `via`. | **high** | `run-id` if run id matched, else `cwd-time` |
+| 2 | A classified supervisor, same cwd, created before the orchestrator, but window does **not** contain the spawn time | **medium** | `cwd-time` |
+| 3 | No db candidate → **transcript scan**: user-root whose rollout JSONL references `docs/implementation-runs/<runId>/`; upgrades unlinked/low orchestrators only | **medium** | `run-id` |
+| 4 | Nearest preceding non-orchestrator user-root in the **same cwd** | **low** | `cwd-time` |
 | — | No candidate → **leave orphan, draw no edge** (never fabricate) | — | — |
 
 **Tie-breakers within a tier:** prefer the candidate with the **earliest
-`createdAt`** (the run originator) and the **most run-id references** (the
+`createdAt`** (the run originator), then the **largest `updatedAt`** (the
 long-lived supervisor that spawned multiple phase orchestrators).
 
 All phase-N orchestrators of one run share a run id and resolve to the same
