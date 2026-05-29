@@ -16,6 +16,7 @@ import { deriveRepoName } from "../../shared/repoName";
 import { deriveSessionTitle } from "./threadTitle";
 import { reconstructEdges, type ReconstructThread, type ReconstructedLink } from "../relationships/reconstruct";
 import { upgradeViaTranscript } from "../relationships/transcriptRunId";
+import { stripParentMarker } from "../relationships/markers";
 
 export class StateStoreError extends Error {
   code: string;
@@ -116,8 +117,6 @@ const requiredThreadColumns = [
   "preview",
 ];
 
-const trimPreview = (value: string | null | undefined) => (value ?? "").trim();
-
 const stripGitOrigin = (value: string | null) => {
   if (!value) {
     return null;
@@ -132,13 +131,13 @@ const toNumber = (value: number | bigint | null | undefined) => Number(value ?? 
 const normalizeThread = (row: ThreadRow, overlay?: Map<string, ReconstructedLink>): SessionSummary => {
   const createdAtMs = row.created_at_ms ?? row.created_at * 1000;
   const updatedAtMs = row.updated_at_ms ?? row.updated_at * 1000;
-  const firstUserMessagePreview = trimPreview(row.first_user_message);
-  const preview = trimPreview(row.preview);
+  const firstUserMessagePreview = stripParentMarker(row.first_user_message);
+  const preview = stripParentMarker(row.preview);
   const titlePreview = deriveSessionTitle({
     id: row.id,
     title: row.title,
-    firstUserMessage: row.first_user_message,
-    preview: row.preview,
+    firstUserMessage: firstUserMessagePreview,
+    preview,
     threadSource: row.thread_source,
     agentRole: row.agent_role,
     agentNickname: row.agent_nickname,

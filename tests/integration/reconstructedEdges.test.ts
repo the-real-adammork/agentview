@@ -141,3 +141,37 @@ describe("full rca-workbench-style run", () => {
     }
   });
 });
+
+describe("marker hygiene", () => {
+  it("strips the av-parent marker from preview/first-message/title fields", async () => {
+    const fixture = await createCodexHomeFixture({
+      threads: [
+        { id: "sup", cwd: CWD, createdAtMs: 1_000_000, updatedAtMs: 9_000_000, firstUserMessage: "$implementation-execution go", threadSource: "user" },
+        {
+          id: "orch",
+          cwd: CWD,
+          createdAtMs: 2_000_000,
+          updatedAtMs: 3_000_000,
+          firstUserMessage: `[av-parent:sup] ${orchPrompt("phase-1")}`,
+          preview: "[av-parent:sup] latest line",
+          threadSource: "user",
+        },
+      ],
+    });
+    try {
+      const store = await openStateStore({ codexHome: fixture.codexHome });
+      try {
+        const orch = await store.getThread("orch");
+        expect(orch?.firstUserMessagePreview).not.toContain("av-parent");
+        expect(orch?.preview).not.toContain("av-parent");
+        expect(orch?.lastMessage).not.toContain("av-parent");
+        expect(orch?.title).not.toContain("av-parent");
+        expect(orch?.parentId).toBe("sup"); // still linked via the marker
+      } finally {
+        await store.close();
+      }
+    } finally {
+      await fixture.cleanup();
+    }
+  });
+});
