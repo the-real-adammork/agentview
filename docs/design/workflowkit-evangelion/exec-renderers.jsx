@@ -115,16 +115,20 @@ function HttpView({ r, full }) {
   const body = full ? bodyText : bodyLines.slice(0, BODY_CAP).join("\n");
   return (
     <div className="xr xr-http">
-      <div className="xr-http-req">
+      <div className="xr-http-head">
+        <span className="hk">HTTP</span>
         <span className="method">{r.method || "GET"}</span>
-        <span className="url">{r.url}</span>
+        <span className={"status " + statusClass}>
+          <span className="dot"></span>
+          <span className="scode num">{r.status}</span>
+          {r.statusText && <span className="reason">{r.statusText}</span>}
+        </span>
+        <span className="metrics">
+          {r.durationMs != null && <span className="t num">{r.durationMs}ms</span>}
+          {r.size != null && <span className="sz num">{r.size}</span>}
+        </span>
       </div>
-      <div className="xr-http-status">
-        <span className={"code " + statusClass}>{r.status}</span>
-        <span className="reason">{r.statusText || ""}</span>
-        {r.durationMs != null && <span className="t num">{r.durationMs}ms</span>}
-        {r.size != null && <span className="sz num">{r.size}</span>}
-      </div>
+      <div className="xr-http-url">{r.url}</div>
       {shownHeaders.length > 0 && (
         <div className="xr-http-hdrs">
           {shownHeaders.map((h, i) => (
@@ -207,6 +211,199 @@ function FileView({ r, full }) {
   );
 }
 
+// compiler / build diagnostics (cargo build · tsc · go build · webpack)
+function BuildView({ r, full }) {
+  const CAP = 3;
+  const diags = full ? (r.diagnostics || []) : (r.diagnostics || []).slice(0, CAP);
+  const ok = (r.errors || 0) === 0;
+  return (
+    <div className="xr xr-build" data-ok={ok}>
+      <div className="xr-build-hd">
+        <span className="tool">{r.tool}</span>
+        {r.errors > 0 && <span className="b-err">✗ {r.errors} error{r.errors > 1 ? "s" : ""}</span>}
+        {r.warnings > 0 && <span className="b-warn">▲ {r.warnings} warning{r.warnings > 1 ? "s" : ""}</span>}
+        {ok && !r.warnings && <span className="b-ok">✓ clean</span>}
+        {r.durationMs != null && <span className="b-dur num">{(r.durationMs / 1000).toFixed(1)}s</span>}
+      </div>
+      <div className="xr-build-list">
+        {diags.map((d, i) => (
+          <div key={i} className={"xr-diag " + d.severity}>
+            <div className="d-hd">
+              <span className="sev">{d.severity}{d.code ? `[${d.code}]` : ""}</span>
+              <span className="loc num">{d.file}:{d.line}{d.col ? `:${d.col}` : ""}</span>
+            </div>
+            <div className="d-msg">{d.message}</div>
+            {d.snippet && d.snippet.length > 0 && (
+              <div className="d-snip">
+                {d.snippet.map((s, si) => (
+                  <React.Fragment key={si}>
+                    <div className="d-snip-line">
+                      <span className="n num">{s.n}</span>
+                      <span className="c">{s.text === "" ? "\u00a0" : s.text}</span>
+                    </div>
+                    {s.caret && (
+                      <div className="d-snip-line caret">
+                        <span className="n"></span>
+                        <span className="c">{" ".repeat(s.caret[0])}{"^".repeat(Math.max(1, s.caret[1] - s.caret[0]))}</span>
+                      </div>
+                    )}
+                  </React.Fragment>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// stack trace / panic (python traceback · rust panic · node error)
+// frames ordered outermost → innermost; the LAST frame is the error site
+function TraceView({ r, full }) {
+  const frames = r.frames || [];
+  const CAP = 3;
+  const hidden = !full && frames.length > CAP ? frames.length - CAP : 0;
+  const shown = full ? frames : frames.slice(frames.length - CAP);
+  return (
+    <div className="xr xr-trace">
+      <div className="xr-trace-hd">
+        <span className="exc">{r.exception}</span>
+        {r.lang && <span className="lang num">{r.lang}</span>}
+      </div>
+      {r.message && <div className="xr-trace-msg">{r.message}</div>}
+      <div className="xr-trace-frames">
+        {hidden > 0 && <div className="xr-tr-elide">⋯ {hidden} earlier frame{hidden > 1 ? "s" : ""}</div>}
+        {shown.map((f, i) => (
+          <div key={i} className={"xr-tr-frame " + (f.user ? "user" : "lib")}>
+            <div className="f-loc">
+              <span className="arrow">{f.user ? "▸" : "·"}</span>
+              <span className="fn">{f.fn}</span>
+              <span className="at num">{f.file}:{f.line}</span>
+            </div>
+            {f.code && <div className="f-code">{f.code}</div>}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// linter diagnostics (eslint · ruff · clippy): grouped by file w/ severity
+function LintView({ r, full }) {
+  const CAP = 6;
+  let shown = 0;
+  return (
+    <div className="xr xr-lint">
+      <div className="xr-lint-hd">
+        <span className="tool">{r.tool}</span>
+        {r.errors > 0 && <span className="l-err">{r.errors} error{r.errors > 1 ? "s" : ""}</span>}
+        {r.warnings > 0 && <span className="l-warn">{r.warnings} warning{r.warnings > 1 ? "s" : ""}</span>}
+        {!r.errors && !r.warnings && <span className="l-ok">✓ clean</span>}
+      </div>
+      {r.files.map((f, fi) => {
+        if (!full && shown >= CAP) return null;
+        const issues = full ? f.issues : f.issues.slice(0, Math.max(0, CAP - shown));
+        shown += issues.length;
+        return (
+          <div key={fi} className="xr-lint-file">
+            <div className="xr-lint-file-hd"><span className="path">{f.path}</span><span className="cnt num">{f.issues.length}</span></div>
+            {issues.map((it, ii) => (
+              <div key={ii} className={"xr-lint-row " + it.severity}>
+                <span className="sev-dot"></span>
+                <span className="loc num">{it.line}:{it.col}</span>
+                <span className="msg">{it.message}</span>
+                <span className="rule num">{it.rule}</span>
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// directory listing (ls -la · tree · find): structure, type glyphs, sizes
+function TreeView({ r, full }) {
+  const CAP = 8;
+  const entries = full ? r.entries : r.entries.slice(0, CAP);
+  const glyph = (t) => t === "dir" ? "▸" : t === "link" ? "↳" : "·";
+  return (
+    <div className="xr xr-tree">
+      {r.root && <div className="xr-tree-root">{r.root}</div>}
+      {entries.map((e, i) => (
+        <div key={i} className={"xr-tree-row " + e.type}>
+          <span className="indent" style={{ width: (e.depth || 0) * 14 }}></span>
+          <span className="tg">{glyph(e.type)}</span>
+          <span className="nm">{e.name}{e.type === "dir" ? "/" : ""}</span>
+          {e.count != null && <span className="ct num">{e.count} item{e.count !== 1 ? "s" : ""}</span>}
+          {e.size && <span className="sz num">{e.size}</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// commit history (git log --oneline · git blame)
+function LogView({ r, full }) {
+  const CAP = 5;
+  const commits = full ? r.commits : r.commits.slice(0, CAP);
+  return (
+    <div className="xr xr-log">
+      {commits.map((c, i) => (
+        <div key={i} className="xr-log-row">
+          <span className="rail" aria-hidden="true">{i === 0 ? "●" : "│"}</span>
+          <span className="hash num">{c.hash}</span>
+          {c.refs && c.refs.length > 0 && (
+            <span className="refs">{c.refs.map((rf, ri) => <span key={ri} className={"ref" + (/HEAD/.test(rf) ? " head" : "")}>{rf}</span>)}</span>
+          )}
+          <span className="subj">{c.subject}</span>
+          <span className="meta num">{c.author} · {c.date}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// JSON token colorizer — keys, strings, numbers, keywords
+function tokenizeJson(line) {
+  const out = [];
+  const re = /("(?:[^"\\]|\\.)*"\s*:)|("(?:[^"\\]|\\.)*")|(-?\d+\.?\d*(?:[eE][+-]?\d+)?)|(true|false|null)/g;
+  let last = 0, m, k = 0;
+  while ((m = re.exec(line))) {
+    if (m.index > last) out.push(<span key={k++}>{line.slice(last, m.index)}</span>);
+    if (m[1]) out.push(<span key={k++} className="j-key">{m[1]}</span>);
+    else if (m[2]) out.push(<span key={k++} className="j-str">{m[2]}</span>);
+    else if (m[3]) out.push(<span key={k++} className="j-num">{m[3]}</span>);
+    else if (m[4]) out.push(<span key={k++} className="j-kw">{m[4]}</span>);
+    last = re.lastIndex;
+  }
+  if (last < line.length) out.push(<span key={k++}>{line.slice(last)}</span>);
+  return out.length ? out : "\u00a0";
+}
+
+// structured data (jq · cat *.json): pretty-printed, syntax-colored
+function JsonView({ r, full }) {
+  const text = typeof r.value === "string" ? r.value : JSON.stringify(r.value, null, 2);
+  const lines = text.split("\n");
+  const CAP = 8;
+  const shown = full ? lines : lines.slice(0, CAP);
+  return (
+    <div className="xr xr-json">
+      {r.source && <div className="xr-json-src">{r.source}</div>}
+      <pre className="xr-json-body">
+        {shown.map((ln, i) => <div key={i} className="jl">{tokenizeJson(ln)}</div>)}
+      </pre>
+    </div>
+  );
+}
+
+// JSON line count helper (for overflow)
+function jsonLineCount(r) {
+  const text = typeof r.value === "string" ? r.value : JSON.stringify(r.value, null, 2);
+  return text.split("\n").length;
+}
+
 // does this exec output overflow its inline preview? returns a label or null
 function execOverflow(out) {
   const r = out.outputRender;
@@ -232,6 +429,12 @@ function execOverflow(out) {
     const extra = Math.max(0, hdrs - 3) + Math.max(0, bodyLines - 8);
     return extra > 0 ? `headers + body` : null;
   }
+  if (r.kind === "build") { const n = (r.diagnostics || []).length; return n > 3 ? `+${n - 3} diagnostics` : null; }
+  if (r.kind === "trace") { const n = (r.frames || []).length; return n > 3 ? `+${n - 3} frames` : null; }
+  if (r.kind === "lint") { const n = r.files.reduce((a, f) => a + f.issues.length, 0); return n > 6 ? `+${n - 6} issues` : null; }
+  if (r.kind === "tree") { const n = r.entries.length; return n > 8 ? `+${(r.totalEntries || n) - 8} entries` : null; }
+  if (r.kind === "log") { const n = r.commits.length; return n > 5 ? `+${(r.total || n) - 5} commits` : null; }
+  if (r.kind === "json") { const n = jsonLineCount(r); return n > 8 ? `+${n - 8} lines` : null; }
   return null;
 }
 
@@ -253,16 +456,24 @@ function ExecOutput({ out, onExpand }) {
     : kind === "file" ? <FileView r={r} />
     : kind === "matches" ? <MatchesView r={r} />
     : kind === "http" ? <HttpView r={r} />
+    : kind === "build" ? <BuildView r={r} />
+    : kind === "trace" ? <TraceView r={r} />
+    : kind === "lint" ? <LintView r={r} />
+    : kind === "tree" ? <TreeView r={r} />
+    : kind === "log" ? <LogView r={r} />
+    : kind === "json" ? <JsonView r={r} />
     : <PlainOut output={out.output} />;
 
-  const label = { diff: "DIFF", tests: "TEST RESULTS", status: "GIT STATUS", table: `${(out.outputRender && out.outputRender.totalRows) || ""} ROWS`.trim() || "TABLE", file: `FILE · ${((out.outputRender && out.outputRender.path) || "").split("/").pop()}`, matches: `${(r && r.kind === "matches") ? r.files.reduce((a, f) => a + f.matches.length, 0) : ""} MATCHES`.trim() || "MATCHES", http: `HTTP ${(r && r.status) || ""}`.trim(), plain: `STDOUT · ${(out.output || "").length} bytes` }[kind];
+  const label = { diff: "DIFF", tests: "TEST RESULTS", status: "GIT STATUS", table: `${(out.outputRender && out.outputRender.totalRows) || ""} ROWS`.trim() || "TABLE", file: `FILE · ${((out.outputRender && out.outputRender.path) || "").split("/").pop()}`, matches: `${(r && r.kind === "matches") ? r.files.reduce((a, f) => a + f.matches.length, 0) : ""} MATCHES`.trim() || "MATCHES", http: `HTTP ${(r && r.status) || ""}`.trim(), build: `BUILD${r && r.errors ? ` · ${r.errors} ERR` : ""}`, trace: `TRACE · ${(r && r.exception) || ""}`.trim(), lint: `LINT${r && (r.errors + r.warnings) ? ` · ${r.errors + r.warnings}` : ""}`, tree: `TREE${r && r.totalEntries ? ` · ${r.totalEntries}` : ""}`, log: "GIT LOG", json: `JSON · ${(((r && r.source) || "").split("/").pop()) || "data"}`, plain: `STDOUT · ${(out.output || "").length} bytes` }[kind];
 
   return (
     <div className={"out xr-out" + (out.fail ? " fail" : "")}>
-      <div className="xr-out-hd">
-        <span className="xr-kind" data-kind={kind}>{label}</span>
-        {out.fail && <span className="xr-failtag">FAILED</span>}
-      </div>
+      {kind !== "http" && (
+        <div className="xr-out-hd">
+          <span className="xr-kind" data-kind={kind}>{label}</span>
+          {out.fail && <span className="xr-failtag">FAILED</span>}
+        </div>
+      )}
       {body}
       {moreLabel && (
         <button className="xr-expand" onClick={(ev) => { ev.stopPropagation(); onExpand && onExpand(); }}>{moreLabel} ›</button>
@@ -290,6 +501,12 @@ function ExecModal({ ev, out, onClose }) {
     : kind === "file" ? <FileView r={r} full />
     : kind === "matches" ? <MatchesView r={r} full />
     : kind === "http" ? <HttpView r={r} full />
+    : kind === "build" ? <BuildView r={r} full />
+    : kind === "trace" ? <TraceView r={r} full />
+    : kind === "lint" ? <LintView r={r} full />
+    : kind === "tree" ? <TreeView r={r} full />
+    : kind === "log" ? <LogView r={r} full />
+    : kind === "json" ? <JsonView r={r} full />
     : <PlainOut output={out.output} full />;
   return (
     <div className="xr-modal-scrim" onClick={onClose}>
