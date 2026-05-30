@@ -1,16 +1,21 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 
 import type {
+  BuildOutputRender,
   DiffOutputRender,
-  DirectoryOutputRender,
   FileOutputRender,
   HttpOutputRender,
+  JsonOutputRender,
+  LintOutputRender,
+  LogOutputRender,
   MatchesOutputRender,
   OutputRender,
   StatusOutputRender,
   TableOutputRender,
   TestsOutputRender,
   TimelineEvent,
+  TraceOutputRender,
+  TreeOutputRender,
 } from "../../shared/contracts";
 
 /*
@@ -31,7 +36,12 @@ const CAP_TESTS = 2;
 const CAP_STATUS = 5;
 const CAP_TABLE = 6;
 const CAP_HTTP_HEADERS = 3;
-const CAP_DIR = 10;
+const CAP_TREE = 8;
+const CAP_LOG = 5;
+const CAP_JSON = 8;
+const CAP_BUILD = 3;
+const CAP_TRACE = 3;
+const CAP_LINT = 6;
 const CAP_PLAIN = 8;
 
 function DiffView({ r, full }: { r: DiffOutputRender; full?: boolean }) {
@@ -199,20 +209,226 @@ function MatchesView({ r, full }: { r: MatchesOutputRender; full?: boolean }) {
   );
 }
 
-function DirectoryView({ r, full }: { r: DirectoryOutputRender; full?: boolean }) {
-  const entries = full ? r.entries : r.entries.slice(0, CAP_DIR);
+const treeGlyph = (type: string) => (type === "dir" ? "▸" : type === "link" ? "↳" : "·");
+
+function TreeView({ r, full }: { r: TreeOutputRender; full?: boolean }) {
+  const entries = full ? r.entries : r.entries.slice(0, CAP_TREE);
   return (
-    <div className="xr xr-dir">
-      {entries.map((entry, i) => {
-        const isDir = entry.endsWith("/");
-        const trimmed = isDir ? entry.slice(0, -1) : entry;
-        const slash = trimmed.lastIndexOf("/");
-        const parent = slash >= 0 ? entry.slice(0, slash + 1) : "";
-        const leaf = slash >= 0 ? entry.slice(slash + 1) : entry;
+    <div className="xr xr-tree">
+      {r.root ? <div className="xr-tree-root">{r.root}</div> : null}
+      {entries.map((entry, i) => (
+        <div className={`xr-tree-row ${entry.type}`} key={i}>
+          <span className="indent" style={{ width: (entry.depth || 0) * 14 }} />
+          <span className="tg">{treeGlyph(entry.type)}</span>
+          <span className="nm">
+            {entry.name}
+            {entry.type === "dir" ? "/" : ""}
+          </span>
+          {entry.count != null ? (
+            <span className="ct num">
+              {entry.count} item{entry.count !== 1 ? "s" : ""}
+            </span>
+          ) : null}
+          {entry.size ? <span className="sz num">{entry.size}</span> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function LogView({ r, full }: { r: LogOutputRender; full?: boolean }) {
+  const commits = full ? r.commits : r.commits.slice(0, CAP_LOG);
+  return (
+    <div className="xr xr-log">
+      {commits.map((commit, i) => (
+        <div className="xr-log-row" key={i}>
+          <span className="rail" aria-hidden="true">
+            {i === 0 ? "●" : "│"}
+          </span>
+          <span className="hash num">{commit.hash}</span>
+          {commit.refs && commit.refs.length > 0 ? (
+            <span className="refs">
+              {commit.refs.map((ref, ri) => (
+                <span className={`ref${/HEAD/.test(ref) ? " head" : ""}`} key={ri}>
+                  {ref}
+                </span>
+              ))}
+            </span>
+          ) : null}
+          <span className="subj">{commit.subject}</span>
+          {commit.author || commit.date ? (
+            <span className="meta num">
+              {commit.author}
+              {commit.author && commit.date ? " · " : ""}
+              {commit.date}
+            </span>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** JSON token colorizer — keys, strings, numbers, keywords. */
+function tokenizeJson(line: string) {
+  const out: ReactNode[] = [];
+  const re = /("(?:[^"\\]|\\.)*"\s*:)|("(?:[^"\\]|\\.)*")|(-?\d+\.?\d*(?:[eE][+-]?\d+)?)|(true|false|null)/g;
+  let last = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+  while ((match = re.exec(line)) !== null) {
+    if (match.index > last) out.push(<span key={key++}>{line.slice(last, match.index)}</span>);
+    if (match[1]) out.push(<span className="j-key" key={key++}>{match[1]}</span>);
+    else if (match[2]) out.push(<span className="j-str" key={key++}>{match[2]}</span>);
+    else if (match[3]) out.push(<span className="j-num" key={key++}>{match[3]}</span>);
+    else if (match[4]) out.push(<span className="j-kw" key={key++}>{match[4]}</span>);
+    last = re.lastIndex;
+  }
+  if (last < line.length) out.push(<span key={key++}>{line.slice(last)}</span>);
+  return out.length ? out : " ";
+}
+
+function JsonView({ r, full }: { r: JsonOutputRender; full?: boolean }) {
+  const text = typeof r.value === "string" ? r.value : JSON.stringify(r.value, null, 2);
+  const lines = text.split("\n");
+  const shown = full ? lines : lines.slice(0, CAP_JSON);
+  return (
+    <div className="xr xr-json">
+      {r.source ? <div className="xr-json-src">{r.source}</div> : null}
+      <pre className="xr-json-body">
+        {shown.map((line, i) => (
+          <div className="jl" key={i}>
+            {tokenizeJson(line)}
+          </div>
+        ))}
+      </pre>
+    </div>
+  );
+}
+
+function jsonLineCount(r: JsonOutputRender): number {
+  const text = typeof r.value === "string" ? r.value : JSON.stringify(r.value, null, 2);
+  return text.split("\n").length;
+}
+
+function BuildView({ r, full }: { r: BuildOutputRender; full?: boolean }) {
+  const diagnostics = full ? r.diagnostics : r.diagnostics.slice(0, CAP_BUILD);
+  const ok = (r.errors || 0) === 0;
+  return (
+    <div className="xr xr-build" data-ok={ok}>
+      <div className="xr-build-hd">
+        <span className="tool">{r.tool}</span>
+        {r.errors > 0 ? <span className="b-err">✗ {r.errors} error{r.errors > 1 ? "s" : ""}</span> : null}
+        {r.warnings > 0 ? <span className="b-warn">▲ {r.warnings} warning{r.warnings > 1 ? "s" : ""}</span> : null}
+        {ok && !r.warnings ? <span className="b-ok">✓ clean</span> : null}
+        {r.durationMs != null ? <span className="b-dur num">{(r.durationMs / 1000).toFixed(1)}s</span> : null}
+      </div>
+      <div className="xr-build-list">
+        {diagnostics.map((diag, i) => (
+          <div className={`xr-diag ${diag.severity}`} key={i}>
+            <div className="d-hd">
+              <span className="sev">
+                {diag.severity}
+                {diag.code ? `[${diag.code}]` : ""}
+              </span>
+              <span className="loc num">
+                {diag.file}:{diag.line}
+                {diag.col ? `:${diag.col}` : ""}
+              </span>
+            </div>
+            <div className="d-msg">{diag.message}</div>
+            {diag.snippet && diag.snippet.length > 0 ? (
+              <div className="d-snip">
+                {diag.snippet.map((line, si) => (
+                  <Fragment key={si}>
+                    <div className="d-snip-line">
+                      <span className="n num">{line.n}</span>
+                      <span className="c">{line.text === "" ? " " : line.text}</span>
+                    </div>
+                    {line.caret ? (
+                      <div className="d-snip-line caret">
+                        <span className="n" />
+                        <span className="c">
+                          {" ".repeat(line.caret[0])}
+                          {"^".repeat(Math.max(1, line.caret[1] - line.caret[0]))}
+                        </span>
+                      </div>
+                    ) : null}
+                  </Fragment>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TraceView({ r, full }: { r: TraceOutputRender; full?: boolean }) {
+  const frames = r.frames || [];
+  const hidden = !full && frames.length > CAP_TRACE ? frames.length - CAP_TRACE : 0;
+  const shown = full ? frames : frames.slice(frames.length - CAP_TRACE);
+  return (
+    <div className="xr xr-trace">
+      <div className="xr-trace-hd">
+        <span className="exc">{r.exception}</span>
+        {r.lang ? <span className="lang num">{r.lang}</span> : null}
+      </div>
+      {r.message ? <div className="xr-trace-msg">{r.message}</div> : null}
+      <div className="xr-trace-frames">
+        {hidden > 0 ? (
+          <div className="xr-tr-elide">
+            ⋯ {hidden} earlier frame{hidden > 1 ? "s" : ""}
+          </div>
+        ) : null}
+        {shown.map((frame, i) => (
+          <div className={`xr-tr-frame ${frame.user ? "user" : "lib"}`} key={i}>
+            <div className="f-loc">
+              <span className="arrow">{frame.user ? "▸" : "·"}</span>
+              <span className="fn">{frame.fn}</span>
+              <span className="at num">
+                {frame.file}:{frame.line}
+              </span>
+            </div>
+            {frame.code ? <div className="f-code">{frame.code}</div> : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function LintView({ r, full }: { r: LintOutputRender; full?: boolean }) {
+  let shown = 0;
+  return (
+    <div className="xr xr-lint">
+      <div className="xr-lint-hd">
+        <span className="tool">{r.tool}</span>
+        {r.errors > 0 ? <span className="l-err">{r.errors} error{r.errors > 1 ? "s" : ""}</span> : null}
+        {r.warnings > 0 ? <span className="l-warn">{r.warnings} warning{r.warnings > 1 ? "s" : ""}</span> : null}
+        {!r.errors && !r.warnings ? <span className="l-ok">✓ clean</span> : null}
+      </div>
+      {r.files.map((file, fi) => {
+        if (!full && shown >= CAP_LINT) return null;
+        const issues = full ? file.issues : file.issues.slice(0, Math.max(0, CAP_LINT - shown));
+        shown += issues.length;
         return (
-          <div className={`xr-dir-row${isDir ? " dir" : ""}`} key={i}>
-            {parent ? <span className="p">{parent}</span> : null}
-            <span className="f">{leaf}</span>
+          <div className="xr-lint-file" key={fi}>
+            <div className="xr-lint-file-hd">
+              <span className="path">{file.path}</span>
+              <span className="cnt num">{file.issues.length}</span>
+            </div>
+            {issues.map((issue, ii) => (
+              <div className={`xr-lint-row ${issue.severity}`} key={ii}>
+                <span className="sev-dot" />
+                <span className="loc num">
+                  {issue.line}:{issue.col}
+                </span>
+                <span className="msg">{issue.message}</span>
+                <span className="rule num">{issue.rule}</span>
+              </div>
+            ))}
           </div>
         );
       })}
@@ -221,7 +437,8 @@ function DirectoryView({ r, full }: { r: DirectoryOutputRender; full?: boolean }
 }
 
 function HttpView({ r, full }: { r: HttpOutputRender; full?: boolean }) {
-  const statusClass = r.status >= 500 ? "s5" : r.status >= 400 ? "s4" : r.status >= 300 ? "s3" : "s2";
+  const statusClass =
+    r.status === undefined ? "" : r.status >= 500 ? "s5" : r.status >= 400 ? "s4" : r.status >= 300 ? "s3" : "s2";
   const headers = r.headers ?? [];
   const shownHeaders = full ? headers : headers.slice(0, CAP_HTTP_HEADERS);
   const bodyText = r.body ?? "";
@@ -234,12 +451,20 @@ function HttpView({ r, full }: { r: HttpOutputRender; full?: boolean }) {
         </span>
         <span className="url">{r.url}</span>
       </div>
-      <div className="xr-http-status">
-        <span className={`code ${statusClass}`}>{r.status}</span>
-        <span className="reason">{r.statusText ?? ""}</span>
-        {r.durationMs !== undefined ? <span className="t num">{r.durationMs}ms</span> : null}
-        {r.size !== undefined ? <span className="sz num">{r.size}</span> : null}
-      </div>
+      {r.status !== undefined ? (
+        <div className="xr-http-status">
+          <span className={`code ${statusClass}`}>{r.status}</span>
+          <span className="reason">{r.statusText ?? ""}</span>
+          {r.durationMs !== undefined ? <span className="t num">{r.durationMs}ms</span> : null}
+          {r.size !== undefined ? <span className="sz num">{r.size}</span> : null}
+        </div>
+      ) : null}
+      {r.error ? (
+        <div className="xr-http-status">
+          <span className="code s5">ERR</span>
+          <span className="reason">{r.error}</span>
+        </div>
+      ) : null}
       {shownHeaders.length > 0 ? (
         <div className="xr-http-hdrs">
           {shownHeaders.map((header, i) => (
@@ -280,8 +505,18 @@ function RenderOutput({ render, plainText, full }: { render?: OutputRender; plai
       return <FileView r={render} full={full} />;
     case "matches":
       return <MatchesView r={render} full={full} />;
-    case "directory":
-      return <DirectoryView r={render} full={full} />;
+    case "tree":
+      return <TreeView r={render} full={full} />;
+    case "log":
+      return <LogView r={render} full={full} />;
+    case "json":
+      return <JsonView r={render} full={full} />;
+    case "build":
+      return <BuildView r={render} full={full} />;
+    case "trace":
+      return <TraceView r={render} full={full} />;
+    case "lint":
+      return <LintView r={render} full={full} />;
     case "http":
       return <HttpView r={render} full={full} />;
     default:
@@ -318,9 +553,23 @@ export function execOverflow(event: TimelineEvent): string | null {
       const total = render.files.reduce((sum, file) => sum + file.matches.length, 0);
       return total > CAP_MATCHES ? `${total - CAP_MATCHES} more matches` : null;
     }
-    case "directory": {
+    case "tree": {
       const total = render.totalEntries ?? render.entries.length;
-      return render.entries.length > CAP_DIR ? `${total - CAP_DIR} more paths` : null;
+      return render.entries.length > CAP_TREE ? `${total - CAP_TREE} more entries` : null;
+    }
+    case "log":
+      return render.commits.length > CAP_LOG ? `${(render.total ?? render.commits.length) - CAP_LOG} more commits` : null;
+    case "json": {
+      const lines = jsonLineCount(render);
+      return lines > CAP_JSON ? `${lines - CAP_JSON} more lines` : null;
+    }
+    case "build":
+      return render.diagnostics.length > CAP_BUILD ? `${render.diagnostics.length - CAP_BUILD} more diagnostics` : null;
+    case "trace":
+      return render.frames.length > CAP_TRACE ? `${render.frames.length - CAP_TRACE} more frames` : null;
+    case "lint": {
+      const total = render.files.reduce((sum, file) => sum + file.issues.length, 0);
+      return total > CAP_LINT ? `${total - CAP_LINT} more issues` : null;
     }
     case "http": {
       const headers = (render.headers ?? []).length;
@@ -355,10 +604,20 @@ const kindLabel = (event: TimelineEvent): string => {
       return `FILE · ${(render.path ?? "").split("/").pop() ?? ""}`.trim();
     case "matches":
       return `${render.files.reduce((sum, file) => sum + file.matches.length, 0)} MATCHES`;
-    case "directory":
-      return `${render.totalEntries ?? render.entries.length} PATHS`;
+    case "tree":
+      return render.totalEntries ? `TREE · ${render.totalEntries}` : "TREE";
+    case "log":
+      return "GIT LOG";
+    case "json":
+      return `JSON · ${(render.source ?? "").split("/").pop() || "data"}`;
+    case "build":
+      return `BUILD${render.errors ? ` · ${render.errors} ERR` : ""}`;
+    case "trace":
+      return `TRACE · ${render.exception}`.trim();
+    case "lint":
+      return `LINT${render.errors + render.warnings ? ` · ${render.errors + render.warnings}` : ""}`;
     case "http":
-      return `HTTP ${render.status}`;
+      return render.status !== undefined ? `HTTP ${render.status}` : render.error ? "HTTP · ERR" : "HTTP";
     default:
       return `STDOUT · ${bytes.toLocaleString("en-US")} bytes`;
   }

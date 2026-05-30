@@ -7,9 +7,9 @@ import type {
   TokenSnapshot,
 } from "../../shared/contracts";
 import { maskPreviewSecrets } from "../../shared/redaction";
-import { classifyExecOutput } from "./classifyExecOutput";
+import { classifyExecOutput, classifyPatch } from "./classifyExecOutput";
 
-export const ROLLOUT_PARSER_VERSION = 11;
+export const ROLLOUT_PARSER_VERSION = 15;
 export const LARGE_OUTPUT_COLLAPSE_BYTES = 4 * 1024;
 /** How much (redacted) output we keep around to classify into `outputRender`. */
 const CLASSIFY_OUTPUT_CAP = 128 * 1024;
@@ -25,6 +25,8 @@ type MutableTimelineEvent = TimelineEvent & {
   agentStatus?: "open" | "closed" | "failed";
   /** Redacted, bounded full output carried call↔result for classification; stripped before output. */
   fullOutput?: string;
+  /** Redacted, bounded raw `apply_patch` arguments, kept to render the patch; stripped before output. */
+  fullArguments?: string;
 };
 
 export interface ParseRolloutOptions {
@@ -251,6 +253,13 @@ const argsObjectFromRecord = (record: JsonRecord) => {
 const commandPreviewFromRecord = (record: JsonRecord) => {
   const args = argsObjectFromRecord(record);
   return redactedPreview(stringValue(args?.cmd, args?.command, args?.shell_command));
+};
+
+/** Raw `apply_patch` body (redacted, bounded), kept so the UI can render the patch as a diff. */
+const patchArgumentsFromRecord = (record: JsonRecord): string | undefined => {
+  const raw = argsFromRecord(record);
+  if (typeof raw !== "string" || !/\*\*\* Begin Patch/.test(raw)) return undefined;
+  return maskPreviewSecrets(raw).slice(0, CLASSIFY_OUTPUT_CAP);
 };
 
 /**
@@ -638,6 +647,7 @@ const makeEvent = (record: JsonRecord, options: ParseRolloutOptions, sourceLine:
     // Redacted + bounded so a tool_result can be classified into outputRender at
     // join time. Stripped from every event before the facts are returned.
     fullOutput: output === undefined ? undefined : maskPreviewSecrets(output).slice(0, CLASSIFY_OUTPUT_CAP),
+    fullArguments: patchArgumentsFromRecord(record),
   };
 };
 
@@ -681,7 +691,7 @@ const deriveFacts = (events: MutableTimelineEvent[]) => {
     // Classify the command's output into a structured render once, here, where
     // the call's command and the result's output are both in hand. The UI reads
     // `outputRender` directly — no client-side parsing.
-    const render = classifyExecOutput(call.commandPreview, result?.fullOutput ?? call.fullOutput);
+    const render = classifyExecOutput(call.commandPreview, result?.fullOutput ?? call.fullOutput) ?? classifyPatch(call.fullArguments);
     if (render) call.outputRender = render;
 
     return {
@@ -802,7 +812,10 @@ export const parseRolloutLines = (lines: string[], options: ParseRolloutOptions)
 
   // The full output was only needed to classify into `outputRender`; drop it so
   // it never bloats the cached facts or the streamed payload.
-  for (const event of events) delete event.fullOutput;
+  for (const event of events) {
+    delete event.fullOutput;
+    delete event.fullArguments;
+  }
 
   return {
     threadId: options.threadId,

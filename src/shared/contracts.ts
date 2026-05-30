@@ -230,7 +230,8 @@ export interface HttpOutputRender {
   kind: "http";
   method?: string;
   url?: string;
-  status: number;
+  /** HTTP status code; absent when the request had no response line captured (no `-i`) or failed to connect. */
+  status?: number;
   statusText?: string;
   durationMs?: number;
   size?: string;
@@ -239,14 +240,114 @@ export interface HttpOutputRender {
   json?: boolean;
   headers?: HttpHeader[];
   body?: string;
+  /** Transport-level failure surfaced from `curl: (N) …` when there is no HTTP response. */
+  error?: string;
 }
 
-/** `find` / `fd` / `ls` → flat path list. */
-export interface DirectoryOutputRender {
-  kind: "directory";
-  /** One path per entry; a trailing "/" marks a directory. May be a slice of `totalEntries`. */
-  entries: string[];
+export type TreeEntryType = "dir" | "file" | "link";
+export interface TreeEntry {
+  name: string;
+  type: TreeEntryType;
+  /** Nesting depth for indentation (0 = top level). */
+  depth: number;
+  /** Human-readable size for files (e.g. "12 MB"). */
+  size?: string;
+  /** Item count for directories, when known. */
+  count?: number;
+}
+/** `ls` / `find` / `tree` → a (optionally nested) directory listing. */
+export interface TreeOutputRender {
+  kind: "tree";
+  /** Listing root (e.g. `tree dashboard/`); omitted for a bare `ls`/`find`. */
+  root?: string;
+  entries: TreeEntry[];
+  /** Total entries before the server cap (entries may be a slice). */
   totalEntries?: number;
+}
+
+/** `jq` / `cat *.json` → pretty-printed, syntax-colored JSON. */
+export interface JsonOutputRender {
+  kind: "json";
+  /** Origin label (filename), when known. */
+  source?: string;
+  /** Any JSON value; strings render verbatim, everything else is pretty-printed. */
+  value: unknown;
+}
+
+export interface LogCommit {
+  hash: string;
+  author: string;
+  date: string;
+  subject: string;
+  refs?: string[];
+}
+/** `git log` / `git blame` → commit history. */
+export interface LogOutputRender {
+  kind: "log";
+  total: number;
+  commits: LogCommit[];
+}
+
+export interface BuildSnippetLine {
+  n: number;
+  text: string;
+  /** `[start, end]` columns to underline with a caret. */
+  caret?: [number, number];
+}
+export interface BuildDiagnostic {
+  severity: "error" | "warning";
+  code?: string;
+  file: string;
+  line: number;
+  col?: number;
+  message: string;
+  snippet?: BuildSnippetLine[];
+}
+/** `cargo build` / `tsc` / `go build` → compiler diagnostics. */
+export interface BuildOutputRender {
+  kind: "build";
+  tool: string;
+  errors: number;
+  warnings: number;
+  durationMs?: number;
+  diagnostics: BuildDiagnostic[];
+}
+
+export interface LintIssue {
+  severity: "error" | "warning" | "info";
+  line: number;
+  col: number;
+  rule: string;
+  message: string;
+}
+export interface LintFile {
+  path: string;
+  issues: LintIssue[];
+}
+/** `eslint` / `ruff` / `clippy` → linter diagnostics grouped by file. */
+export interface LintOutputRender {
+  kind: "lint";
+  tool: string;
+  errors: number;
+  warnings: number;
+  files: LintFile[];
+}
+
+export interface TraceFrame {
+  fn: string;
+  file: string;
+  line: number;
+  /** True for application frames (emphasized); false for library frames (dimmed). */
+  user: boolean;
+  code?: string;
+}
+/** Python traceback / Rust panic / Node error → stack trace (outermost→innermost). */
+export interface TraceOutputRender {
+  kind: "trace";
+  lang: "python" | "rust" | "node";
+  exception: string;
+  message: string;
+  frames: TraceFrame[];
 }
 
 /** Fallback: render the raw `<pre>` preview. */
@@ -262,7 +363,12 @@ export type OutputRender =
   | FileOutputRender
   | MatchesOutputRender
   | HttpOutputRender
-  | DirectoryOutputRender
+  | TreeOutputRender
+  | JsonOutputRender
+  | LogOutputRender
+  | BuildOutputRender
+  | LintOutputRender
+  | TraceOutputRender
   | PlainOutputRender;
 
 export type OutputRenderKind = OutputRender["kind"];

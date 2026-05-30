@@ -44,14 +44,30 @@ const EXEC_KIND_CATEGORY: Record<string, ExecCategory> = {
   file: { label: "FILE", tone: "ink", border: "var(--rule-strong)" },
   matches: { label: "SEARCH", tone: "good", border: "var(--good)" },
   http: { label: "HTTP", tone: "cyan", border: "var(--cyan)" },
+  json: { label: "JSON", tone: "cyan", border: "var(--cyan)" },
+  log: { label: "GIT LOG", tone: "amber", border: "var(--amber)" },
+  build: { label: "BUILD", tone: "primary", border: "var(--primary)" },
+  lint: { label: "LINT", tone: "amber", border: "var(--amber)" },
+  trace: { label: "TRACE", tone: "warn", border: "var(--warn)" },
 };
 
 const execCategoryFromCommand = (command: string): ExecCategory => {
   const stripped = command.replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S+)\s+)+/, "").trim();
   const tokens = stripped.split(/\s+/);
   const head = (tokens[0] ?? "").toLowerCase().replace(/.*\//, "");
-  const sub = (tokens[1] ?? "").toLowerCase();
-  if (head === "git") return { label: `GIT ${sub.toUpperCase()}`.trim(), tone: "amber", border: "var(--amber)" };
+  if (head === "git") {
+    // Skip git global options (`-C <path>`, `-c <cfg>`, `--git-dir <p>`, `--no-pager`, …)
+    // so the label reads the real subcommand, not `-C`.
+    let i = 1;
+    while (i < tokens.length) {
+      const token = tokens[i];
+      if (token === "-C" || token === "-c" || token === "--git-dir" || token === "--work-tree") i += 2;
+      else if (token.startsWith("-")) i += 1;
+      else break;
+    }
+    const gitSub = (tokens[i] ?? "").toLowerCase().replace(/[^a-z0-9-].*$/, "");
+    return { label: `GIT ${gitSub.toUpperCase()}`.trim(), tone: "amber", border: "var(--amber)" };
+  }
   if (/^(?:rg|grep|ag|ack)$/.test(head)) return { label: "SEARCH", tone: "good", border: "var(--good)" };
   if (/^(?:find|fd)$/.test(head)) return { label: "FIND", tone: "cyan", border: "var(--cyan)" };
   if (/^(?:ls|tree|exa|eza)$/.test(head)) return { label: "LIST", tone: "ink", border: "var(--rule-strong)" };
@@ -67,8 +83,15 @@ const execCategoryFromCommand = (command: string): ExecCategory => {
 };
 
 const execCategory = (event: TimelineEvent): ExecCategory => {
-  const kind = event.outputRender?.kind;
-  if (kind && kind !== "plain" && EXEC_KIND_CATEGORY[kind]) return EXEC_KIND_CATEGORY[kind];
+  const render = event.outputRender;
+  const kind = render?.kind;
+  if (kind && kind !== "plain" && EXEC_KIND_CATEGORY[kind]) {
+    // A failing test run reads as a warning, not a clean (green) pass.
+    if (render?.kind === "tests" && render.failed > 0) {
+      return { label: "TEST RESULTS", tone: "warn", border: "var(--warn)" };
+    }
+    return EXEC_KIND_CATEGORY[kind];
+  }
   return execCategoryFromCommand(event.commandPreview ?? "");
 };
 
@@ -92,11 +115,18 @@ const presentationFor = (event: TimelineEvent): KindPresentation => {
       return { evClass: "context", who: "REASONING", whoTone: "dim", border: "var(--rule-soft)" };
     case "tool_call": {
       const toolName = event.toolName ?? "";
-      // Shell rows (exec_command/shell) are typed by what they ran; other tools
-      // (apply_patch, web_search, write_stdin, view_image, …) keep their name.
-      if (toolName === "exec_command" || toolName === "shell" || (!toolName && event.commandPreview)) {
+      const renderKind = event.outputRender?.kind;
+      const hasTypedRender = Boolean(renderKind && renderKind !== "plain" && EXEC_KIND_CATEGORY[renderKind]);
+      const isShell = toolName === "exec_command" || toolName === "shell" || (!toolName && Boolean(event.commandPreview));
+      // Type the row by its classified output when there is one — so a tool that
+      // isn't a shell but still produced structured output (e.g. write_stdin piping
+      // into a vitest watcher → TEST RESULTS) gets the typed label + border too.
+      // Else type a shell row by its command verb; otherwise keep the tool name.
+      if (hasTypedRender || isShell) {
         const category = execCategory(event);
-        return { evClass: "tool", who: `▸ ${category.label}`, whoTone: category.tone, border: category.border };
+        // apply_patch renders its edit as a diff, but reads clearer as "PATCH".
+        const label = toolName === "apply_patch" ? "PATCH" : category.label;
+        return { evClass: "tool", who: `▸ ${label}`, whoTone: category.tone, border: category.border };
       }
       return { evClass: "tool", who: `▸ ${(toolName || "tool").toUpperCase()}`, whoTone: "amber", border: "var(--amber)" };
     }

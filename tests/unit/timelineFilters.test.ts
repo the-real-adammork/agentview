@@ -1,11 +1,19 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  EVENT_TYPES,
   TIME_WINDOWS,
   TIMELINE_FILTERS,
+  TOOL_TYPES,
+  eventTypeCounts,
+  eventTypeKey,
+  filterByEventTypes,
+  filterByToolTypes,
   filterTimelineEvents,
   sortTimelineEvents,
   timelineFilterCount,
+  toolTypeCounts,
+  toolTypeKey,
   windowTimelineEvents,
 } from "../../src/frontend/views/timelineFilters";
 import type { TimelineEvent, TimelineEventKind } from "../../src/shared/contracts";
@@ -125,6 +133,151 @@ describe("timelineFilterCount", () => {
     expect(timelineFilterCount(events, "messages")).toBe(1);
     expect(timelineFilterCount(events, "tools")).toBe(1);
     expect(timelineFilterCount(events, "warnings")).toBe(1);
+  });
+});
+
+describe("tool sub-type filter", () => {
+  const toolWith = (kind?: TimelineEvent["outputRender"]) => ev("tool_call", { outputRender: kind });
+
+  it("exposes the typed exec-renderer kinds plus an Other bucket, in order", () => {
+    expect(TOOL_TYPES.map((type) => type.key)).toEqual([
+      "diff",
+      "matches",
+      "status",
+      "tree",
+      "file",
+      "http",
+      "table",
+      "tests",
+      "other",
+    ]);
+    expect(TOOL_TYPES.find((type) => type.key === "matches")?.label).toBe("Search");
+    expect(TOOL_TYPES.find((type) => type.key === "tree")?.label).toBe("Tree");
+  });
+
+  describe("toolTypeKey", () => {
+    it("returns the typed render kind of a tool call", () => {
+      expect(toolTypeKey(toolWith({ kind: "tree", entries: [] }))).toBe("tree");
+      expect(toolTypeKey(toolWith({ kind: "status", files: [] }))).toBe("status");
+    });
+
+    it("buckets plain / unclassified tool calls as 'other'", () => {
+      expect(toolTypeKey(toolWith(undefined))).toBe("other");
+      expect(toolTypeKey(toolWith({ kind: "plain" }))).toBe("other");
+    });
+
+    it("returns null for non-tool events (they aren't governed by this filter)", () => {
+      expect(toolTypeKey(ev("assistant_message"))).toBeNull();
+      expect(toolTypeKey(ev("reasoning"))).toBeNull();
+    });
+  });
+
+  describe("filterByToolTypes", () => {
+    const events = [
+      ev("assistant_message"),
+      toolWith({ kind: "tree", entries: [] }),
+      toolWith({ kind: "matches", files: [] }),
+      toolWith(undefined), // other
+    ];
+    const allKeys = new Set(TOOL_TYPES.map((type) => type.key));
+
+    it("is identity when every type is enabled", () => {
+      expect(filterByToolTypes(events, allKeys)).toHaveLength(4);
+    });
+
+    it("mutes tool rows whose type is disabled, leaving non-tool events untouched", () => {
+      const enabled = new Set(allKeys);
+      enabled.delete("tree");
+      const out = filterByToolTypes(events, enabled);
+      expect(out).toHaveLength(3);
+      expect(out.some((event) => event.outputRender?.kind === "tree")).toBe(false);
+      expect(out.some((event) => event.kind === "assistant_message")).toBe(true);
+    });
+
+    it("keeps only the enabled tool types when narrowed to one", () => {
+      const out = filterByToolTypes(events, new Set(["matches"]));
+      // assistant_message stays (non-tool), only the matches tool row survives
+      expect(out.map((event) => event.kind)).toEqual(["assistant_message", "tool_call"]);
+      expect(out[1].outputRender?.kind).toBe("matches");
+    });
+  });
+
+  describe("toolTypeCounts", () => {
+    it("counts tool rows per type, ignoring non-tool events", () => {
+      const counts = toolTypeCounts([
+        ev("assistant_message"),
+        toolWith({ kind: "status", files: [] }),
+        toolWith({ kind: "status", files: [] }),
+        toolWith(undefined),
+      ]);
+      expect(counts.status).toBe(2);
+      expect(counts.other).toBe(1);
+      expect(counts.diff).toBeUndefined();
+    });
+  });
+});
+
+describe("event-type filter", () => {
+  it("exposes the non-tool event kinds, in order", () => {
+    expect(EVENT_TYPES.map((type) => type.key)).toEqual([
+      "user_message",
+      "assistant_message",
+      "reasoning",
+      "turn_context",
+      "task_started",
+      "task_complete",
+      "agent_message",
+      "warning",
+    ]);
+    expect(EVENT_TYPES.find((type) => type.key === "agent_message")?.label).toBe("Agent Report");
+    expect(EVENT_TYPES.find((type) => type.key === "assistant_message")?.label).toBe("Assistant");
+  });
+
+  describe("eventTypeKey", () => {
+    it("returns the kind for a managed event type", () => {
+      expect(eventTypeKey(ev("reasoning"))).toBe("reasoning");
+      expect(eventTypeKey(ev("turn_context"))).toBe("turn_context");
+    });
+    it("returns null for kinds this filter does not manage", () => {
+      expect(eventTypeKey(ev("tool_call"))).toBeNull();
+      expect(eventTypeKey(ev("agent_launch"))).toBeNull();
+      expect(eventTypeKey(ev("token_snapshot"))).toBeNull();
+    });
+  });
+
+  describe("filterByEventTypes", () => {
+    const events = [
+      ev("user_message"),
+      ev("reasoning"),
+      ev("agent_launch"),
+      ev("tool_call"),
+      ev("turn_context"),
+    ];
+    const allKeys = new Set(EVENT_TYPES.map((type) => type.key));
+
+    it("is identity when every type is enabled", () => {
+      expect(filterByEventTypes(events, allKeys)).toHaveLength(5);
+    });
+
+    it("mutes a disabled kind, leaving unmanaged kinds untouched", () => {
+      const enabled = new Set(allKeys);
+      enabled.delete("reasoning");
+      const out = filterByEventTypes(events, enabled);
+      expect(out.some((event) => event.kind === "reasoning")).toBe(false);
+      // agent_launch + tool_call are not managed by this filter → always kept
+      expect(out.some((event) => event.kind === "agent_launch")).toBe(true);
+      expect(out.some((event) => event.kind === "tool_call")).toBe(true);
+      expect(out).toHaveLength(4);
+    });
+  });
+
+  describe("eventTypeCounts", () => {
+    it("counts managed kinds, ignoring others", () => {
+      const counts = eventTypeCounts([ev("reasoning"), ev("reasoning"), ev("user_message"), ev("tool_call")]);
+      expect(counts.reasoning).toBe(2);
+      expect(counts.user_message).toBe(1);
+      expect(counts.tool_call).toBeUndefined();
+    });
   });
 });
 

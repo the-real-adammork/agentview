@@ -9,11 +9,17 @@ import { TimelineScrubber } from "../components/TimelineScrubber";
 import { flattenAgentTree, indexSessions, isDescendantOf, sessionDepth, toneForDepth } from "./sessionTree";
 import type { AgentEdgeStatus, ApiError, SessionSummary, TimelineEvent, TimelinePayload } from "../../shared/contracts";
 import {
+  EVENT_TYPES,
   TIME_WINDOWS,
   TIMELINE_FILTERS,
+  TOOL_TYPES,
+  eventTypeCounts,
+  filterByEventTypes,
+  filterByToolTypes,
   filterTimelineEvents,
   sortTimelineEvents,
   timelineFilterCount,
+  toolTypeCounts,
   windowTimelineEvents,
 } from "./timelineFilters";
 
@@ -193,6 +199,32 @@ export function TimelineView({
   // Per-turn token_count snapshots are noisy in the stream; hide them from every
   // tab except "Tokens" by default. Toggleable so they can be brought back.
   const [hideTokens, setHideTokens] = useState(true);
+  // Tool sub-type mute filter (sidebar): each typed exec-render kind can be hidden.
+  // All on by default — composes with the group tabs as a mute layer over tool rows.
+  const [toolTypes, setToolTypes] = useState<Set<string>>(() => new Set(TOOL_TYPES.map((type) => type.key)));
+  const allToolTypesOn = toolTypes.size === TOOL_TYPES.length;
+  // Stable string of the enabled set, for the re-frame effect deps + feed-enter reset key.
+  const toolTypesKey = TOOL_TYPES.map((type) => (toolTypes.has(type.key) ? "1" : "0")).join("");
+  const toggleToolType = (key: string) =>
+    setToolTypes((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  const resetToolTypes = () => setToolTypes(new Set(TOOL_TYPES.map((type) => type.key)));
+  // Second mute layer for the noisy non-tool event kinds (reasoning, turn_context, …).
+  const [eventTypes, setEventTypes] = useState<Set<string>>(() => new Set(EVENT_TYPES.map((type) => type.key)));
+  const allEventTypesOn = eventTypes.size === EVENT_TYPES.length;
+  const eventTypesKey = EVENT_TYPES.map((type) => (eventTypes.has(type.key) ? "1" : "0")).join("");
+  const toggleEventType = (key: string) =>
+    setEventTypes((current) => {
+      const next = new Set(current);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  const resetEventTypes = () => setEventTypes(new Set(EVENT_TYPES.map((type) => type.key)));
   // +SUBS scope merges descendant agents' events into the stream; each event keeps
   // its own threadId so its origin (depth + agent name) can be derived per row.
   const sessionIndex = indexSessions(sessions);
@@ -255,9 +287,14 @@ export function TimelineView({
   // Single source of truth: the time window trims the events array itself, so the
   // scrubber rail, tab counts, header duration, and stream all derive from one slice.
   const windowedEvents = windowTimelineEvents(renderableEvents, windowMs);
-  // Newest first: the stream renders most-recent events at the top. filter()
-  // returns a fresh array, so reversing it does not mutate shared data.
-  const visibleEvents = filterTimelineEvents(windowedEvents, activeKind, hideTokens).reverse();
+  // Per-type tool-row counts for the sidebar badges — over the windowed slice and
+  // before the mute filter, so each badge shows what's available to toggle.
+  const toolCounts = toolTypeCounts(windowedEvents);
+  const eventCounts = eventTypeCounts(windowedEvents);
+  // Sidebar mute layers (tool sub-types, then event kinds), then the group tab +
+  // token filter. filter() returns a fresh array, so reversing (newest first) is safe.
+  const typeFilteredEvents = filterByEventTypes(filterByToolTypes(windowedEvents, toolTypes), eventTypes);
+  const visibleEvents = filterTimelineEvents(typeFilteredEvents, activeKind, hideTokens).reverse();
   // Render only the most-recent `renderLimit` (newest-first, so the slice head is
   // the most recent); the rest reveal via "load older".
   const renderedEvents = visibleEvents.slice(0, renderLimit);
@@ -292,7 +329,7 @@ export function TimelineView({
     visibleEvents.map((event) => event.id),
     // isLoading is part of the context so the initial fixture→real payload swap
     // (and any explicit refetch) re-baselines rather than flashing every row.
-    { resetKey: `${activeSession?.id ?? ""}|${scope}|${windowMs}|${activeKind}|${isLoading}` },
+    { resetKey: `${activeSession?.id ?? ""}|${scope}|${windowMs}|${activeKind}|${toolTypesKey}|${eventTypesKey}|${isLoading}` },
   );
 
   // Changing the filter, window, scope, or session re-frames the stream, so drop
@@ -302,7 +339,7 @@ export function TimelineView({
     // Re-framing the stream closes any open exec-output modal so it can't outlive
     // the events it was opened from (e.g. switching threads or windows).
     setExpandedEvent(null);
-  }, [activeKind, windowMs, scope, hideTokens, activeSession?.id]);
+  }, [activeKind, windowMs, scope, hideTokens, toolTypesKey, eventTypesKey, activeSession?.id]);
 
   const latestSnapshot = facts?.tokenSnapshots.at(-1);
   const tokenTotal = activeSession?.tokensUsed ?? activeSession?.tokenTotal ?? latestSnapshot?.total ?? 0;
@@ -388,6 +425,78 @@ export function TimelineView({
             <div className="faint" style={{ padding: 14 }}>-- no session selected --</div>
           </div>
         )}
+
+        <div className="tl-tooltypes-panel">
+          <div className="panel-tit">
+            <span className="dot" />
+            <span>Tool Types</span>
+            <span className="spacer" />
+            {allToolTypesOn ? (
+              <span className="meta">all</span>
+            ) : (
+              <button className="tl-tt-reset" type="button" onClick={resetToolTypes}>
+                reset
+              </button>
+            )}
+          </div>
+          <div className="tl-tooltypes" role="group" aria-label="Filter timeline by tool type">
+            {TOOL_TYPES.map((type) => {
+              const on = toolTypes.has(type.key);
+              const count = toolCounts[type.key] ?? 0;
+              return (
+                <button
+                  aria-pressed={on}
+                  className="tl-tt"
+                  data-on={on ? "true" : "false"}
+                  data-empty={count === 0 ? "true" : undefined}
+                  key={type.key}
+                  onClick={() => toggleToolType(type.key)}
+                  title={on ? `Hide ${type.label} rows` : `Show ${type.label} rows`}
+                  type="button"
+                >
+                  <span className="tl-tt-lbl">{type.label}</span>
+                  <span className="tl-tt-cnt num" aria-hidden="true">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="tl-tooltypes-panel">
+          <div className="panel-tit">
+            <span className="dot" />
+            <span>Event Types</span>
+            <span className="spacer" />
+            {allEventTypesOn ? (
+              <span className="meta">all</span>
+            ) : (
+              <button className="tl-tt-reset" type="button" onClick={resetEventTypes}>
+                reset
+              </button>
+            )}
+          </div>
+          <div className="tl-tooltypes" role="group" aria-label="Filter timeline by event type">
+            {EVENT_TYPES.map((type) => {
+              const on = eventTypes.has(type.key);
+              const count = eventCounts[type.key] ?? 0;
+              return (
+                <button
+                  aria-pressed={on}
+                  className="tl-tt"
+                  data-on={on ? "true" : "false"}
+                  data-empty={count === 0 ? "true" : undefined}
+                  key={type.key}
+                  onClick={() => toggleEventType(type.key)}
+                  title={on ? `Hide ${type.label} rows` : `Show ${type.label} rows`}
+                  type="button"
+                >
+                  <span className="tl-tt-lbl">{type.label}</span>
+                  <span className="tl-tt-cnt num" aria-hidden="true">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         <div className="panel-tit">
           <span className="dot" />

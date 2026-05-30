@@ -77,6 +77,122 @@ export const filterTimelineEvents = (events: TimelineEvent[], key: string, hideT
 export const timelineFilterCount = (events: TimelineEvent[], key: string, hideTokens = false): number =>
   filterTimelineEvents(events, key, hideTokens).length;
 
+/**
+ * Tool sub-type filter — a mute layer over tool_call rows, keyed on the typed
+ * `outputRender.kind` the row already carries (diff/search/git-status/find/…),
+ * with an "other" bucket for tool calls we couldn't classify (plain/no render).
+ * Non-tool events are not governed by this filter; they stay under the group tabs.
+ */
+export type ToolTypeKey = "diff" | "matches" | "status" | "tree" | "file" | "http" | "table" | "tests" | "other";
+
+export interface ToolTypeOption {
+  key: ToolTypeKey;
+  /** User-facing label, matching the row's WHO label vocabulary. */
+  label: string;
+}
+
+export const TOOL_TYPES: ToolTypeOption[] = [
+  { key: "diff", label: "Diff" },
+  { key: "matches", label: "Search" },
+  { key: "status", label: "Git Status" },
+  { key: "tree", label: "Tree" },
+  { key: "file", label: "File" },
+  { key: "http", label: "HTTP" },
+  { key: "table", label: "Table" },
+  { key: "tests", label: "Tests" },
+  { key: "other", label: "Other" },
+];
+
+const TYPED_TOOL_KEYS = new Set<string>(TOOL_TYPES.filter((type) => type.key !== "other").map((type) => type.key));
+
+/** The tool sub-type of a tool_call row; null for non-tool events. */
+export const toolTypeKey = (event: TimelineEvent): ToolTypeKey | null => {
+  if (event.kind !== "tool_call") return null;
+  const kind = event.outputRender?.kind;
+  return kind && TYPED_TOOL_KEYS.has(kind) ? (kind as ToolTypeKey) : "other";
+};
+
+/**
+ * Mutes tool_call rows whose sub-type isn't in `enabled`; non-tool events pass
+ * through untouched. Identity (no allocation churn aside) when every type is on.
+ */
+export const filterByToolTypes = (events: TimelineEvent[], enabled: ReadonlySet<string>): TimelineEvent[] => {
+  if (TOOL_TYPES.every((type) => enabled.has(type.key))) return events;
+  return events.filter((event) => {
+    const key = toolTypeKey(event);
+    return key === null || enabled.has(key);
+  });
+};
+
+/** Per-type tool-row counts (for the sidebar badges); non-tool events are ignored. */
+export const toolTypeCounts = (events: TimelineEvent[]): Record<string, number> => {
+  const counts: Record<string, number> = {};
+  for (const event of events) {
+    const key = toolTypeKey(event);
+    if (key) counts[key] = (counts[key] ?? 0) + 1;
+  }
+  return counts;
+};
+
+/**
+ * Event-type filter — a second sidebar mute layer, keyed on `event.kind`, for the
+ * non-tool kinds that crowd the All Events stream (reasoning, turn_context, the
+ * task markers, user/agent messages). Only the kinds it manages are governed;
+ * everything else (assistant, tool_call, warning, …) passes through.
+ */
+export type EventTypeKey = Extract<
+  TimelineEventKind,
+  | "user_message"
+  | "assistant_message"
+  | "reasoning"
+  | "turn_context"
+  | "task_started"
+  | "task_complete"
+  | "agent_message"
+  | "warning"
+>;
+
+export interface EventTypeOption {
+  key: EventTypeKey;
+  label: string;
+}
+
+export const EVENT_TYPES: EventTypeOption[] = [
+  { key: "user_message", label: "User" },
+  { key: "assistant_message", label: "Assistant" },
+  { key: "reasoning", label: "Reasoning" },
+  { key: "turn_context", label: "Turn Context" },
+  { key: "task_started", label: "Task Started" },
+  { key: "task_complete", label: "Task Complete" },
+  { key: "agent_message", label: "Agent Report" },
+  { key: "warning", label: "Warning" },
+];
+
+const EVENT_TYPE_KEYS = new Set<string>(EVENT_TYPES.map((type) => type.key));
+
+/** The managed event kind of a row, or null when this filter doesn't govern it. */
+export const eventTypeKey = (event: TimelineEvent): EventTypeKey | null =>
+  EVENT_TYPE_KEYS.has(event.kind) ? (event.kind as EventTypeKey) : null;
+
+/** Mutes events of a disabled managed kind; unmanaged kinds pass through. Identity when all enabled. */
+export const filterByEventTypes = (events: TimelineEvent[], enabled: ReadonlySet<string>): TimelineEvent[] => {
+  if (EVENT_TYPES.every((type) => enabled.has(type.key))) return events;
+  return events.filter((event) => {
+    const key = eventTypeKey(event);
+    return key === null || enabled.has(key);
+  });
+};
+
+/** Per-kind counts for the sidebar badges; unmanaged kinds are ignored. */
+export const eventTypeCounts = (events: TimelineEvent[]): Record<string, number> => {
+  const counts: Record<string, number> = {};
+  for (const event of events) {
+    const key = eventTypeKey(event);
+    if (key) counts[key] = (counts[key] ?? 0) + 1;
+  }
+  return counts;
+};
+
 export interface TimeWindowOption {
   ms: number;
   label: string;

@@ -2,14 +2,19 @@ import { describe, expect, it } from "vitest";
 
 import { classifyExecOutput } from "../../src/backend/rollout/classifyExecOutput";
 import type {
+  BuildOutputRender,
   DiffOutputRender,
-  DirectoryOutputRender,
   FileOutputRender,
   HttpOutputRender,
+  JsonOutputRender,
+  LintOutputRender,
+  LogOutputRender,
   MatchesOutputRender,
   StatusOutputRender,
   TableOutputRender,
   TestsOutputRender,
+  TraceOutputRender,
+  TreeOutputRender,
 } from "../../src/shared/contracts";
 
 describe("classifyExecOutput — diff", () => {
@@ -123,6 +128,23 @@ describe("classifyExecOutput — git status --short", () => {
     const render = classifyExecOutput('bash -lc "git status --short"', " M a.ts");
     expect(render?.kind).toBe("status");
   });
+
+  it("matches a fully-pathed git with a -C worktree flag (`/usr/bin/git -C … status --short`)", () => {
+    const render = classifyExecOutput(
+      "/usr/bin/git -C .worktrees/impl-x status --short",
+      " M docs/a.yaml\n?? docs/b.jsonl",
+    ) as StatusOutputRender;
+    expect(render.kind).toBe("status");
+    expect(render.files).toEqual([
+      { code: "M", path: "docs/a.yaml" },
+      { code: "??", path: "docs/b.jsonl" },
+    ]);
+  });
+
+  it("tolerates git global flags before the subcommand (`git --no-pager -C p status -s`)", () => {
+    const render = classifyExecOutput("git --no-pager -C repo status -s", " M x");
+    expect(render?.kind).toBe("status");
+  });
 });
 
 describe("classifyExecOutput — table (sqlite3 -column)", () => {
@@ -227,43 +249,79 @@ describe("classifyExecOutput — matches via pipe (… | rg / grep)", () => {
   });
 });
 
-describe("classifyExecOutput — directory (find / ls / fd)", () => {
-  it("parses a `find … | head` path list into directory entries", () => {
+describe("classifyExecOutput — tree (ls / find / tree)", () => {
+  it("parses `ls -la` long format into typed entries with humanized file sizes", () => {
     const output = [
-      ".local-demo-playwright-admin/state.json",
-      ".local-demo-playwright-admin/user-a.json",
-      ".local-demo-playwright-admin/phoenix-accounts/8ebc.json",
+      "total 8",
+      "drwxr-xr-x  28 adam staff      896 May 30 10:00 sessions",
+      "-rw-r--r--   1 adam staff 12582912 May 30 10:00 state_5.sqlite",
+      "lrwxr-xr-x   1 adam staff       14 May 30 10:00 current -> state_5.sqlite",
     ].join("\n");
-    const render = classifyExecOutput(
-      "find .local-demo-playwright-admin -maxdepth 2 -type f -print | head -20",
-      output,
-    ) as DirectoryOutputRender;
-    expect(render.kind).toBe("directory");
+    const render = classifyExecOutput("ls -la ~/.codex", output) as TreeOutputRender;
+    expect(render.kind).toBe("tree");
     expect(render.entries).toEqual([
-      ".local-demo-playwright-admin/state.json",
-      ".local-demo-playwright-admin/user-a.json",
-      ".local-demo-playwright-admin/phoenix-accounts/8ebc.json",
+      { name: "sessions", type: "dir", depth: 0 },
+      { name: "state_5.sqlite", type: "file", depth: 0, size: "12 MB" },
+      { name: "current -> state_5.sqlite", type: "link", depth: 0 },
     ]);
     expect(render.totalEntries).toBe(3);
   });
 
-  it("classifies one-path-per-line `ls` output and skips error lines", () => {
+  it("parses `find … | head` paths as files at depth 0, skipping error lines", () => {
     const render = classifyExecOutput(
-      "ls -1 src",
-      "a.ts\nb.ts\nsub/\nfind: missing: No such file or directory",
-    ) as DirectoryOutputRender;
-    expect(render.kind).toBe("directory");
-    expect(render.entries).toEqual(["a.ts", "b.ts", "sub/"]);
+      "find .local -maxdepth 2 -type f -print | head -20",
+      ".local/state.json\n.local/user.json\nfind: .local/x: Permission denied",
+    ) as TreeOutputRender;
+    expect(render.kind).toBe("tree");
+    expect(render.totalEntries).toBe(2);
+    expect(render.entries[0]).toEqual({ name: ".local/state.json", type: "file", depth: 0 });
+  });
+
+  it("marks trailing-slash entries (`ls -p`) as directories", () => {
+    const render = classifyExecOutput("ls -p src", "a.ts\nsub/\nb.ts") as TreeOutputRender;
+    expect(render.entries.map((entry) => [entry.name, entry.type])).toEqual([
+      ["a.ts", "file"],
+      ["sub", "dir"],
+      ["b.ts", "file"],
+    ]);
   });
 
   it("defers to matches when a find pipeline ends in a searcher", () => {
     const render = classifyExecOutput("find . -type f | rg -n needle", "src/a.ts:3:has needle here");
     expect(render?.kind).toBe("matches");
   });
+});
 
-  it("leaves `ls -l` long listings as plain (not a clean path list)", () => {
-    const output = ["total 8", "-rw-r--r--  1 adam staff  12 May 29 11:00 a.ts"].join("\n");
-    expect(classifyExecOutput("ls -l", output)).toBeUndefined();
+describe("classifyPatch — apply_patch envelope", () => {
+  it("parses Update/Add/Delete files with hunks into a diff render", async () => {
+    const { classifyPatch } = await import("../../src/backend/rollout/classifyExecOutput");
+    const patch = [
+      "*** Begin Patch",
+      "*** Update File: src/app.ts",
+      "@@ function main()",
+      "-  const x = 1;",
+      "+  const x = 2;",
+      "   return x;",
+      "*** Add File: src/new.ts",
+      "+export const y = 3;",
+      "*** End Patch",
+    ].join("\n");
+    const render = classifyPatch(patch) as DiffOutputRender;
+    expect(render.kind).toBe("diff");
+    expect(render.files).toHaveLength(2);
+    expect(render.files[0]).toMatchObject({ path: "src/app.ts", added: 1, removed: 1 });
+    expect(render.files[0].hunks[0].lines).toEqual([
+      { t: "del", text: "  const x = 1;" },
+      { t: "add", text: "  const x = 2;" },
+      { t: "ctx", text: "  return x;" },
+    ]);
+    expect(render.files[1]).toMatchObject({ path: "src/new.ts", added: 1 });
+  });
+
+  it("returns undefined for non-patch text", async () => {
+    const { classifyPatch } = await import("../../src/backend/rollout/classifyExecOutput");
+    expect(classifyPatch("just some output")).toBeUndefined();
+    expect(classifyPatch(undefined)).toBeUndefined();
   });
 });
 
@@ -307,12 +365,164 @@ describe("classifyExecOutput — http (curl)", () => {
     expect(render.body).toBe("plain text body");
   });
 
+  it("renders a transport error for a curl that never connected (no status line)", () => {
+    const render = classifyExecOutput(
+      "curl -fsS --max-time 5 http://127.0.0.1:23101/health || true",
+      "curl: (7) Failed to connect to 127.0.0.1 port 23101 after 0 ms: Couldn't connect to server",
+    ) as HttpOutputRender;
+    expect(render.kind).toBe("http");
+    expect(render.method).toBe("GET");
+    expect(render.url).toBe("http://127.0.0.1:23101/health");
+    expect(render.status).toBeUndefined();
+    expect(render.error).toContain("(7)");
+    expect(render.error).toContain("Failed to connect");
+  });
+
+  it("renders method/url/body for a curl without -i (body only, no headers)", () => {
+    const render = classifyExecOutput(
+      "curl -fsS http://localhost:8787/health",
+      '{"status":"ok","port":8787}',
+    ) as HttpOutputRender;
+    expect(render.kind).toBe("http");
+    expect(render.method).toBe("GET");
+    expect(render.url).toBe("http://localhost:8787/health");
+    expect(render.status).toBeUndefined();
+    expect(render.json).toBe(true);
+    expect(render.body).toBe('{\n  "status": "ok",\n  "port": 8787\n}');
+  });
+
+  it("reads the method on a headerless POST", () => {
+    const render = classifyExecOutput(
+      "curl -sS -X POST http://localhost:8787/markets --data '{}'",
+      "created",
+    ) as HttpOutputRender;
+    expect(render.method).toBe("POST");
+    expect(render.url).toBe("http://localhost:8787/markets");
+    expect(render.body).toBe("created");
+  });
+
+  it("does not render non-request curl invocations (no URL) as http", () => {
+    expect(classifyExecOutput("curl --version", "curl 8.4.0 (x86_64-apple-darwin)")).toBeUndefined();
+  });
+
+  it("leaves a curl piped into a searcher as matches, not http", () => {
+    const render = classifyExecOutput("curl -s http://x/list | rg -n needle", "3:has needle here");
+    expect(render?.kind).toBe("matches");
+  });
+
   it("reads the method from -X / --request flags (not just defaulting to GET)", () => {
     const output = ["HTTP/1.1 201 Created", "content-type: application/json", "", "{}"].join("\n");
     const post = classifyExecOutput("curl -s -i -X POST http://localhost:8787/markets/mint", output) as HttpOutputRender;
     expect(post.method).toBe("POST");
     const del = classifyExecOutput("curl -i --request DELETE https://api.test/x", output) as HttpOutputRender;
     expect(del.method).toBe("DELETE");
+  });
+});
+
+describe("classifyExecOutput — build (cargo / tsc / go)", () => {
+  it("parses tsc diagnostics with code, file, and position", () => {
+    const output = [
+      "src/db.ts(44,14): error TS2339: Property 'busy_timeout' does not exist on type 'Database'.",
+      "Found 1 error in src/db.ts:44",
+    ].join("\n");
+    const render = classifyExecOutput("tsc --noEmit", output) as BuildOutputRender;
+    expect(render.kind).toBe("build");
+    expect(render.tool).toBe("tsc");
+    expect(render.errors).toBe(1);
+    expect(render.diagnostics[0]).toMatchObject({ severity: "error", code: "TS2339", file: "src/db.ts", line: 44, col: 14 });
+  });
+
+  it("parses cargo error[CODE] with the --> location on the next line", () => {
+    const output = ["error[E0599]: no method named `busy_timeout`", "  --> src/db.rs:44:14", "Compiling observatory"].join("\n");
+    const render = classifyExecOutput("cargo build --release", output) as BuildOutputRender;
+    expect(render.kind).toBe("build");
+    expect(render.diagnostics[0]).toMatchObject({ severity: "error", code: "E0599", file: "src/db.rs", line: 44 });
+  });
+
+  it("ignores non-build commands", () => {
+    expect(classifyExecOutput("echo build", "build")).toBeUndefined();
+  });
+});
+
+describe("classifyExecOutput — lint (eslint / ruff)", () => {
+  it("parses eslint stylish output grouped by file", () => {
+    const output = ["src/app.tsx", "  44:21  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any", ""].join("\n");
+    const render = classifyExecOutput("eslint src", output) as LintOutputRender;
+    expect(render.kind).toBe("lint");
+    expect(render.warnings).toBe(1);
+    expect(render.files[0].path).toBe("src/app.tsx");
+    expect(render.files[0].issues[0]).toMatchObject({ severity: "warning", line: 44, col: 21, rule: "@typescript-eslint/no-explicit-any" });
+  });
+
+  it("parses ruff `file:line:col: CODE message`", () => {
+    const render = classifyExecOutput("ruff check .", "app.py:12:5: F401 `os` imported but unused") as LintOutputRender;
+    expect(render.kind).toBe("lint");
+    expect(render.files[0]).toMatchObject({ path: "app.py" });
+    expect(render.files[0].issues[0]).toMatchObject({ line: 12, col: 5, rule: "F401" });
+  });
+});
+
+describe("classifyExecOutput — log (git log)", () => {
+  it("parses `--oneline` with refs", () => {
+    const output = ["a3f81c2 (HEAD -> main, origin/main) timeline: scope toggle", "7be09d4 renderers: add http view"].join("\n");
+    const render = classifyExecOutput("git log --oneline -n 20", output) as LogOutputRender;
+    expect(render.kind).toBe("log");
+    expect(render.total).toBe(2);
+    expect(render.commits[0]).toMatchObject({ hash: "a3f81c2", subject: "timeline: scope toggle" });
+    expect(render.commits[0].refs).toEqual(["HEAD", "main", "origin/main"]);
+  });
+
+  it("parses the default block format with author + date", () => {
+    const output = ["commit a3f81c2def", "Author: Adam <a@x.com>", "Date:   Sat May 30 10:00:00 2026", "", "    timeline: scope toggle", ""].join("\n");
+    const render = classifyExecOutput("git log", output) as LogOutputRender;
+    expect(render.commits[0]).toMatchObject({ hash: "a3f81c2de", author: "Adam", subject: "timeline: scope toggle" });
+  });
+});
+
+describe("classifyExecOutput — json (jq / cat *.json)", () => {
+  it("classifies `cat *.json` output as pretty-printed json with a source", () => {
+    const render = classifyExecOutput("cat config/health.json", '{"otlp":"ok","queue_depth":0}') as JsonOutputRender;
+    expect(render.kind).toBe("json");
+    expect(render.source).toBe("health.json");
+    expect(render.value).toEqual({ otlp: "ok", queue_depth: 0 });
+  });
+
+  it("classifies `… | jq` output", () => {
+    const render = classifyExecOutput("cat x | jq '.'", '{"a":1}') as JsonOutputRender;
+    expect(render.kind).toBe("json");
+    expect(render.value).toEqual({ a: 1 });
+  });
+
+  it("falls through when the jq output is not a single JSON value", () => {
+    expect(classifyExecOutput("echo hi | jq -r .name", "alpha\nbeta")).toBeUndefined();
+  });
+});
+
+describe("classifyExecOutput — trace (python / rust)", () => {
+  it("parses a python traceback into frames + exception", () => {
+    const output = [
+      "Traceback (most recent call last):",
+      '  File "ingest.py", line 22, in <module>',
+      "    main()",
+      '  File "/usr/lib/python3.12/json/__init__.py", line 5, in loads',
+      "    return _default_decoder.decode(s)",
+      "ValueError: Expecting value: line 1 column 1 (char 0)",
+    ].join("\n");
+    const render = classifyExecOutput("python ingest.py", output) as TraceOutputRender;
+    expect(render.kind).toBe("trace");
+    expect(render.lang).toBe("python");
+    expect(render.exception).toBe("ValueError");
+    expect(render.message).toContain("Expecting value");
+    expect(render.frames[0]).toMatchObject({ fn: "<module>", file: "ingest.py", line: 22, user: true });
+    expect(render.frames[1].user).toBe(false); // stdlib frame dimmed
+  });
+
+  it("parses a rust panic", () => {
+    const output = ["thread 'main' panicked at 'called `Result::unwrap()` on an `Err` value', src/main.rs:22:14"].join("\n");
+    const render = classifyExecOutput("./target/release/app", output) as TraceOutputRender;
+    expect(render.kind).toBe("trace");
+    expect(render.lang).toBe("rust");
+    expect(render.message).toContain("Result::unwrap()");
   });
 });
 

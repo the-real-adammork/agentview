@@ -1,11 +1,19 @@
 import type {
+  BuildDiagnostic,
   DiffFile,
+  DiffHunk,
   FileLine,
   HttpHeader,
+  LintFile,
+  LintIssue,
+  LogCommit,
   MatchFile,
   MatchLine,
   OutputRender,
   StatusFile,
+  TraceFrame,
+  TreeEntry,
+  TreeEntryType,
 } from "../../shared/contracts";
 
 /**
@@ -42,8 +50,13 @@ export function classifyExecOutput(command: string | undefined, output: string |
     classifyStatus(cmd, text) ??
     classifyTable(cmd, text) ??
     classifyMatches(cmd, text) ??
+    classifyBuild(cmd, text) ??
+    classifyLint(cmd, text) ??
+    classifyLog(cmd, text) ??
+    classifyJson(cmd, text) ??
+    classifyTrace(cmd, text) ??
     classifyFile(cmd, text) ??
-    classifyDirectory(cmd, text) ??
+    classifyTree(cmd, text) ??
     undefined
   );
 }
@@ -56,13 +69,18 @@ function pipeStages(cmd: string): string[] {
   const stages: string[] = [];
   let current = "";
   let quote: string | null = null;
-  for (const ch of cmd) {
+  for (let i = 0; i < cmd.length; i += 1) {
+    const ch = cmd[i];
     if (quote) {
       current += ch;
       if (ch === quote) quote = null;
     } else if (ch === '"' || ch === "'") {
       quote = ch;
       current += ch;
+    } else if (ch === "|" && cmd[i + 1] === "|") {
+      // `||` is a logical OR (e.g. `curl … || true`), not an output pipe.
+      current += "||";
+      i += 1;
     } else if (ch === "|") {
       stages.push(current.trim());
       current = "";
@@ -79,13 +97,22 @@ function stageHead(stage: string): string {
   return (stage.split(/\s+/)[0] ?? "").toLowerCase().replace(/.*\//, "");
 }
 
-/** Unwrap `bash -lc "…"` / `sh -c '…'` wrappers and strip leading `ENV=val`. */
+// git global options that sit before the subcommand (`git -C path status`).
+const GIT_GLOBALS =
+  "(?:\\s+(?:-C\\s+\\S+|-c\\s+\\S+|--git-dir(?:=\\S+|\\s+\\S+)|--work-tree(?:=\\S+|\\s+\\S+)|--no-pager|--no-optional-locks|--literal-pathspecs))*";
+/** Matches `git <globals> <subcommand>`, tolerating `-C <path>` and friends. */
+const gitSubcommand = (sub: string): RegExp => new RegExp(`^git${GIT_GLOBALS}\\s+${sub}\\b`);
+
+/** Unwrap `bash -lc "…"` / `sh -c '…'` wrappers, strip leading `ENV=val`, and drop a program path. */
 function normalizeCommand(raw: string): string {
   let cmd = raw.trim();
   const wrapper = /^(?:[\w./-]*\/)?(?:bash|sh|zsh)\s+-l?c\s+(['"])([\s\S]*)\1\s*$/.exec(cmd);
   if (wrapper) cmd = wrapper[2].trim();
   // Strip leading environment assignments (`FOO=bar BAZ=qux cmd …`).
   cmd = cmd.replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S+)\s+)+/, "");
+  // Reduce an absolute/relative program path to its basename (`/usr/bin/git` → `git`)
+  // so name-anchored classifiers match regardless of how the binary was invoked.
+  cmd = cmd.replace(/^(?:\S*\/)?(\S+)/, "$1");
   return cmd.trim();
 }
 
@@ -100,7 +127,7 @@ function toLines(text: string): string[] {
 function classifyDiff(cmd: string, text: string): OutputRender | undefined {
   const looksLikeDiff =
     /^diff --git /m.test(text) || (/^--- /m.test(text) && /^\+\+\+ /m.test(text) && /^@@ /m.test(text));
-  const commandIsDiff = /^git(?:\s+-C\s+\S+)?\s+(?:diff|show)\b/.test(cmd);
+  const commandIsDiff = gitSubcommand("(?:diff|show)").test(cmd);
   if (!looksLikeDiff && !(commandIsDiff && /^@@ /m.test(text))) return undefined;
 
   const files: DiffFile[] = [];
@@ -171,10 +198,89 @@ function stripDiffPrefix(path: string): string {
   return path.replace(/^[ab]\//, "");
 }
 
-// ── http (curl / wget -i) ───────────────────────────────────────────────────
+/**
+ * Parse a Codex `apply_patch` envelope (the tool's *arguments*, not its output)
+ * into the unified-diff render so an edit shows its hunks instead of a raw blob:
+ *
+ *   *** Begin Patch
+ *   *** Update File: path        (or Add File / Delete File / Move to)
+ *   @@ context
+ *   -old line
+ *   +new line
+ *   *** End Patch
+ */
+export function classifyPatch(patchText: string | undefined): OutputRender | undefined {
+  if (!patchText || !/\*\*\* Begin Patch/.test(patchText)) return undefined;
+  const files: DiffFile[] = [];
+  let current: DiffFile | undefined;
+  let hunk: DiffHunk | undefined;
+  for (const line of patchText.split("\n")) {
+    const fileHeader = /^\*\*\* (?:Update|Add|Delete) File: (.+)$/.exec(line) ?? /^\*\*\* (?:Move|Rename) (?:to|File): (.+)$/.exec(line);
+    if (fileHeader) {
+      current = { path: fileHeader[1].trim(), added: 0, removed: 0, hunks: [] };
+      files.push(current);
+      hunk = undefined;
+      continue;
+    }
+    if (/^\*\*\* /.test(line)) continue; // Begin/End Patch, Move from, etc.
+    if (!current) continue;
+    if (line.startsWith("@@")) {
+      hunk = { header: line, lines: [] };
+      current.hunks.push(hunk);
+      continue;
+    }
+    if (!hunk) {
+      hunk = { header: "@@", lines: [] };
+      current.hunks.push(hunk);
+    }
+    if (line.startsWith("+")) {
+      hunk.lines.push({ t: "add", text: line.slice(1) });
+      current.added += 1;
+    } else if (line.startsWith("-")) {
+      hunk.lines.push({ t: "del", text: line.slice(1) });
+      current.removed += 1;
+    } else {
+      hunk.lines.push({ t: "ctx", text: line.startsWith(" ") ? line.slice(1) : line });
+    }
+  }
+  const withHunks = files.filter((file) => file.hunks.length > 0);
+  if (withHunks.length === 0) return undefined;
+  return { kind: "diff", files: withHunks };
+}
+
+// ── http (curl / wget) ───────────────────────────────────────────────────────
 function classifyHttp(cmd: string, text: string): OutputRender | undefined {
   const statusLine = /^HTTP\/[\d.]+\s+(\d{3})(?:\s+(.*))?$/m.exec(text);
-  if (!statusLine) return undefined;
+  // The request is HTTP when the *output-producing* stage is curl/wget — the last
+  // pipe stage, so `curl … | rg` stays a search, not an HTTP card. A captured
+  // response line (`-i`) always wins regardless of piping.
+  const stages = pipeStages(cmd);
+  const isHttpCommand = /^(?:curl|wget)$/.test(stageHead(stages[stages.length - 1] ?? cmd));
+  // `-X`/`--request` sit after a space, so a \b before the dash never matches —
+  // anchor on a space/start instead. Default to GET when no method flag is given.
+  const method = /(?:^|\s)(?:-X|--request)\s+(\w+)/.exec(cmd)?.[1] ?? "GET";
+  const url = extractUrl(cmd);
+
+  if (!statusLine) {
+    // No response line (curl without `-i`, or a failed connection). Render what we
+    // can still derive: method + URL, plus a transport error or the bare body.
+    // Require a URL so `curl --version` / `--help` stay plain.
+    if (!isHttpCommand || !url) return undefined;
+    const curlError = /^(?:curl|wget):\s*(?:\((\d+)\)\s*)?(.*)$/m.exec(text);
+    if (curlError) {
+      const detail = `${curlError[1] ? `(${curlError[1]}) ` : ""}${curlError[2].trim()}`.trim();
+      return { kind: "http", method, url, error: detail || "request failed" };
+    }
+    const bodyOnly = text.trim();
+    const jsonOnly = /^[[{]/.test(bodyOnly);
+    return {
+      kind: "http",
+      method,
+      url,
+      json: jsonOnly || undefined,
+      body: (jsonOnly ? prettyJson(bodyOnly) : bodyOnly) || undefined,
+    };
+  }
 
   const lines = toLines(text);
   const startIndex = lines.findIndex((line) => /^HTTP\/[\d.]+\s+\d{3}/.test(line));
@@ -197,10 +303,8 @@ function classifyHttp(cmd: string, text: string): OutputRender | undefined {
 
   return {
     kind: "http",
-    // `-X`/`--request` sit after a space, so a \b before the dash never matches —
-    // anchor on a space/start instead. Default to GET when no method flag is given.
-    method: /(?:^|\s)(?:-X|--request)\s+(\w+)/.exec(cmd)?.[1] ?? "GET",
-    url: extractUrl(cmd),
+    method,
+    url,
     status: Number(statusLine[1]),
     statusText: statusLine[2]?.trim() || undefined,
     contentType,
@@ -284,7 +388,7 @@ function dedupe<T>(values: T[]): T[] {
 const STATUS_CODE_CHARS = new Set([" ", "M", "A", "D", "R", "C", "U", "?", "!", "T"]);
 
 function classifyStatus(cmd: string, text: string): OutputRender | undefined {
-  const isGitStatus = /^git(?:\s+-C\s+\S+)?\s+status\b/.test(cmd) && /(?:^|\s)(?:--short|-s)\b/.test(cmd);
+  const isGitStatus = gitSubcommand("status").test(cmd) && /(?:^|\s)(?:--short|-s)\b/.test(cmd);
   if (!isGitStatus) return undefined;
 
   const files: StatusFile[] = [];
@@ -425,24 +529,317 @@ function firstHit(content: string, patterns: string[]): [number, number] | undef
   return bestStart >= 0 ? [bestStart, bestStart + bestLen] : undefined;
 }
 
-// ── directory (find / fd / ls) → flat path list ─────────────────────────────
-function classifyDirectory(cmd: string, text: string): OutputRender | undefined {
+// ── tree (ls / find / tree) → directory listing ─────────────────────────────
+const TREE_HEADS = /^(?:find|fd|ls|tree|exa|eza)$/;
+const LS_LONG_MODE = /^[dlbcps-][rwxsStT@.+-]{9}[.@+]?$/;
+
+/** Type from a trailing marker (`ls -p`/`-F`/symlink); defaults to file. */
+function entryTypeFromName(name: string): { name: string; type: TreeEntryType } {
+  if (/\s(?:->|→)\s/.test(name) || name.endsWith("@")) return { name: name.replace(/@$/, ""), type: "link" };
+  if (/[/]$/.test(name)) return { name: name.replace(/\/+$/, ""), type: "dir" };
+  if (name.endsWith("*") || name.endsWith("=")) return { name: name.slice(0, -1), type: "file" };
+  return { name, type: "file" };
+}
+
+function humanizeBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const units = ["KB", "MB", "GB", "TB"];
+  let value = bytes / 1024;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  return `${value < 10 ? value.toFixed(1) : Math.round(value)} ${units[unit]}`;
+}
+
+function classifyTree(cmd: string, text: string): OutputRender | undefined {
   const stages = pipeStages(cmd);
   const head = stageHead(stages[0] ?? "");
-  if (!/^(?:find|fd|ls)$/.test(head)) return undefined;
-  // `ls -l` long listings are mode/owner/size rows, not a clean path list — skip.
-  if (head === "ls" && /(?:^|\s)-\w*l/.test(stages[0])) return undefined;
+  if (!TREE_HEADS.test(head)) return undefined;
+  const findType = / -type\s+([dfl])\b/.exec(cmd)?.[1];
 
-  const entries: string[] = [];
-  for (const line of toLines(text)) {
-    const entry = line.trim();
-    if (entry === "") continue;
-    // Tool error lines ("find: …: Permission denied") are not entries.
-    if (/^(?:find|fd|ls):\s/.test(entry)) continue;
-    entries.push(entry);
+  const entries: TreeEntry[] = [];
+  for (const raw of toLines(text)) {
+    const line = raw.replace(/\s+$/, "");
+    const trimmed = line.trim();
+    if (trimmed === "" || /^total\s+\d+$/.test(trimmed)) continue;
+    if (/^(?:find|fd|ls|tree):\s/.test(trimmed)) continue; // tool error lines
+
+    const tokens = trimmed.split(/\s+/);
+    // `ls -l` / `-la` long format: "drwxr-xr-x 1 owner group size mon day time name"
+    if (tokens.length >= 9 && LS_LONG_MODE.test(tokens[0])) {
+      const lead = tokens[0][0];
+      const type: TreeEntryType = lead === "d" ? "dir" : lead === "l" ? "link" : "file";
+      const name = tokens.slice(8).join(" ");
+      if (!name || name === "." || name === "..") continue;
+      const entry: TreeEntry = { name, type, depth: 0 };
+      if (type === "file") {
+        const sizeToken = tokens[4];
+        if (/^\d+$/.test(sizeToken)) entry.size = humanizeBytes(Number(sizeToken));
+        else if (sizeToken) entry.size = sizeToken;
+      }
+      entries.push(entry);
+      continue;
+    }
+
+    // `tree` command glyphs: "│   ├── name"
+    const glyph = /^((?:[│|]\s+|\s{2,})*[├└][─ ]+)(.+)$/.exec(line);
+    if (glyph) {
+      const depth = Math.max(0, Math.round(glyph[1].replace(/[├└─]/g, " ").replace(/\s+$/, "").length / 4));
+      const parsed = entryTypeFromName(glyph[2].trim());
+      entries.push({ name: parsed.name, type: parsed.type, depth });
+      continue;
+    }
+
+    // Plain path (find / `ls` / `ls -p`).
+    const parsed = entryTypeFromName(trimmed);
+    const type: TreeEntryType = findType === "d" ? "dir" : findType === "l" ? "link" : parsed.type;
+    entries.push({ name: parsed.name, type, depth: 0 });
   }
+
   if (entries.length === 0) return undefined;
-  return { kind: "directory", entries: entries.slice(0, MAX_DIR_ENTRIES), totalEntries: entries.length };
+  return { kind: "tree", entries: entries.slice(0, MAX_DIR_ENTRIES), totalEntries: entries.length };
+}
+
+// ── build (cargo / go / tsc / webpack) ──────────────────────────────────────
+function classifyBuild(cmd: string, text: string): OutputRender | undefined {
+  const first = pipeStages(cmd)[0] ?? "";
+  const head = stageHead(first);
+  const sub = (first.split(/\s+/)[1] ?? "").toLowerCase();
+  const isBuild =
+    (head === "cargo" && /^(?:build|check|rustc)$/.test(sub)) ||
+    (head === "go" && sub === "build") ||
+    head === "tsc" ||
+    head === "rustc" ||
+    head === "webpack" ||
+    head === "esbuild" ||
+    (/^(?:npm|pnpm|yarn|bun)$/.test(head) && /\bbuild\b/.test(first)) ||
+    head === "make" ||
+    head === "gradle" ||
+    head === "mvn";
+  if (!isBuild) return undefined;
+  const tool = /^(?:npm|pnpm|yarn|bun)$/.test(head) ? "build" : head;
+
+  const diagnostics: BuildDiagnostic[] = [];
+  const lines = toLines(text);
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i];
+    // tsc: "src/db.ts(44,14): error TS2339: msg" | "src/db.ts:44:14 - error TS2339: msg"
+    let m =
+      /^(\S+?)\((\d+),(\d+)\):\s*(error|warning)\s*(TS\d+)?:?\s*(.*)$/.exec(line) ??
+      /^(\S+?):(\d+):(\d+)\s*-\s*(error|warning)\s*(TS\d+)?:?\s*(.*)$/.exec(line);
+    if (m) {
+      diagnostics.push({
+        severity: m[4] === "warning" ? "warning" : "error",
+        code: m[5] || undefined,
+        file: m[1],
+        line: Number(m[2]),
+        col: Number(m[3]),
+        message: m[6].trim(),
+      });
+      continue;
+    }
+    // go: "./file.go:44:14: msg" | "file.go:44: msg"
+    m = /^(\.?\/?[\w./-]+\.go):(\d+)(?::(\d+))?:\s*(.+)$/.exec(line);
+    if (m) {
+      diagnostics.push({ severity: "error", file: m[1], line: Number(m[2]), col: m[3] ? Number(m[3]) : undefined, message: m[4].trim() });
+      continue;
+    }
+    // cargo/rustc: "error[E0599]: msg" then "  --> src/db.rs:44:14"
+    m = /^(error|warning)(?:\[([A-Z]\d+)\])?:\s*(.*)$/.exec(line);
+    const loc = /^\s*-->\s*(\S+?):(\d+)(?::(\d+))?/.exec(lines[i + 1] ?? "");
+    if (m && loc) {
+      diagnostics.push({
+        severity: m[1] === "warning" ? "warning" : "error",
+        code: m[2] || undefined,
+        file: loc[1],
+        line: Number(loc[2]),
+        col: loc[3] ? Number(loc[3]) : undefined,
+        message: m[3].trim(),
+      });
+      continue;
+    }
+  }
+
+  let errors = diagnostics.filter((d) => d.severity === "error").length;
+  const warnings = diagnostics.filter((d) => d.severity === "warning").length;
+  const tscFound = /Found (\d+) error/.exec(text);
+  if (tscFound) errors = Math.max(errors, Number(tscFound[1]));
+  const hasSignal =
+    diagnostics.length > 0 ||
+    /\b(Compiling|Finished|Found \d+ error|webpack \d|Build complete|error TS|error\[|warning:)\b/.test(text);
+  if (!hasSignal) return undefined;
+  return { kind: "build", tool, errors, warnings, diagnostics: diagnostics.slice(0, 200) };
+}
+
+// ── lint (eslint / ruff / clippy) ───────────────────────────────────────────
+function classifyLint(cmd: string, text: string): OutputRender | undefined {
+  const first = pipeStages(cmd)[0] ?? "";
+  const head = stageHead(first);
+  const sub = (first.split(/\s+/)[1] ?? "").toLowerCase();
+  const named = /\b(eslint|ruff|flake8|pylint|stylelint|biome)\b/.exec(first)?.[1];
+  const isLint =
+    /^(?:eslint|ruff|flake8|pylint|stylelint|biome)$/.test(head) ||
+    (head === "cargo" && sub === "clippy") ||
+    (/^(?:npx|npm|pnpm|yarn|bun)$/.test(head) && Boolean(named));
+  if (!isLint) return undefined;
+  const tool = head === "cargo" ? "clippy" : /^(?:eslint|ruff|flake8|pylint|stylelint|biome)$/.test(head) ? head : named ?? head;
+
+  const byFile = new Map<string, LintFile>();
+  const order: string[] = [];
+  const add = (path: string, issue: LintIssue) => {
+    let file = byFile.get(path);
+    if (!file) {
+      file = { path, issues: [] };
+      byFile.set(path, file);
+      order.push(path);
+    }
+    file.issues.push(issue);
+  };
+
+  let currentFile: string | undefined;
+  for (const line of toLines(text)) {
+    // eslint "stylish": a bare path header line
+    if (/^\/?[\w./@-]+\.\w+$/.test(line.trim()) && !/:\d+:\d+/.test(line)) {
+      currentFile = line.trim();
+      continue;
+    }
+    // eslint row: "  44:21  warning  message text   rule/id"
+    let m = /^\s*(\d+):(\d+)\s+(error|warning|info)\s+(.*?)\s{2,}(\S+)\s*$/.exec(line);
+    if (m && currentFile) {
+      add(currentFile, { severity: m[3] as LintIssue["severity"], line: Number(m[1]), col: Number(m[2]), message: m[4].trim(), rule: m[5] });
+      continue;
+    }
+    // ruff / flake8: "file.py:line:col: CODE message"
+    m = /^(\S+?):(\d+):(\d+):\s*([A-Z]\d+)\s+(.*)$/.exec(line);
+    if (m) {
+      add(m[1], { severity: "warning", line: Number(m[2]), col: Number(m[3]), rule: m[4], message: m[5].trim() });
+      continue;
+    }
+  }
+
+  const files = order.map((path) => byFile.get(path)!);
+  const errors = files.reduce((sum, file) => sum + file.issues.filter((i) => i.severity === "error").length, 0);
+  const warnings = files.reduce((sum, file) => sum + file.issues.filter((i) => i.severity === "warning").length, 0);
+  return { kind: "lint", tool, errors, warnings, files };
+}
+
+// ── log (git log / git blame) ───────────────────────────────────────────────
+function classifyLog(cmd: string, text: string): OutputRender | undefined {
+  if (!gitSubcommand("(?:log|blame|shortlog)").test(pipeStages(cmd)[0] ?? "")) return undefined;
+  const lines = toLines(text);
+  const commits: LogCommit[] = [];
+
+  const oneline = /^([0-9a-f]{7,40})\s+(?:\(([^)]+)\)\s+)?(.+)$/;
+  for (const line of lines) {
+    const m = oneline.exec(line);
+    if (m) {
+      commits.push({
+        hash: m[1].slice(0, 9),
+        author: "",
+        date: "",
+        subject: m[3],
+        refs: m[2] ? m[2].split(/,\s*/).flatMap((ref) => ref.split(/\s*->\s*/)) : undefined,
+      });
+    }
+  }
+
+  if (commits.length === 0) {
+    // default `git log` block format
+    let current: LogCommit | null = null;
+    for (const line of lines) {
+      let m = /^commit ([0-9a-f]{7,40})/.exec(line);
+      if (m) {
+        if (current) commits.push(current);
+        current = { hash: m[1].slice(0, 9), author: "", date: "", subject: "" };
+        continue;
+      }
+      if (!current) continue;
+      if ((m = /^Author:\s*(.+?)\s*(?:<.*>)?$/.exec(line))) current.author = m[1].trim();
+      else if ((m = /^Date:\s*(.+)$/.exec(line))) current.date = m[1].trim();
+      else if (!current.subject && /^\s{2,}\S/.test(line)) current.subject = line.trim();
+    }
+    if (current) commits.push(current);
+  }
+
+  if (commits.length === 0) return undefined;
+  return { kind: "log", total: commits.length, commits: commits.slice(0, 200) };
+}
+
+// ── json (jq / cat *.json) ──────────────────────────────────────────────────
+function classifyJson(cmd: string, text: string): OutputRender | undefined {
+  const stages = pipeStages(cmd);
+  const lastHead = stageHead(stages[stages.length - 1] ?? "");
+  const firstHead = stageHead(stages[0] ?? "");
+  const jsonFile = /(\S+\.json)\b/.exec(cmd)?.[1];
+  const isJq = lastHead === "jq";
+  const isCatJson = (firstHead === "cat" || firstHead === "bat") && Boolean(jsonFile);
+  if (!isJq && !isCatJson) return undefined;
+  const body = text.trim();
+  if (!/^[[{]/.test(body)) return undefined;
+  try {
+    const value = JSON.parse(body);
+    return { kind: "json", source: jsonFile ? jsonFile.split("/").pop() : undefined, value };
+  } catch {
+    return undefined;
+  }
+}
+
+// ── trace (python traceback / rust panic / node error) ──────────────────────
+function classifyTrace(cmd: string, text: string): OutputRender | undefined {
+  void cmd;
+  const lines = toLines(text);
+
+  if (/^Traceback \(most recent call last\):/m.test(text)) {
+    const frames: TraceFrame[] = [];
+    for (let i = 0; i < lines.length; i += 1) {
+      const m = /^\s*File "([^"]+)", line (\d+), in (.+)$/.exec(lines[i]);
+      if (!m) continue;
+      const next = lines[i + 1] ?? "";
+      const code = /^\s{2,}\S/.test(next) && !/^\s*File "/.test(next) ? next.trim() : undefined;
+      frames.push({
+        fn: m[3].trim(),
+        file: m[1],
+        line: Number(m[2]),
+        user: !/(site-packages|dist-packages|lib\/python\d|<frozen)/.test(m[1]),
+        code,
+      });
+    }
+    const errLine = [...lines].reverse().find((line) => /^[A-Za-z_][\w.]*(?:Error|Exception|Warning|Interrupt|Exit):/.test(line.trim()));
+    const parsed = errLine ? /^([\w.]+):\s*([\s\S]*)$/.exec(errLine.trim()) : null;
+    if (frames.length) {
+      return { kind: "trace", lang: "python", exception: parsed?.[1] ?? "Exception", message: parsed?.[2]?.trim() ?? "", frames };
+    }
+  }
+
+  const rustPanic = /thread '[^']*' panicked at\s*(?:'([^']*)'|(.+))/.exec(text);
+  if (rustPanic) {
+    const frames: TraceFrame[] = [];
+    for (let i = 0; i < lines.length; i += 1) {
+      const fn = /^\s*\d+:\s+(.+)$/.exec(lines[i]);
+      const at = /^\s*at\s+(\S+?):(\d+)/.exec(lines[i + 1] ?? "");
+      if (fn && at) {
+        frames.push({ fn: fn[1].trim(), file: at[1], line: Number(at[2]), user: !/\/rustc\/|\.cargo\/registry/.test(at[1]) });
+      }
+    }
+    return { kind: "trace", lang: "rust", exception: "panicked", message: (rustPanic[1] ?? rustPanic[2] ?? "").trim(), frames };
+  }
+
+  if (/^\s*at\s+.+:\d+:\d+\)?$/m.test(text) && /^(?:\w*Error|\w+Exception):/m.test(text)) {
+    const errLine = lines.find((line) => /^(?:\w*Error|\w+Exception):/.test(line));
+    const parsed = errLine ? /^([\w.]+):\s*([\s\S]*)$/.exec(errLine) : null;
+    const frames: TraceFrame[] = [];
+    for (const line of lines) {
+      const withFn = /^\s*at\s+(.+?)\s+\(([^)]+):(\d+):\d+\)/.exec(line);
+      const bare = /^\s*at\s+([^()\s]+):(\d+):\d+$/.exec(line);
+      if (withFn) frames.push({ fn: withFn[1].trim(), file: withFn[2], line: Number(withFn[3]), user: !/node_modules|node:internal/.test(withFn[2]) });
+      else if (bare) frames.push({ fn: "<anonymous>", file: bare[1], line: Number(bare[2]), user: !/node_modules|node:internal/.test(bare[1]) });
+    }
+    if (frames.length) return { kind: "trace", lang: "node", exception: parsed?.[1] ?? "Error", message: parsed?.[2]?.trim() ?? "", frames };
+  }
+
+  return undefined;
 }
 
 // ── file peek (nl / cat / sed -n / head / tail) ─────────────────────────────
