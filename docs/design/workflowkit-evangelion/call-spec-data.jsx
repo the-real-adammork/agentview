@@ -67,6 +67,28 @@ const agentSend = mkCall("send_input", { kind: "agent", op: "send", nickname: "B
 const skillSearch = mkCall("skill_invoke", { kind: "skill", name: "web_search", summary: "OpenTelemetry log sampling defaults", status: "ok" }, { durationMs: 1200, output: "ok" });
 const skillPdf = mkCall("skill_invoke", { kind: "skill", name: "read_pdf", summary: "OTLP spec §4 — exporter retry semantics", status: "ok" }, { durationMs: 4200, output: "ok" });
 
+/* ---- TOOL SEARCH (tool_search_call) ---- */
+const toolSearchAgents = mkCall("tool_search", { kind: "tool_search",
+  query: "spawn sub-agent worker goal codex general-purpose agent", limit: 8, resultCount: 5,
+  namespaces: [
+    { name: "multi_agent_v1", description: "Tools for spawning and managing sub-agents.", functions: [
+      { name: "spawn_agent", summary: "Spawn a general-purpose sub-agent worker", params: ["agent_type", "model", "items", "message", "reasoning_effort", "service_tier"] },
+      { name: "close_agent", summary: "Terminate a running agent thread", params: ["agent_id"] },
+      { name: "resume_agent", summary: "Resume a previously closed agent", params: ["agent_id", "message"] },
+      { name: "wait_agent", summary: "Block until target agents settle or time out", params: ["targets", "timeout_ms"] },
+      { name: "send_input", summary: "Steer a running agent with a message", params: ["target", "message"] },
+    ] },
+  ] }, { callId: "call_ts_8f21", durationMs: 140, output: "5 tools in multi_agent_v1" });
+
+const toolSearchFs = mkCall("tool_search", { kind: "tool_search",
+  query: "read write file edit", limit: 8, resultCount: 2,
+  namespaces: [
+    { name: "filesystem_v2", description: "Read and mutate the workspace.", functions: [
+      { name: "read_file", summary: "Read a file slice or whole file", params: ["path", "start", "limit"] },
+      { name: "apply_patch", summary: "Apply an update/add/delete/move patch", params: ["patch"] },
+    ] },
+  ] }, { durationMs: 90, output: "2 tools in filesystem_v2" });
+
 /* ============================================================
    CALL ENVELOPE — the tool_call ↔ tool_output contract
    ============================================================ */
@@ -267,6 +289,40 @@ const CALL_SPECS = [
     samples: [
       { label: "skill_invoke · web_search", tone: "ok", note: "skill name + summary + ok", s: skillSearch },
       { label: "skill_invoke · read_pdf", tone: "ok", note: "PDF skill summary", s: skillPdf },
+    ],
+  },
+  {
+    id: "tool_search", n: "C7", group: "RESEARCH & AGENTS", name: "ToolSearchView", title: "TOOL SEARCH", accent: "--cyan", accentName: "cyan",
+    triggers: "tool_search_call",
+    desc: "Tool-catalog discovery — a distinct tool type, neither exec output nor normal call. Collapsed it reuses the search-call line (⌕ query · N tools); expanded it draws a namespace → function tree with per-function summaries and param-name chips.",
+    schema:
+`interface ToolSearchRender {
+  kind: "tool_search";
+  query: string;
+  limit?: number;
+  resultCount: number;   // total fns → "+N" overflow
+  namespaces: {
+    name: string;
+    description?: string;
+    functions: {
+      name: string;
+      summary?: string;    // first line of description
+      params?: string[];   // param names → chips
+    }[];
+  }[];
+}`,
+    behavior: [
+      ["Inline cap", "4 functions — across namespaces"],
+      ["Overflow", "+N tools"],
+      ["Collapsed", "⌕ query · N tools (search-call vocabulary)"],
+      ["Expanded", "namespace → function tree + param chips"],
+      ["Params", "first 4 names chipped · rest fold to +N"],
+    ],
+    tokens: [["query", "--ink"], ["namespace", "--cyan"], ["function", "--ink-strong"], ["param", "--ink-dim"]],
+    states: [["MULTI-FUNCTION", "preview"], ["SMALL", "ok"]],
+    samples: [
+      { label: "tool_search · agents", tone: "preview", note: "5 fns in multi_agent_v1 — capped at 4 → Expand opens the tree", s: toolSearchAgents },
+      { label: "tool_search · filesystem", tone: "ok", note: "2 fns, fits inline; param names chipped", s: toolSearchFs },
     ],
   },
 ];

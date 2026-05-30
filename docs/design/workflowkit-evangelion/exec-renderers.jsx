@@ -500,6 +500,34 @@ function GitView({ r, out, full }) {
   }
 }
 
+// docker compose up — streaming lifecycle collapsed to terminal state per resource.
+// reuses the status dot+row vocabulary; image-pull churn collapses to one summary chip.
+function ComposeView({ r, full }) {
+  const CAP = 5;
+  const res = full ? r.resources : r.resources.slice(0, CAP);
+  const tone = (s) => /^(started|created|recreated|healthy|running)$/i.test(s) ? "ok"
+    : /^(creating|starting|recreate|pulling|waiting)$/i.test(s) ? "wait"
+    : /^(error|exited|dead|unhealthy)$/i.test(s) ? "warn" : "dim";
+  return (
+    <div className="xr xr-compose">
+      {r.pull && (
+        <div className="xr-cp-pull">
+          <span className="g">↓</span>
+          <span className="lbl">{r.pull.done}/{r.pull.layers} layer{r.pull.layers === 1 ? "" : "s"} pulled</span>
+        </div>
+      )}
+      {res.map((c, i) => (
+        <div key={i} className="xr-cp-row">
+          <span className={"xr-cp-dot " + tone(c.state)}></span>
+          <span className="ty">{c.type}</span>
+          <span className="nm">{c.name}</span>
+          <span className={"stt " + tone(c.state)}>{c.state}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // JSON token colorizer — keys, strings, numbers, keywords
 function tokenizeJson(line) {
   const out = [];
@@ -576,6 +604,7 @@ function execOverflow(out) {
     if (r.sub === "merge" && r.diffstat) return r.diffstat.files.length > 6 ? `+${r.diffstat.files.length - 6} files` : null;
     return null;
   }
+  if (r.kind === "compose") { const n = r.resources.length; return n > 5 ? `+${n - 5} resources` : null; }
   return null;
 }
 
@@ -605,9 +634,10 @@ function ExecOutput({ out, onExpand }) {
     : kind === "json" ? <JsonView r={r} />
     : kind === "diffstat" ? <DiffstatView r={r} />
     : kind === "git" ? <GitView r={r} out={out} />
+    : kind === "compose" ? <ComposeView r={r} />
     : <PlainOut output={out.output} />;
 
-  const label = { diff: "DIFF", tests: "TEST RESULTS", status: "GIT STATUS", table: `${(out.outputRender && out.outputRender.totalRows) || ""} ROWS`.trim() || "TABLE", file: `FILE · ${((out.outputRender && out.outputRender.path) || "").split("/").pop()}`, matches: `${(r && r.kind === "matches") ? r.files.reduce((a, f) => a + f.matches.length, 0) : ""} MATCHES`.trim() || "MATCHES", http: `HTTP ${(r && r.status) || ""}`.trim(), build: `BUILD${r && r.errors ? ` · ${r.errors} ERR` : ""}`, trace: `TRACE · ${(r && r.exception) || ""}`.trim(), lint: `LINT${r && (r.errors + r.warnings) ? ` · ${r.errors + r.warnings}` : ""}`, tree: `TREE${r && r.totalEntries ? ` · ${r.totalEntries}` : ""}`, log: "GIT LOG", json: `JSON · ${(((r && r.source) || "").split("/").pop()) || "data"}`, diffstat: `DIFFSTAT${r && r.totals ? ` · ${r.totals.files} FILES` : ""}`, git: `GIT · ${(r && r.sub ? r.sub.toUpperCase() : "")}`, plain: `STDOUT · ${(out.output || "").length} bytes` }[kind];
+  const label = { diff: "DIFF", tests: "TEST RESULTS", status: "GIT STATUS", table: `${(out.outputRender && out.outputRender.totalRows) || ""} ROWS`.trim() || "TABLE", file: `FILE · ${((out.outputRender && out.outputRender.path) || "").split("/").pop()}`, matches: `${(r && r.kind === "matches") ? r.files.reduce((a, f) => a + f.matches.length, 0) : ""} MATCHES`.trim() || "MATCHES", http: `HTTP ${(r && r.status) || ""}`.trim(), build: `BUILD${r && r.errors ? ` · ${r.errors} ERR` : ""}`, trace: `TRACE · ${(r && r.exception) || ""}`.trim(), lint: `LINT${r && (r.errors + r.warnings) ? ` · ${r.errors + r.warnings}` : ""}`, tree: `TREE${r && r.totalEntries ? ` · ${r.totalEntries}` : ""}`, log: "GIT LOG", json: `JSON · ${(((r && r.source) || "").split("/").pop()) || "data"}`, diffstat: `DIFFSTAT${r && r.totals ? ` · ${r.totals.files} FILES` : ""}`, git: `GIT · ${(r && r.sub ? r.sub.toUpperCase() : "")}`, compose: `COMPOSE${r && r.resources ? ` · ${r.resources.length} RES` : ""}`, plain: `STDOUT · ${(out.output || "").length} bytes` }[kind];
 
   return (
     <div className={"out xr-out" + (out.fail ? " fail" : "")}>
@@ -652,6 +682,7 @@ function ExecModal({ ev, out, onClose }) {
     : kind === "json" ? <JsonView r={r} full />
     : kind === "diffstat" ? <DiffstatView r={r} full />
     : kind === "git" ? <GitView r={r} out={out} full />
+    : kind === "compose" ? <ComposeView r={r} full />
     : <PlainOut output={out.output} full />;
   return (
     <div className="xr-modal-scrim" onClick={onClose}>

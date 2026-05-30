@@ -320,6 +320,24 @@ const tableDocker = mk("docker ps --format 'table {{.ID}}\\t{{.Names}}\\t{{.Port
     ["e51a7d2b6f80", "contracts-web-1", "0.0.0.0:5173->5173/tcp", "Restarting (1) 3 seconds ago"],
   ], totalRows: 5 }, { durationMs: 120 });
 
+/* ---- COMPOSE (docker compose up — lifecycle collapsed to terminal state) ---- */
+const composeUp = mk("docker compose up -d", { kind: "compose", resources: [
+  { type: "network", name: "contracts-prisma_default", state: "created" },
+  { type: "volume", name: "nerdy-postgres-data", state: "created" },
+  { type: "container", name: "contracts-prisma-postgres-1", state: "healthy" },
+  { type: "container", name: "contracts-redis-1", state: "started" },
+  { type: "container", name: "contracts-otel-collector-1", state: "started" },
+], pull: { layers: 14, done: 14 } }, { durationMs: 18400, output:
+  "Network contracts-prisma_default  Created\nContainer contracts-prisma-postgres-1  Started" });
+
+const composeFail = mk("set -o pipefail; docker compose up", { kind: "compose", resources: [
+  { type: "network", name: "app_default", state: "created" },
+  { type: "container", name: "app-postgres-1", state: "started" },
+  { type: "container", name: "app-migrate-1", state: "starting" },
+  { type: "container", name: "app-web-1", state: "error" },
+] }, { exit: 1, fail: true, durationMs: 9200, output:
+  "Container app-web-1  Error\ndependency failed to start: container app-web-1 exited (1)" });
+
 /* ============================================================
    ENVELOPE — the shared exec_command contract every renderer rides on
    ============================================================ */
@@ -850,6 +868,40 @@ function PlainOut({ output, full }) {
     samples: [
       { label: "Diffstat · multi-file", tone: "preview", note: "7 files — capped at 6; proportional add/del bars", s: diffstatBig },
       { label: "Diffstat · single file", tone: "ok", note: "git show --stat HEAD — one file, +116 −7", s: diffstatSmall },
+    ],
+  },
+  {
+    id: "compose", n: "17", group: "EXECUTION & DIAGNOSTICS", name: "ComposeView", title: "COMPOSE", accent: "--cyan", accentName: "cyan",
+    triggers: "docker compose up · pipefail QA blocks",
+    desc: "Collapses the streaming compose-up log into one row per resource at its terminal state — reusing the status dot vocabulary (green Started/Healthy · amber Creating/Starting · red Error). Hundreds of image-pull lines fold into a single summary chip.",
+    schema:
+`interface ComposeRender {
+  kind: "compose";
+  resources: {
+    type: "network" | "volume"
+        | "container" | "image";
+    name: string;        // project prefix stripped
+    state: "creating" | "created"
+         | "starting" | "started"
+         | "recreated" | "healthy" | "error";
+  }[];
+  pull?: {               // image layers, collapsed
+    layers: number;
+    done: number;
+  };
+}`,
+    behavior: [
+      ["Inline cap", "5 resources"],
+      ["Overflow", "+N resources"],
+      ["Modal", "same ComposeView · full · every resource"],
+      ["Dedup", "8-line container churn → one terminal-state row"],
+      ["Pull", "200-line layer stream → one '14/14 pulled' chip"],
+    ],
+    tokens: [["started · healthy", "--good"], ["starting", "--amber"], ["error", "--warn-bright"], ["pull", "--cyan"]],
+    states: [["STACK UP", "ok"], ["DEPENDENCY ERROR", "fail"]],
+    samples: [
+      { label: "compose · stack up", tone: "ok", note: "5 resources at terminal state + a 14/14 layers-pulled chip", s: composeUp },
+      { label: "compose · dependency error", tone: "fail", note: "exit 1 — postgres up · migrate still starting · web errored (red dot)", s: composeFail },
     ],
   },
 ];

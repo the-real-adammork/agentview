@@ -142,6 +142,48 @@ function SkillView({ r }) {
   );
 }
 
+// tool_search — tool-catalog discovery. Collapsed = search-call line (⌕ query · N tools);
+// expanded = a namespace → function tree (function name + summary + param chips).
+function ToolSearchView({ r, full }) {
+  const CAP = 4; // functions shown inline across namespaces
+  let shown = 0;
+  return (
+    <div className="xr xr-toolsearch">
+      <div className="xr-ts-line">
+        <span className="cl-icon">⌕</span>
+        <span className="cl-q">"{r.query}"</span>
+        <span className="cl-res num">{r.resultCount} tool{r.resultCount === 1 ? "" : "s"}</span>
+      </div>
+      {r.namespaces.map((ns, ni) => {
+        if (!full && shown >= CAP) return null;
+        const fns = full ? ns.functions : ns.functions.slice(0, Math.max(0, CAP - shown));
+        shown += fns.length;
+        return (
+          <div key={ni} className="xr-ts-ns">
+            <div className="xr-ts-ns-hd">
+              <span className="ns-name">{ns.name}</span>
+              {ns.description && <span className="ns-desc">{ns.description}</span>}
+            </div>
+            {fns.map((fn, fi) => (
+              <div key={fi} className="xr-ts-fn">
+                <span className="br">{fi === ns.functions.length - 1 ? "└" : "├"}</span>
+                <span className="fn-name">{fn.name}</span>
+                {fn.summary && <span className="fn-sum">{fn.summary}</span>}
+                {fn.params && fn.params.length > 0 && (
+                  <span className="fn-params">
+                    {fn.params.slice(0, 4).map((p, pi) => <span key={pi} className="pchip">{p}</span>)}
+                    {fn.params.length > 4 && <span className="pmore">+{fn.params.length - 4}</span>}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // dispatch the call body on ev.callRender.kind
 function CallView({ ev, out, full }) {
   const r = ev.callRender;
@@ -152,16 +194,21 @@ function CallView({ ev, out, full }) {
     : kind === "fetch" ? <FetchView r={r} />
     : kind === "agent" ? <AgentView r={r} />
     : kind === "skill" ? <SkillView r={r} />
+    : kind === "tool_search" ? <ToolSearchView r={r} full={full} />
     : <PlainOut output={out ? out.output : ""} full={full} />;
 }
 
-// does this call overflow its inline preview? (only patch bodies do)
+// does this call overflow its inline preview? (patch bodies + tool_search trees)
 function callOverflow(ev) {
   const r = ev.callRender;
   if (!r) return null;
   if (r.kind === "patch") {
     let n = 0; r.files.forEach((f) => (f.hunks || []).forEach((h) => { n += h.lines.length; }));
     return n > 8 ? `+${n - 8} lines` : null;
+  }
+  if (r.kind === "tool_search") {
+    const n = r.namespaces.reduce((a, ns) => a + ns.functions.length, 0);
+    return n > 4 ? `+${n - 4} tools` : null;
   }
   return null;
 }
@@ -176,6 +223,7 @@ function callMeta(ev) {
     case "fetch": return { kind: "fetch", label: r.mode === "fetch" ? "WEB FETCH" : "WEB SEARCH" };
     case "agent": return { kind: "agent", label: r.op === "spawn" ? "SPAWN AGENT" : r.op === "send" ? "SEND INPUT" : "WAIT AGENT" };
     case "skill": return { kind: "skill", label: `SKILL · ${r.name}` };
+    case "tool_search": return { kind: "tool_search", label: `TOOL SEARCH · ${r.resultCount} tool${r.resultCount === 1 ? "" : "s"}` };
     default: return { kind: "plain", label: ev.name ? ev.name.toUpperCase() : "CALL" };
   }
 }
