@@ -15,6 +15,7 @@ import { SessionsView } from "./views/SessionsView";
 import { TimelineView } from "./views/TimelineView";
 import { TokensView } from "./views/TokensView";
 import { indexSessions, isDescendantOf, rootOf, sessionRepoName } from "./views/sessionTree";
+import { buildPath, parseLocation } from "./routing";
 import type {
   AgentGraph,
   ApiError,
@@ -38,14 +39,20 @@ export function App() {
   const fixture = useMemo(() => createFixtureSnapshot(), []);
   const liveTokenStore = useMemo(() => createLiveTokenStore(), []);
   const [palette, setPalette] = usePalette();
-  const [activeView, setActiveView] = useState<ObservatoryView>("Sessions");
+  const [activeView, setActiveView] = useState<ObservatoryView>(() => parseLocation(window.location).view);
   const [health, setHealth] = useState<HealthStatus>(fixture.health);
   const [sessions, setSessions] = useState<SessionSummary[]>(fixture.sessions);
-  const [sessionFilter, setSessionFilter] = useState<SessionFilter>({ archived: "exclude" });
-  const [repoFilter, setRepoFilter] = useState<string | null>(null);
+  const [sessionFilter, setSessionFilter] = useState<SessionFilter>(() => {
+    const route = parseLocation(window.location);
+    return { archived: route.archived ?? "exclude", search: route.search || undefined };
+  });
+  const [repoFilter, setRepoFilter] = useState<string | null>(() => parseLocation(window.location).repo);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [sessionsError, setSessionsError] = useState<ApiError | null>(null);
-  const [activeSessionId, setActiveSessionId] = useState(fixture.sessions[0]?.id ?? "");
+  const [activeSessionId, setActiveSessionId] = useState(() => parseLocation(window.location).sessionId ?? fixture.sessions[0]?.id ?? "");
+  // A deep-linked session may not be in the (filtered/paginated) list; fetch it on
+  // its own so the header/metadata resolve even when it's absent from `sessions`.
+  const [overrideSession, setOverrideSession] = useState<SessionSummary | undefined>();
   const [timelinePayload, setTimelinePayload] = useState<TimelinePayload | undefined>();
   // Byte offset the initial timeline load reached; the live stream tails from here
   // so no events are missed in the fetch→connect window. The seq bumps only on an
@@ -54,15 +61,15 @@ export function App() {
   const [liveBaselineSeq, setLiveBaselineSeq] = useState(0);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [timelineError, setTimelineError] = useState<ApiError | null>(null);
-  const [timelineKind, setTimelineKind] = useState("all");
+  const [timelineKind, setTimelineKind] = useState(() => parseLocation(window.location).kind);
   // Timeline event scope: "this" (active thread only) or "all" (+SUBS — merge the
   // descendant agents' events). subEvents holds the fetched descendant streams.
-  const [timelineScope, setTimelineScope] = useState<"this" | "all">("this");
+  const [timelineScope, setTimelineScope] = useState<"this" | "all">(() => parseLocation(window.location).scope);
   const [subtreeLoading, setSubtreeLoading] = useState(false);
   const [agentGraph, setAgentGraph] = useState<AgentGraph | undefined>(fixture.agentGraph);
   const [agentGraphLoading, setAgentGraphLoading] = useState(false);
   const [agentGraphError, setAgentGraphError] = useState<ApiError | null>(null);
-  const [graphMaxDepth, setGraphMaxDepth] = useState(1);
+  const [graphMaxDepth, setGraphMaxDepth] = useState(2);
   const [tokenSeries, setTokenSeries] = useState<TokenSeries | undefined>(fixture.tokenSeries);
   const [tokenSeriesLoading, setTokenSeriesLoading] = useState(false);
   const [tokenSeriesError, setTokenSeriesError] = useState<ApiError | null>(null);
@@ -135,7 +142,15 @@ export function App() {
         if (result.ok) {
           setSessions(result.data);
           liveTokenStore.setSessions(result.data);
-          setActiveSessionId((current) => result.data.find((session) => session.id === current)?.id ?? result.data[0]?.id ?? "");
+          setActiveSessionId((current) => {
+          if (result.data.find((session) => session.id === current)) return current;
+          // Keep a deep-linked session even when it's not in the freshly filtered
+          // list (archived / different page); the override fetch supplies its
+          // metadata. Otherwise (a stale default or a filtered-out row) fall back
+          // to the first visible row.
+          if (current && current === parseLocation(window.location).sessionId) return current;
+          return result.data[0]?.id ?? "";
+        });
         } else {
           setSessionsError(result.error);
         }
@@ -160,7 +175,8 @@ export function App() {
   }, [sessionFilter, liveTokenStore]);
 
 
-  const activeSession = sessions.find((session) => session.id === activeSessionId) ?? sessions[0] ?? fixture.sessions[0];
+  const activeSession =
+    sessions.find((session) => session.id === activeSessionId) ?? overrideSession ?? sessions[0] ?? fixture.sessions[0];
   const warningSessionCount = sessions.filter(
     (session) => (session.warningCount ?? 0) > 0 || (session.failedToolCount ?? 0) > 0 || session.openChildCount > 0,
   ).length;
@@ -217,7 +233,7 @@ export function App() {
   }, [sessions, activeSession?.id]);
 
   const loadTimeline = useCallback((fromByte?: number) => {
-    if (!activeSession?.id) return;
+    if (!activeSessionId) return;
 
     setTimelineLoading(true);
     setTimelineError(null);
@@ -225,7 +241,7 @@ export function App() {
     // huge live orchestrator. +SUBS lazily pulls the server-merged subtree (still
     // ONE server call — the merge is server-side, not a client fan-out).
     realApiClient
-      .getTimeline(activeSession.id, fromByte === undefined ? undefined : { fromByte })
+      .getTimeline(activeSessionId, fromByte === undefined ? undefined : { fromByte })
       .then((result) => {
         if (result.ok) {
           setTimelinePayload((current) =>
@@ -254,12 +270,67 @@ export function App() {
         });
       })
       .finally(() => setTimelineLoading(false));
-  }, [activeSession?.id]);
+  }, [activeSessionId]);
 
   useEffect(() => {
     if (activeView !== "Timeline") return;
     loadTimeline();
-  }, [activeView, activeSession?.id, loadTimeline]);
+  }, [activeView, activeSessionId, loadTimeline]);
+
+  // ── URL ⇄ state: deep-linkable repo / session / view / filters ──────────────
+  // State → URL: push on navigations (path changes) so Back works; replace on
+  // filter edits (only the query changes) so typing doesn't flood history.
+  useEffect(() => {
+    const url = buildPath({
+      view: activeView,
+      repo: repoFilter,
+      sessionId: activeSessionId || null,
+      search: sessionFilter.search ?? "",
+      archived: sessionFilter.archived,
+      scope: timelineScope,
+      kind: timelineKind,
+    });
+    const current = window.location.pathname + window.location.search;
+    if (url === current) return;
+    const pathnameChanged = url.split("?")[0] !== window.location.pathname;
+    window.history[pathnameChanged ? "pushState" : "replaceState"](null, "", url);
+  }, [activeView, repoFilter, activeSessionId, sessionFilter.search, sessionFilter.archived, timelineScope, timelineKind]);
+
+  // URL → state on Back/Forward (popstate). The push effect above no-ops because
+  // buildPath(state) now equals the already-current URL, so there's no loop.
+  useEffect(() => {
+    const onPopState = () => {
+      const route = parseLocation(window.location);
+      setActiveView(route.view);
+      setRepoFilter(route.repo);
+      if (route.sessionId) setActiveSessionId(route.sessionId);
+      setTimelineScope(route.scope);
+      setTimelineKind(route.kind);
+      setSessionFilter((current) => ({ ...current, search: route.search || undefined, archived: route.archived ?? "exclude" }));
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  // Resolve a deep-linked session that isn't in the current list so its metadata
+  // (repo/title/header) is available; cleared once it appears in `sessions`.
+  useEffect(() => {
+    if (!activeSessionId || sessions.some((session) => session.id === activeSessionId)) {
+      setOverrideSession(undefined);
+      return;
+    }
+    if (overrideSession?.id === activeSessionId || !realApiClient.getThread) return;
+    let cancelled = false;
+    realApiClient
+      .getThread(activeSessionId)
+      .then((result) => {
+        if (!cancelled && result.ok) setOverrideSession(result.data);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSessionId, sessionIdsKey]);
 
   // +SUBS pulls the server-merged spawn subtree once per session (one server call;
   // the merge is server-side). It swaps into the payload so rows expand in place;

@@ -7,9 +7,14 @@ import type {
   TokenSnapshot,
 } from "../../shared/contracts";
 import { maskPreviewSecrets } from "../../shared/redaction";
+import { classifyExecOutput } from "./classifyExecOutput";
 
-export const ROLLOUT_PARSER_VERSION = 3;
+export const ROLLOUT_PARSER_VERSION = 11;
 export const LARGE_OUTPUT_COLLAPSE_BYTES = 4 * 1024;
+/** How much (redacted) output we keep around to classify into `outputRender`. */
+const CLASSIFY_OUTPUT_CAP = 128 * 1024;
+/** Tool names that surface a skill invocation rather than a plain tool call. */
+const SKILL_TOOL_NAMES = /^(?:invoke_skill|run_skill|use_skill|skill)$/i;
 
 type JsonRecord = Record<string, unknown>;
 type MutableTimelineEvent = TimelineEvent & {
@@ -18,6 +23,8 @@ type MutableTimelineEvent = TimelineEvent & {
   resultEventId?: string;
   outputTokenCount?: number;
   agentStatus?: "open" | "closed" | "failed";
+  /** Redacted, bounded full output carried call↔result for classification; stripped before output. */
+  fullOutput?: string;
 };
 
 export interface ParseRolloutOptions {
@@ -151,6 +158,8 @@ const previewFromRecord = (record: JsonRecord) => {
     record.text,
     record.body,
     record.task,
+    // `reason` carries the human cause for aborts/cancels (e.g. turn_aborted).
+    record.reason,
     record.last_agent_message,
     goal?.objective,
     payload.objective,
@@ -164,6 +173,7 @@ const previewFromRecord = (record: JsonRecord) => {
     payload.text,
     payload.body,
     payload.task,
+    payload.reason,
     payload.last_agent_message,
   );
 
@@ -189,6 +199,31 @@ const toolNameFromRecord = (record: JsonRecord) => {
   const payload = nestedPayload(record);
   const tool = isRecord(record.tool) ? record.tool : isRecord(payload.tool) ? payload.tool : undefined;
   return stringValue(record.tool_name, record.toolName, record.name, payload.tool_name, payload.toolName, payload.name, tool?.name);
+};
+
+/**
+ * Fall back to the event type for a tool name when the record carries no `name`
+ * (e.g. web_search_call / tool_search_call) — so the row gets a real label and a
+ * clean preview instead of dumping the raw payload. Generic function/custom_tool
+ * envelopes stay nameless (their real name comes from `name`, handled elsewhere).
+ */
+const derivedToolName = (record: JsonRecord, kind: TimelineEventKind) => {
+  if (kind !== "tool_call" && kind !== "tool_result") return undefined;
+  const base = rawEventType(record)
+    .toLowerCase()
+    .replace(/[.-]/g, "_")
+    .replace(/_(call|output|begin|end|started|completed)$/, "");
+  if (!base || base.startsWith("function") || base.startsWith("custom_tool") || base === "tool" || base === "unknown") {
+    return undefined;
+  }
+  return base;
+};
+
+/** Search query for web_search / tool_search style calls (no shell command). */
+const searchQueryFromRecord = (record: JsonRecord) => {
+  const payload = nestedPayload(record);
+  const action = isRecord(payload.action) ? payload.action : isRecord(record.action) ? record.action : undefined;
+  return stringValue(action?.query, payload.query, record.query);
 };
 
 const argsFromRecord = (record: JsonRecord) => {
@@ -218,12 +253,46 @@ const commandPreviewFromRecord = (record: JsonRecord) => {
   return redactedPreview(stringValue(args?.cmd, args?.command, args?.shell_command));
 };
 
+/**
+ * Strip the Codex `exec_command` streaming envelope that wraps real output:
+ *
+ *   Chunk ID: <id>
+ *   Wall time: <n> seconds
+ *   Process exited with code <N>
+ *   Original token count: <n>
+ *   Output:
+ *   <actual output>
+ *
+ * Long-running commands stream several such chunks; the real output is the
+ * concatenation of each chunk's body. Returns the unwrapped output (+ exit code
+ * read from the envelope) so renderers and previews never see the metadata.
+ */
+const unwrapExecEnvelope = (raw: string): { output: string; exitCode?: number } | undefined => {
+  if (!/(?:^|\n)Chunk ID:/.test(raw)) return undefined;
+  const bodies: string[] = [];
+  const outputMarker = /^Output:[ \t]*\r?\n?/gm;
+  let match: RegExpExecArray | null;
+  while ((match = outputMarker.exec(raw)) !== null) {
+    const rest = raw.slice(match.index + match[0].length);
+    const nextChunk = rest.search(/^Chunk ID:/m);
+    bodies.push(nextChunk === -1 ? rest : rest.slice(0, nextChunk));
+  }
+  if (bodies.length === 0) return undefined;
+  const exit = [...raw.matchAll(/^Process exited with code (-?\d+)/gm)].pop();
+  return { output: bodies.join("").replace(/\s+$/, ""), exitCode: exit ? Number(exit[1]) : undefined };
+};
+
 const outputDetailsFromRecord = (record: JsonRecord) => {
   const payload = nestedPayload(record);
   const raw = stringValue(record.output, record.result, record.stderr, record.stdout, payload.output, payload.result, payload.stderr, payload.stdout);
   const wrapper = parseJsonObject(raw);
-  const outputText = stringValue(wrapper?.output, wrapper?.stdout, wrapper?.stderr, wrapper?.result, raw);
-  const exitCode = numberValue(record.exitCode, record.exit_code, payload.exitCode, payload.exit_code, wrapper?.exitCode, wrapper?.exit_code);
+  let outputText = stringValue(wrapper?.output, wrapper?.stdout, wrapper?.stderr, wrapper?.result, raw);
+  let exitCode = numberValue(record.exitCode, record.exit_code, payload.exitCode, payload.exit_code, wrapper?.exitCode, wrapper?.exit_code);
+  const envelope = outputText ? unwrapExecEnvelope(outputText) : undefined;
+  if (envelope) {
+    outputText = envelope.output;
+    if (exitCode === undefined) exitCode = envelope.exitCode;
+  }
   const durationMs = numberValue(
     record.durationMs,
     record.duration_ms,
@@ -378,7 +447,8 @@ const classify = (record: JsonRecord): { kind: TimelineEventKind; severity: Even
     type.includes("call_output") ||
     type.includes("function_call_output") ||
     type.includes("patch_apply_end") ||
-    type.includes("web_search_end")
+    type.includes("web_search_end") ||
+    type.includes("image_generation_end")
   ) {
     return { kind: "tool_result", severity: "info" };
   }
@@ -387,8 +457,15 @@ const classify = (record: JsonRecord): { kind: TimelineEventKind; severity: Even
     type.includes("function_call") ||
     type.includes("custom_tool") ||
     type.includes("patch_apply") ||
-    type.includes("web_search")
+    type.includes("web_search") ||
+    type.includes("tool_search") ||
+    type.includes("image_generation")
   ) {
+    // Skills surface as a distinguished tool invocation; promote them to their
+    // own first-class kind so the Tools tab counts only real tool calls and the
+    // Skills tab isolates them. (Skill Invocation Events handoff.)
+    const toolName = toolNameFromRecord(record);
+    if (toolName && SKILL_TOOL_NAMES.test(toolName)) return { kind: "skill_invoke", severity: "info" };
     return { kind: "tool_call", severity: "info" };
   }
   if (type.includes("agent_launch") || type.includes("spawn")) return { kind: "agent_launch", severity: "info" };
@@ -436,6 +513,8 @@ const knownEventType = (record: JsonRecord) => {
     "call_output",
     "patch_apply",
     "web_search",
+    "tool_search",
+    "image_generation",
     "goal",
     "compact",
     "session_meta",
@@ -447,7 +526,7 @@ const makeEvent = (record: JsonRecord, options: ParseRolloutOptions, sourceLine:
   const timestamp = isoTimestamp(record, sourceLine);
   const { kind, severity } = classify(record);
   const callId = callIdFromRecord(record);
-  const toolName = toolNameFromRecord(record);
+  const toolName = toolNameFromRecord(record) ?? derivedToolName(record, kind);
   const outputDetails = outputDetailsFromRecord(record);
   const output = outputDetails.outputText;
   const outputBytes = numberValue(record.outputBytes, record.output_bytes, Buffer.byteLength(output ?? "", "utf8"));
@@ -456,12 +535,39 @@ const makeEvent = (record: JsonRecord, options: ParseRolloutOptions, sourceLine:
   const tokenSnapshot = kind === "token_snapshot" ? tokenSnapshotFromRecord(record, timestamp) : undefined;
 
   let previewText = previewFromRecord(record);
+  let skillName: string | undefined;
   if (!knownEventType(record)) {
-    previewText = `Unknown rollout event ${rawEventType(record)}: ${previewText}`;
+    // Degrade gracefully for the long tail of future event types: keep the type
+    // name but never spill the raw JSON payload into the row.
+    const body = previewText.trim().startsWith("{") ? "" : `: ${previewText}`;
+    previewText = `Unknown rollout event ${rawEventType(record)}${body}`;
   }
   if (kind === "token_snapshot") {
     if (tokenSnapshot) {
       previewText = `tokens total=${tokenSnapshot.total.toLocaleString("en-US")} input=${tokenSnapshot.input.toLocaleString("en-US")} output=${tokenSnapshot.output.toLocaleString("en-US")} cached=${tokenSnapshot.cachedInput.toLocaleString("en-US")}`;
+    } else {
+      // No usage numbers (e.g. an empty token_count) — never dump the raw record.
+      previewText = "token snapshot (no usage reported)";
+    }
+  } else if (kind === "turn_context" || kind === "task_started") {
+    // turn_context / task_started carry config (cwd/model/effort/sandbox), not prose.
+    // previewFromRecord already surfaces a goal objective when present; only replace
+    // the raw-JSON fallback with a compact, low-emphasis context summary.
+    if (previewText.trim().startsWith("{")) {
+      const payload = nestedPayload(record);
+      const model = stringValue(payload.model, record.model);
+      const effort = stringValue(payload.reasoning_effort, payload.effort, record.reasoning_effort);
+      const sandbox = stringValue(payload.sandbox_policy, payload.sandbox, record.sandbox_policy);
+      const cwd = stringValue(payload.cwd, record.cwd);
+      const summary = [
+        model && `model ${model}`,
+        effort && `effort ${effort}`,
+        sandbox && `sandbox ${sandbox}`,
+        cwd && `cwd ${cwd}`,
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      previewText = maskPreviewSecrets(summary) || (kind === "task_started" ? "task started" : "turn context");
     }
   } else if (kind === "reasoning") {
     // Reasoning is usually encrypted with an empty summary; show the summary
@@ -470,9 +576,21 @@ const makeEvent = (record: JsonRecord, options: ParseRolloutOptions, sourceLine:
     const summaryText = textFromContentItems(payload.summary) ?? textFromContentItems(record.summary);
     const directText = stringValue(record.text, payload.text);
     previewText = redactedPreview(summaryText ?? directText ?? "") || "(reasoning summary withheld)";
+  } else if (kind === "skill_invoke") {
+    const args = argsObjectFromRecord(record);
+    skillName = stringValue(args?.skill, args?.name, args?.skill_name, toolName);
+    previewText =
+      redactedPreview(stringValue(args?.summary, args?.description, args?.task, args?.input)) ||
+      `${skillName ?? "skill"} invoked`;
   } else if ((kind === "tool_call" || kind === "agent_launch") && toolName) {
-    previewText = `${toolName} ${redactedPreview(argsFromRecord(record))}`.trim();
-  } else if ((kind === "tool_result" || kind === "agent_wait") && toolName) {
+    // Prefer a search query (web_search / tool_search) over the raw args blob.
+    const query = searchQueryFromRecord(record);
+    previewText = `${toolName} ${query ?? redactedPreview(argsFromRecord(record))}`.trim();
+  } else if (kind === "tool_result") {
+    // Results are joined onto their call; keep a clean one-liner even when the
+    // result record carries no tool name (never dump the raw function_call_output).
+    previewText = `${toolName ?? "tool"} completed${exitCode !== undefined ? ` with exit ${exitCode}` : ""}`;
+  } else if (kind === "agent_wait" && toolName) {
     previewText = `${toolName} completed${exitCode !== undefined ? ` with exit ${exitCode}` : ""}`;
   } else if (kind === "agent_launch") {
     previewText = redactedPreview({
@@ -513,9 +631,13 @@ const makeEvent = (record: JsonRecord, options: ParseRolloutOptions, sourceLine:
     isCollapsedByDefault: (outputBytes ?? 0) > LARGE_OUTPUT_COLLAPSE_BYTES,
     hasRawAvailable: output !== undefined,
     rawPreview: output === undefined ? undefined : redactedPreview(output, 4000),
+    skillName,
     commandPreview: commandPreviewFromRecord(record),
     outputTokenCount: outputDetails.outputTokenCount,
     agentStatus: agentStatusFromRecord(record),
+    // Redacted + bounded so a tool_result can be classified into outputRender at
+    // join time. Stripped from every event before the facts are returned.
+    fullOutput: output === undefined ? undefined : maskPreviewSecrets(output).slice(0, CLASSIFY_OUTPUT_CAP),
   };
 };
 
@@ -548,7 +670,19 @@ const deriveFacts = (events: MutableTimelineEvent[]) => {
         call.severity = "error";
         call.failureReasonPreview = result.outputPreview;
       }
+      // The raw output lives on the (hidden) result row; carry a bounded copy
+      // onto the call so the modal's RAW escape hatch has something to show.
+      if (result.rawPreview) {
+        call.rawPreview = result.rawPreview;
+        call.hasRawAvailable = true;
+      }
     }
+
+    // Classify the command's output into a structured render once, here, where
+    // the call's command and the result's output are both in hand. The UI reads
+    // `outputRender` directly — no client-side parsing.
+    const render = classifyExecOutput(call.commandPreview, result?.fullOutput ?? call.fullOutput);
+    if (render) call.outputRender = render;
 
     return {
       callId: call.callId as string,
@@ -566,6 +700,17 @@ const deriveFacts = (events: MutableTimelineEvent[]) => {
       outputTokenCount: result?.outputTokenCount,
     } satisfies CachedToolCall;
   });
+
+  // Skills join to their result like tool calls do (for the status chip) but are
+  // intentionally kept out of `toolCalls` so the Tools count excludes them.
+  for (const skill of events.filter((event) => event.kind === "skill_invoke")) {
+    const result = skill.callId ? resultsByCallId.get(skill.callId) : undefined;
+    if (!result) continue;
+    skill.joinedOutputPreview = result.outputPreview;
+    skill.joinedExitCode = result.exitCode;
+    skill.skillStatus = result.exitCode !== undefined && result.exitCode !== 0 ? "fail" : "ok";
+    if (skill.skillStatus === "fail") skill.severity = "error";
+  }
 
   const tokenSnapshots = events.flatMap((event) => (event.tokenSnapshot ? [event.tokenSnapshot] : []));
   const agentLaunches = events
@@ -654,6 +799,10 @@ export const parseRolloutLines = (lines: string[], options: ParseRolloutOptions)
   });
 
   const { toolCalls, tokenSnapshots, agentLaunches, agentWaits, turns } = deriveFacts(events);
+
+  // The full output was only needed to classify into `outputRender`; drop it so
+  // it never bloats the cached facts or the streamed payload.
+  for (const event of events) delete event.fullOutput;
 
   return {
     threadId: options.threadId,

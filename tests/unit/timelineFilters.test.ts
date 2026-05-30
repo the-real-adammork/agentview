@@ -25,11 +25,12 @@ const ev = (kind: TimelineEventKind, overrides: Partial<TimelineEvent> = {}): Ti
 const at = (kind: TimelineEventKind, isoTimestamp: string): TimelineEvent => ev(kind, { timestamp: isoTimestamp });
 
 describe("TIMELINE_FILTERS", () => {
-  it("exposes the six grouped tabs in design order", () => {
+  it("exposes the grouped tabs in design order (Skills between Tools and Agent Ops)", () => {
     expect(TIMELINE_FILTERS.map((group) => group.key)).toEqual([
       "all",
       "messages",
       "tools",
+      "skills",
       "agents",
       "tokens",
       "warnings",
@@ -38,10 +39,17 @@ describe("TIMELINE_FILTERS", () => {
       "All Events",
       "Messages",
       "Tools",
+      "Skills",
       "Agent Ops",
       "Tokens",
       "Warnings",
     ]);
+  });
+
+  it("isolates skill_invoke events under the Skills tab (and keeps them out of Tools)", () => {
+    const events = [ev("tool_call", { callId: "c1" }), ev("skill_invoke", { skillName: "read_pdf" })];
+    expect(filterTimelineEvents(events, "skills").map((event) => event.kind)).toEqual(["skill_invoke"]);
+    expect(filterTimelineEvents(events, "tools").map((event) => event.kind)).toEqual(["tool_call"]);
   });
 });
 
@@ -93,6 +101,19 @@ describe("filterTimelineEvents", () => {
 
   it("falls back to the all group for an unknown key", () => {
     expect(filterTimelineEvents(events, "bogus")).toHaveLength(events.length);
+  });
+
+  it("hides token snapshots from every tab except Tokens when hideTokens is set", () => {
+    const events = [ev("user_message"), ev("tool_call"), ev("token_snapshot"), ev("token_snapshot")];
+
+    // All Events drops the token rows...
+    const all = filterTimelineEvents(events, "all", true);
+    expect(all.some((event) => event.kind === "token_snapshot")).toBe(false);
+    expect(all).toHaveLength(2);
+    // ...but the dedicated Tokens tab still shows them.
+    expect(filterTimelineEvents(events, "tokens", true)).toHaveLength(2);
+    // Default (hideTokens=false) is unchanged.
+    expect(filterTimelineEvents(events, "all")).toHaveLength(4);
   });
 });
 

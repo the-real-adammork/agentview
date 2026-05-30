@@ -27,7 +27,18 @@ test.describe("real Timeline detail @timeline", () => {
     await expect(page.getByLabel("Timeline events").getByText("Timeline task started")).toBeVisible();
     await expect(page.getByText("OPENAI_API_KEY=[REDACTED]")).toBeVisible();
     await expect(page.getByText("sk-test")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /Expand \d+KB output/ })).toBeVisible();
+
+    // Structured exec output: the `cat` result renders through the file-peek
+    // renderer; its long output overflows the inline cap into an Expand
+    // affordance that opens the full-output modal (Esc dismisses).
+    const expandButton = page.getByRole("button", { name: /Expand · \d+ more lines/ });
+    await expect(expandButton).toBeVisible();
+    await expandButton.click();
+    const modal = page.getByRole("dialog");
+    await expect(modal).toBeVisible();
+    await expect(modal.getByRole("button", { name: "RAW" })).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(modal).toHaveCount(0);
 
     // Scrubber renders one positioned dot per event plus five axis ticks.
     await expect(page.getByLabel("Timeline scrubber").locator(".timeline-scrubber__axis")).toHaveCount(5);
@@ -45,11 +56,18 @@ test.describe("real Timeline detail @timeline", () => {
     await windowGroup.getByRole("button", { name: "ALL" }).click();
     await expect(scrubberHeader).toContainText("TASK_STARTED");
 
-    // The grouped "Tools" filter shows only tool_call rows (results are inlined).
+    // The grouped "Tools" filter shows only tool_call rows (results are inlined,
+    // and skills are excluded — they live under the Skills tab).
     await page.getByRole("button", { name: /^Tools/ }).click();
     const events = page.getByLabel("Timeline events");
     expect(await events.locator("li").count()).toBeGreaterThan(0);
     await expect(events.locator('li:not([data-kind="tool_call"])')).toHaveCount(0);
+
+    // Skills are a first-class kind: the Skills tab isolates skill_invoke rows.
+    await page.getByRole("button", { name: /^Skills/ }).click();
+    await expect(events.locator('li[data-kind="skill_invoke"]')).not.toHaveCount(0);
+    await expect(events.locator('li:not([data-kind="skill_invoke"])')).toHaveCount(0);
+    await expect(events.getByText(/SKILL · read_pdf/)).toBeVisible();
 
     const rolloutPath = initialTimelineBody.data.facts.rolloutPath;
     expect(rolloutPath).toBeTruthy();
@@ -138,6 +156,9 @@ test.describe("real Timeline detail @timeline", () => {
     });
 
     const timeline = page.getByLabel("Timeline events");
+    // Token snapshot rows are hidden by default; reveal them so the all-kinds and
+    // token-composition assertions below can see them.
+    await page.getByRole("group", { name: "Token rows" }).getByRole("button").click();
     // Every design event kind is present (tool results are inlined on their call).
     await expect(timeline.locator('[data-kind="task_started"]')).not.toHaveCount(0);
     await expect(timeline.locator('[data-kind="turn_context"]')).not.toHaveCount(0);

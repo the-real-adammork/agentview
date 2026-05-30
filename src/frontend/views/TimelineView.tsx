@@ -3,6 +3,8 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { AnimatedNumber } from "../components/AnimatedNumber";
 import { useEnteringIds } from "../live/useEnteringIds";
 import { TimelineEventRow, type EventSource } from "../components/TimelineEventRow";
+import { ExecModal } from "../components/execRenderers";
+import { TimelineLoadingSkeleton } from "../components/TimelineLoadingSkeleton";
 import { TimelineScrubber } from "../components/TimelineScrubber";
 import { flattenAgentTree, indexSessions, isDescendantOf, sessionDepth, toneForDepth } from "./sessionTree";
 import type { AgentEdgeStatus, ApiError, SessionSummary, TimelineEvent, TimelinePayload } from "../../shared/contracts";
@@ -179,6 +181,8 @@ export function TimelineView({
   onOpenGraph,
 }: TimelineViewProps) {
   const [windowMs, setWindowMs] = useState(0); // 0 === "ALL"
+  // The exec-output event whose full output is open in the modal (null = closed).
+  const [expandedEvent, setExpandedEvent] = useState<TimelineEvent | null>(null);
   // Live tail: when on, new events stream in with the feed-enter animation and
   // the toggle pulses. The real stream is SSE-driven (App owns it); turning this
   // on also pulls the newest bytes immediately.
@@ -186,6 +190,9 @@ export function TimelineView({
   // How many of the most-recent visible events to actually render; "load older"
   // grows it. Reset when the filter/window/scope/session changes (below).
   const [renderLimit, setRenderLimit] = useState(DEFAULT_RENDER_LIMIT);
+  // Per-turn token_count snapshots are noisy in the stream; hide them from every
+  // tab except "Tokens" by default. Toggleable so they can be brought back.
+  const [hideTokens, setHideTokens] = useState(true);
   // +SUBS scope merges descendant agents' events into the stream; each event keeps
   // its own threadId so its origin (depth + agent name) can be derived per row.
   const sessionIndex = indexSessions(sessions);
@@ -205,6 +212,11 @@ export function TimelineView({
     (event) => scope === "all" || !activeSession || event.threadId === activeSession.id,
   );
   const events = sortTimelineEvents(scopedEvents);
+  // The loading skeleton stands in for fetching + parsing this session's rollout.
+  // It shows while a load is in flight and there's nothing yet for the active
+  // thread — i.e. a cold open or a session switch (whose stale events were just
+  // filtered out) — and clears the moment the thread's events arrive.
+  const showSkeleton = isLoading && events.length === 0;
 
   // Per-event origin for the depth rail: look the source thread up in the session
   // index and tone it by tree depth (orange root · amber sub · cyan sub-sub).
@@ -245,7 +257,7 @@ export function TimelineView({
   const windowedEvents = windowTimelineEvents(renderableEvents, windowMs);
   // Newest first: the stream renders most-recent events at the top. filter()
   // returns a fresh array, so reversing it does not mutate shared data.
-  const visibleEvents = filterTimelineEvents(windowedEvents, activeKind).reverse();
+  const visibleEvents = filterTimelineEvents(windowedEvents, activeKind, hideTokens).reverse();
   // Render only the most-recent `renderLimit` (newest-first, so the slice head is
   // the most recent); the rest reveal via "load older".
   const renderedEvents = visibleEvents.slice(0, renderLimit);
@@ -287,7 +299,10 @@ export function TimelineView({
   // back to the most-recent page rather than carrying a grown limit across views.
   useEffect(() => {
     setRenderLimit(DEFAULT_RENDER_LIMIT);
-  }, [activeKind, windowMs, scope, activeSession?.id]);
+    // Re-framing the stream closes any open exec-output modal so it can't outlive
+    // the events it was opened from (e.g. switching threads or windows).
+    setExpandedEvent(null);
+  }, [activeKind, windowMs, scope, hideTokens, activeSession?.id]);
 
   const latestSnapshot = facts?.tokenSnapshots.at(-1);
   const tokenTotal = activeSession?.tokensUsed ?? activeSession?.tokenTotal ?? latestSnapshot?.total ?? 0;
@@ -452,10 +467,22 @@ export function TimelineView({
               onClick={() => onKindChange(group.key)}
               type="button"
             >
-              {group.label} <span aria-hidden="true" className="muted">·{timelineFilterCount(windowedEvents, group.key)}</span>
+              {group.label} <span aria-hidden="true" className="muted">·{timelineFilterCount(windowedEvents, group.key, hideTokens)}</span>
             </button>
           ))}
           <span className="spacer" />
+          <div className="tl-range" role="group" aria-label="Token rows">
+            <span aria-hidden="true" className="tl-range-lbl">▸ Tokens</span>
+            <button
+              aria-pressed={!hideTokens}
+              data-on={!hideTokens ? "true" : "false"}
+              onClick={() => setHideTokens((value) => !value)}
+              title={hideTokens ? "Token snapshot rows are hidden — click to show them" : "Token snapshot rows are shown — click to hide them"}
+              type="button"
+            >
+              {hideTokens ? "Hidden" : "Shown"}
+            </button>
+          </div>
           {hasDescendants ? (
             <div className="tl-range" role="group" aria-label="Event scope">
               <span aria-hidden="true" className="tl-range-lbl">▸ Scope</span>
@@ -514,16 +541,23 @@ export function TimelineView({
         </div>
 
         {error ? <div role="alert" className="inline-alert">{error.message}</div> : null}
-        {isLoading && visibleEvents.length === 0 ? <div role="status">Streaming timeline…</div> : null}
 
-        <div className="tl-scrubber-wrap">
+        <div className="tl-scrubber-wrap tl-scrubber" data-loading={showSkeleton ? "true" : undefined}>
           <div className="hdr">
-            <span>TURN 01 · {headerSpanLabel}{headerDurationSeconds !== undefined ? ` · DUR ${headerDurationSeconds}s` : ""}</span>
+            <span>
+              TURN 01 · {showSkeleton ? "LOADING ROLLOUT…" : headerSpanLabel}
+              {showSkeleton ? " · DUR —" : headerDurationSeconds !== undefined ? ` · DUR ${headerDurationSeconds}s` : ""}
+            </span>
             <span>TTFT {firstTurn?.firstTokenMs ?? "n/a"}ms · next byte {payload?.nextByteOffset ?? 0}</span>
           </div>
-          <TimelineScrubber events={windowedEvents} activeKind={activeKind} />
+          {/* Dots are withheld while loading so stale/abruptly-appearing dots never flash. */}
+          <TimelineScrubber events={showSkeleton ? [] : windowedEvents} activeKind={activeKind} />
+          {showSkeleton ? <div className="tl-scan" aria-hidden="true" /> : null}
         </div>
 
+        {showSkeleton ? (
+          <TimelineLoadingSkeleton />
+        ) : (
         <ol className="tl-stream" aria-label="Timeline events">
           {visibleEvents.length === 0 ? (
             <li className="tl-stream__empty faint">-- no events in this window --</li>
@@ -548,6 +582,7 @@ export function TimelineView({
                 isNew={enteringIds.has(event.id)}
                 source={sourceForEvent(event)}
                 onOpenThread={(threadId) => onSelectSession(threadId, "Timeline")}
+                onExpand={setExpandedEvent}
               />
             );
           })}
@@ -559,7 +594,9 @@ export function TimelineView({
             </li>
           ) : null}
         </ol>
+        )}
       </section>
+      {expandedEvent ? <ExecModal event={expandedEvent} onClose={() => setExpandedEvent(null)} /> : null}
     </section>
   );
 }

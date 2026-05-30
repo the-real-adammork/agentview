@@ -1,5 +1,5 @@
 import type { TimelineEvent, TimelineEventKind } from "../../shared/contracts";
-import { ToolOutputPreview } from "./ToolOutputPreview";
+import { ExecOutput, isExpandable } from "./execRenderers";
 
 const numberFormatter = new Intl.NumberFormat("en-US");
 const formatTime = (value: string) => new Date(value).toLocaleTimeString("en-US");
@@ -7,7 +7,7 @@ const formatTime = (value: string) => new Date(value).toLocaleTimeString("en-US"
 const durationLabel = (durationMs: number) =>
   durationMs >= 1000 ? `${(durationMs / 1000).toFixed(3).replace(/0+$/, "").replace(/\.$/, "")}s` : `${durationMs}ms`;
 
-type WhoTone = "primary" | "good" | "amber" | "warn" | "cyan" | "ink";
+type WhoTone = "primary" | "good" | "amber" | "warn" | "cyan" | "ink" | "skill" | "dim";
 
 interface KindPresentation {
   evClass: string;
@@ -23,12 +23,64 @@ const fallbackPresentation = (kind: TimelineEventKind): KindPresentation => ({
   border: "var(--rule)",
 });
 
+interface ExecCategory {
+  label: string;
+  tone: WhoTone;
+  border: string;
+}
+
+/**
+ * exec_command is by far the most common tool, so a row that just says
+ * "EXEC_COMMAND" tells you nothing. Type it by what it actually did — the
+ * structured output kind when we classified one, else the command verb — so the
+ * card label + border match the body (diff/search/git/file/…) and the stream is
+ * scannable by category instead of a wall of identical "EXEC_COMMAND" rows.
+ */
+const EXEC_KIND_CATEGORY: Record<string, ExecCategory> = {
+  diff: { label: "DIFF", tone: "cyan", border: "var(--cyan)" },
+  tests: { label: "TEST RESULTS", tone: "good", border: "var(--good)" },
+  status: { label: "GIT STATUS", tone: "amber", border: "var(--amber)" },
+  table: { label: "TABLE", tone: "primary", border: "var(--primary)" },
+  file: { label: "FILE", tone: "ink", border: "var(--rule-strong)" },
+  matches: { label: "SEARCH", tone: "good", border: "var(--good)" },
+  http: { label: "HTTP", tone: "cyan", border: "var(--cyan)" },
+};
+
+const execCategoryFromCommand = (command: string): ExecCategory => {
+  const stripped = command.replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S+)\s+)+/, "").trim();
+  const tokens = stripped.split(/\s+/);
+  const head = (tokens[0] ?? "").toLowerCase().replace(/.*\//, "");
+  const sub = (tokens[1] ?? "").toLowerCase();
+  if (head === "git") return { label: `GIT ${sub.toUpperCase()}`.trim(), tone: "amber", border: "var(--amber)" };
+  if (/^(?:rg|grep|ag|ack)$/.test(head)) return { label: "SEARCH", tone: "good", border: "var(--good)" };
+  if (/^(?:find|fd)$/.test(head)) return { label: "FIND", tone: "cyan", border: "var(--cyan)" };
+  if (/^(?:ls|tree|exa|eza)$/.test(head)) return { label: "LIST", tone: "ink", border: "var(--rule-strong)" };
+  if (/^(?:sed|nl|cat|head|tail|wc|bat|less|more)$/.test(head)) return { label: "READ", tone: "ink", border: "var(--rule-strong)" };
+  if (head === "sqlite3") return { label: "SQL", tone: "primary", border: "var(--primary)" };
+  if (/^(?:curl|wget)$/.test(head)) return { label: "HTTP", tone: "cyan", border: "var(--cyan)" };
+  if (/^(?:npm|pnpm|yarn|bun|node|deno|docker|make|cargo|go|tsc|vite|webpack|turbo|nx|gradle|mvn)$/.test(head)) {
+    return { label: "BUILD", tone: "primary", border: "var(--primary)" };
+  }
+  if (/^(?:pytest|vitest|jest|mocha|ava)$/.test(head)) return { label: "TEST RESULTS", tone: "good", border: "var(--good)" };
+  const verb = head.replace(/[^a-z0-9_.+-].*$/i, "");
+  return { label: verb ? verb.toUpperCase() : "EXEC", tone: "amber", border: "var(--amber)" };
+};
+
+const execCategory = (event: TimelineEvent): ExecCategory => {
+  const kind = event.outputRender?.kind;
+  if (kind && kind !== "plain" && EXEC_KIND_CATEGORY[kind]) return EXEC_KIND_CATEGORY[kind];
+  return execCategoryFromCommand(event.commandPreview ?? "");
+};
+
 const presentationFor = (event: TimelineEvent): KindPresentation => {
   switch (event.kind) {
     case "task_started":
       return { evClass: "", who: "▸ TASK_STARTED", whoTone: "primary", border: "var(--primary)" };
     case "task_complete":
       return { evClass: "", who: "▸ TASK_COMPLETE", whoTone: "good", border: "var(--good)" };
+    case "turn_context":
+      // High-frequency, low-value: recede with a muted dot, dim label, soft border.
+      return { evClass: "context", who: "▸ TURN_CONTEXT", whoTone: "dim", border: "var(--rule-soft)" };
     case "user_message":
       return { evClass: "user", who: "USER", whoTone: "cyan", border: "var(--rule)" };
     case "assistant_message":
@@ -36,16 +88,27 @@ const presentationFor = (event: TimelineEvent): KindPresentation => {
     case "agent_message":
       return { evClass: "spawn", who: "AGENT REPORT", whoTone: "good", border: "var(--good)" };
     case "reasoning":
-      return { evClass: "assistant", who: "REASONING", whoTone: "ink", border: "var(--rule)" };
-    case "tool_call":
-      return {
-        evClass: "tool",
-        who: `▸ ${(event.toolName ?? "tool").toUpperCase()}`,
-        whoTone: "amber",
-        border: "var(--amber)",
-      };
+      // Usually encrypted/withheld — de-emphasize so it clearly reads as "hidden".
+      return { evClass: "context", who: "REASONING", whoTone: "dim", border: "var(--rule-soft)" };
+    case "tool_call": {
+      const toolName = event.toolName ?? "";
+      // Shell rows (exec_command/shell) are typed by what they ran; other tools
+      // (apply_patch, web_search, write_stdin, view_image, …) keep their name.
+      if (toolName === "exec_command" || toolName === "shell" || (!toolName && event.commandPreview)) {
+        const category = execCategory(event);
+        return { evClass: "tool", who: `▸ ${category.label}`, whoTone: category.tone, border: category.border };
+      }
+      return { evClass: "tool", who: `▸ ${(toolName || "tool").toUpperCase()}`, whoTone: "amber", border: "var(--amber)" };
+    }
     case "tool_result":
       return { evClass: "tool", who: "TOOL RESULT", whoTone: "amber", border: "var(--amber)" };
+    case "skill_invoke":
+      return {
+        evClass: "skill",
+        who: `✦ SKILL · ${event.skillName ?? "skill"}`,
+        whoTone: "skill",
+        border: "var(--skill)",
+      };
     case "agent_launch":
       return { evClass: "spawn", who: "⊕ SPAWN_AGENT", whoTone: "good", border: "var(--good)" };
     case "agent_wait":
@@ -155,29 +218,44 @@ interface TimelineEventRowProps {
   /** When set (+SUBS scope), prepend a depth-toned rail showing the source agent. */
   source?: EventSource;
   onOpenThread?(threadId: string): void;
+  /** Open this event's full output in the exec modal (tool rows with rich/overflowing output). */
+  onExpand?(event: TimelineEvent): void;
 }
 
-export function TimelineEventRow({ event, meta, delta, isNew, source, onOpenThread }: TimelineEventRowProps) {
+export function TimelineEventRow({ event, meta, delta, isNew, source, onOpenThread, onExpand }: TimelineEventRowProps) {
   const present = presentationFor(event);
   const durationMs = event.joinedDurationMs ?? event.durationMs;
   const exitCode = event.joinedExitCode ?? event.exitCode;
-  const outputPreview = event.kind === "tool_call" ? event.joinedOutputPreview ?? event.outputPreview : event.outputPreview;
+  const hasOutput =
+    Boolean(event.outputRender) || Boolean(event.joinedOutputPreview) || Boolean(event.outputPreview);
   const failed = exitCode !== undefined && exitCode !== 0;
   const isTool = event.kind === "tool_call" || event.kind === "tool_result";
+  // High-frequency, low-signal rows that should recede into a dim one-liner.
+  const isQuietContext = event.kind === "turn_context" || event.kind === "reasoning";
   const showChildAction = event.kind === "agent_launch" && Boolean(event.childThreadId);
+  // A tool row with structured or overflowing output opens the full-output modal;
+  // the whole body becomes the affordance (spawn rows keep their ↗ open child).
+  const expandable = isTool && hasOutput && isExpandable(event) && Boolean(onExpand);
+  const openModal = expandable ? () => onExpand?.(event) : undefined;
 
   const args =
     // Shell-style tool calls show the clean command line, not the raw args JSON.
-    (event.commandPreview || undefined) ??
-    event.argumentsPreview ??
-    (event.kind === "agent_launch" && event.agentNickname
-      ? `${event.agentNickname}${event.agentRole ? ` (${event.agentRole})` : ""}${event.agentTaskPreview ? ` // ${event.agentTaskPreview}` : ""}`
-      : undefined);
+    // Skill rows show their summary as prose instead of a `$ args` line. Bare
+    // config JSON (e.g. write_stdin's session_id/yield_time_ms) is suppressed —
+    // the WHO label + output carry the meaning, so a `$ {json}` line is just noise.
+    event.kind === "skill_invoke"
+      ? undefined
+      : (event.commandPreview || undefined) ??
+        (event.argumentsPreview && !/^\s*[{[]/.test(event.argumentsPreview) ? event.argumentsPreview : undefined) ??
+        (event.kind === "agent_launch" && event.agentNickname
+          ? `${event.agentNickname}${event.agentRole ? ` (${event.agentRole})` : ""}${event.agentTaskPreview ? ` // ${event.agentTaskPreview}` : ""}`
+          : undefined);
 
   return (
     <li
-      className={`ev ${present.evClass}${isNew ? " feed-enter" : ""}${source ? " with-src" : ""}`.trim()}
+      className={`ev ${present.evClass}${isNew ? " feed-enter" : ""}${source ? " with-src" : ""}${expandable ? " expandable" : ""}`.trim()}
       data-kind={event.kind}
+      data-exec-cat={present.whoTone}
       data-severity={event.severity}
     >
       {source ? (
@@ -191,12 +269,32 @@ export function TimelineEventRow({ event, meta, delta, isNew, source, onOpenThre
         </div>
       ) : null}
       <div className="ts num">{formatTime(event.timestamp)}</div>
-      <div className="body" style={{ borderColor: present.border }}>
+      <div
+        className="body"
+        style={{ borderColor: present.border }}
+        role={expandable ? "button" : undefined}
+        tabIndex={expandable ? 0 : undefined}
+        aria-label={expandable ? "Expand full output" : undefined}
+        onClick={openModal}
+        onKeyDown={
+          expandable
+            ? (domEvent) => {
+                if (domEvent.key === "Enter" || domEvent.key === " ") {
+                  domEvent.preventDefault();
+                  openModal?.();
+                }
+              }
+            : undefined
+        }
+      >
         <div className="head">
           <span className={`who tone-${present.whoTone}`}>{present.who}</span>
           {event.kind === "token_snapshot" ? <span>snapshot</span> : null}
           {event.phase ? <span>{event.phase}</span> : null}
           {event.callId ? <span>call_id {event.callId}</span> : null}
+          {event.kind === "skill_invoke" && event.skillStatus ? (
+            <span className={`chip ${event.skillStatus === "fail" ? "warn" : "good"}`}>{event.skillStatus}</span>
+          ) : null}
           {event.kind === "token_snapshot" && delta !== undefined ? (
             <span className="chip cyan ev__right">Δ +{compact1(delta)} since last</span>
           ) : null}
@@ -213,7 +311,10 @@ export function TimelineEventRow({ event, meta, delta, isNew, source, onOpenThre
               type="button"
               className="chip cyan ev__child"
               aria-label={`Open ${event.childThreadId} in Timeline`}
-              onClick={() => onOpenThread?.(event.childThreadId as string)}
+              onClick={(domEvent) => {
+                domEvent.stopPropagation();
+                onOpenThread?.(event.childThreadId as string);
+              }}
             >
               ↗ open child
             </button>
@@ -222,20 +323,18 @@ export function TimelineEventRow({ event, meta, delta, isNew, source, onOpenThre
 
         {args ? <div className="args">$ {args}</div> : null}
 
-        {event.kind === "token_snapshot" && event.tokenSnapshot ? (
+        {/* task_started is a quiet header marker — its config shows in the head meta,
+            so the body stays empty (matches the handoff). turn_context / reasoning
+            recede as a dim one-liner. Everything else keeps the readable pre. */}
+        {event.kind === "task_started" ? null : event.kind === "token_snapshot" && event.tokenSnapshot ? (
           <TokenComposition snapshot={event.tokenSnapshot} />
-        ) : isTool ? null : (
+        ) : isTool ? null : isQuietContext ? (
+          <div className="ev-context">{event.previewText}</div>
+        ) : (
           <pre className={present.whoTone === "warn" ? "tone-warn" : undefined}>{event.previewText}</pre>
         )}
 
-        {outputPreview ? (
-          <div className={`out${failed ? " fail" : ""}`}>
-            <div className="out__label">
-              STDOUT · {numberFormatter.format(event.outputBytes ?? outputPreview.length)} bytes{failed ? " · FAILED" : ""}
-            </div>
-            <ToolOutputPreview preview={outputPreview} outputBytes={event.outputBytes} collapsed={event.isCollapsedByDefault} />
-          </div>
-        ) : null}
+        {isTool && hasOutput ? <ExecOutput event={event} onExpand={openModal} /> : null}
       </div>
     </li>
   );

@@ -188,7 +188,10 @@ export async function writeObservedRolloutFixtures() {
 export async function writeLegacyE2eRolloutFixtures() {
   await rm(join(e2eCodexHome(), ".observatory", "cache", "v1", "rollouts"), { recursive: true, force: true });
 
-  const largeOutput = "x".repeat(4600);
+  // Multi-line so the `cat` output renders through the structured file peek and
+  // overflows its inline cap into an Expand affordance (which opens the modal).
+  // The secret stays on line 1 so the redaction assertion still has a target.
+  const largeOutput = ["OPENAI_API_KEY=sk-test", ...Array.from({ length: 30 }, (_, index) => `config entry ${index}`)].join("\n");
   const timelineLines = [
     { type: "task_started", timestamp: "2026-05-26T18:00:00.000Z", text: "Timeline task started" },
     { type: "user_message", timestamp: "2026-05-26T18:00:01.000Z", role: "user", content: "Open the selected session" },
@@ -199,7 +202,7 @@ export async function writeLegacyE2eRolloutFixtures() {
       timestamp: "2026-05-26T18:00:04.000Z",
       call_id: "call-1",
       tool_name: "exec_command",
-      output: `OPENAI_API_KEY=sk-test ${largeOutput}`,
+      output: largeOutput,
       exit_code: 0,
     },
     {
@@ -215,6 +218,21 @@ export async function writeLegacyE2eRolloutFixtures() {
       arguments: { nickname: "timeline-worker", role: "implementation" },
     },
     { type: "agent_wait", timestamp: "2026-05-26T18:00:07.000Z", call_id: "agent-1", tool_name: "wait_agent", output: "worker complete" },
+    {
+      type: "tool_call",
+      timestamp: "2026-05-26T18:00:07.400Z",
+      call_id: "skill-1",
+      tool_name: "invoke_skill",
+      arguments: { skill: "read_pdf", summary: "extract the entity model from the spec pdf" },
+    },
+    {
+      type: "tool_result",
+      timestamp: "2026-05-26T18:00:07.600Z",
+      call_id: "skill-1",
+      tool_name: "invoke_skill",
+      output: "skill complete",
+      exit_code: 0,
+    },
     { level: "warn", timestamp: "2026-05-26T18:00:08.000Z", text: "runtime warning" },
     "{malformed",
     ...Array.from({ length: 22 }, (_, index) => ({

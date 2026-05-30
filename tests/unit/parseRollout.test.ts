@@ -690,4 +690,192 @@ describe("parseRolloutFile", () => {
     ]);
     expect(JSON.stringify(facts)).not.toContain("sk-proj-rollout-secret");
   });
+
+  it("strips the Codex exec_command streaming envelope (Chunk ID / Process exited / Output:)", async () => {
+    const wrapped = [
+      "Chunk ID: abc123",
+      "Wall time: 0.0000 seconds",
+      "Process exited with code 0",
+      "Original token count: 42",
+      "Output:",
+      " M src/app.tsx",
+      "?? scratch/notes.md",
+    ].join("\n");
+    const rolloutPath = await createTempRollout([
+      {
+        timestamp: "2026-05-29T13:00:00.000Z",
+        type: "function_call",
+        call_id: "c-env",
+        name: "exec_command",
+        arguments: JSON.stringify({ cmd: "git status --short" }),
+      },
+      { timestamp: "2026-05-29T13:00:01.000Z", type: "function_call_output", call_id: "c-env", output: wrapped },
+    ]);
+    const facts = await parseFixture("thread-env", rolloutPath);
+    const call = facts.events.find((e) => e.kind === "tool_call" && e.callId === "c-env");
+    // The wrapper must never reach the UI — not in any preview, not in the render.
+    expect(JSON.stringify(facts.events)).not.toContain("Chunk ID");
+    expect(JSON.stringify(facts.events)).not.toContain("Process exited with code");
+    expect(call?.joinedOutputPreview ?? "").not.toContain("Original token count");
+    // With the envelope gone, the real output classifies and the exit code is read from it.
+    expect(call?.outputRender).toMatchObject({ kind: "status" });
+    expect(call?.joinedExitCode).toBe(0);
+  });
+
+  it("classifies a git diff tool call into a structured outputRender on the joined call", async () => {
+    const diff = [
+      "diff --git a/src/db.rs b/src/db.rs",
+      "--- a/src/db.rs",
+      "+++ b/src/db.rs",
+      "@@ -40,2 +40,3 @@ fn open() {",
+      " let db = 1;",
+      "-old line",
+      "+new line one",
+      "+new line two",
+    ].join("\n");
+    const rolloutPath = await createTempRollout([
+      {
+        timestamp: "2026-05-29T10:00:00.000Z",
+        type: "function_call",
+        call_id: "call-diff-1",
+        name: "exec_command",
+        arguments: JSON.stringify({ cmd: "git diff -- src/db.rs" }),
+      },
+      {
+        timestamp: "2026-05-29T10:00:01.000Z",
+        type: "function_call_output",
+        call_id: "call-diff-1",
+        output: diff,
+        exit_code: 0,
+      },
+    ]);
+
+    const facts = await parseFixture("thread-diff", rolloutPath);
+    const call = facts.events.find((event) => event.kind === "tool_call" && event.callId === "call-diff-1");
+    expect(call?.outputRender).toMatchObject({
+      kind: "diff",
+      files: [expect.objectContaining({ path: "src/db.rs", added: 2, removed: 1 })],
+    });
+    // The transient full output must never reach the serialized payload.
+    expect(JSON.stringify(facts.events)).not.toContain("fullOutput");
+  });
+
+  it("recognizes image_generation events as tool calls/results instead of unknown warnings", async () => {
+    const rolloutPath = await createTempRollout([
+      { timestamp: "2026-05-29T12:20:00.000Z", type: "response_item", payload: { type: "image_generation_call", call_id: "img1", prompt: "a cat" } },
+      { timestamp: "2026-05-29T12:20:01.000Z", type: "response_item", payload: { type: "image_generation_end", call_id: "img1", output: "saved image.png" } },
+    ]);
+    const facts = await parseFixture("thread-img", rolloutPath);
+    expect(facts.warnings.filter((w) => /unknown rollout event/i.test(w))).toEqual([]);
+    expect(facts.events.find((e) => e.callId === "img1" && e.kind === "tool_call")).toBeDefined();
+    expect(facts.events.find((e) => e.callId === "img1" && e.kind === "tool_result")).toBeDefined();
+  });
+
+  it("labels a truly unknown event type cleanly without dumping its raw JSON", async () => {
+    const rolloutPath = await createTempRollout([
+      { timestamp: "2026-05-29T12:21:00.000Z", type: "event_msg", payload: { type: "codex_brand_new_thing", detail: { nested: 1 } } },
+    ]);
+    const facts = await parseFixture("thread-unknown", rolloutPath);
+    const warning = facts.events.find((e) => e.kind === "warning");
+    expect(warning?.previewText).toContain("codex_brand_new_thing");
+    expect(warning?.previewText).not.toContain("{");
+  });
+
+  it("recognizes web_search_call / tool_search_call and gives them clean labels, not raw JSON", async () => {
+    const rolloutPath = await createTempRollout([
+      {
+        timestamp: "2026-05-29T12:10:00.000Z",
+        type: "response_item",
+        payload: { type: "web_search_call", status: "completed", action: { type: "search", query: "Replicate API pricing" } },
+      },
+      {
+        timestamp: "2026-05-29T12:10:01.000Z",
+        type: "response_item",
+        payload: { type: "tool_search_call", call_id: "call-ts", status: "completed", query: "ripgrep flags" },
+      },
+    ]);
+    const facts = await parseFixture("thread-search", rolloutPath);
+    expect(facts.warnings.filter((w) => /unknown rollout event/i.test(w))).toEqual([]);
+    const web = facts.events.find((e) => e.previewText.includes("Replicate API pricing"));
+    expect(web?.kind).toBe("tool_call");
+    expect(web?.previewText).not.toContain("{");
+    const toolSearch = facts.events.find((e) => e.kind === "tool_call" && e.callId === "call-ts");
+    expect(toolSearch).toBeDefined();
+    expect(toolSearch?.previewText).not.toContain("{");
+  });
+
+  it("gives a function_call_output with no tool name a clean preview instead of raw JSON", async () => {
+    const rolloutPath = await createTempRollout([
+      {
+        timestamp: "2026-05-29T12:11:00.000Z",
+        type: "response_item",
+        payload: { type: "function_call_output", call_id: "call-x", output: "done", exit_code: 0 },
+      },
+    ]);
+    const facts = await parseFixture("thread-result", rolloutPath);
+    const result = facts.events.find((e) => e.kind === "tool_result");
+    expect(result?.previewText).not.toContain("{");
+    expect(result?.previewText).toMatch(/completed/i);
+  });
+
+  it("summarizes turn_context as compact context instead of dumping the raw payload", async () => {
+    const rolloutPath = await createTempRollout([
+      {
+        timestamp: "2026-05-29T12:00:00.000Z",
+        type: "event_msg",
+        turn_id: "turn-ctx",
+        payload: { type: "turn_context", cwd: "/repo/agentview", model: "gpt-5-codex", reasoning_effort: "high" },
+      },
+    ]);
+    const facts = await parseFixture("thread-turn-context", rolloutPath);
+    const context = facts.events.find((event) => event.kind === "turn_context");
+    expect(context?.previewText).not.toContain("{");
+    expect(context?.previewText).toContain("gpt-5-codex");
+    expect(context?.previewText).toContain("/repo/agentview");
+  });
+
+  it("renders an aborted-turn warning from its reason, not the raw payload", async () => {
+    const rolloutPath = await createTempRollout([
+      {
+        timestamp: "2026-05-29T12:01:00.000Z",
+        type: "event_msg",
+        payload: { type: "turn_aborted", turn_id: "turn-ab", reason: "interrupted by user" },
+      },
+    ]);
+    const facts = await parseFixture("thread-abort", rolloutPath);
+    const warning = facts.events.find((event) => event.kind === "warning");
+    expect(warning?.previewText).toContain("interrupted by user");
+    expect(warning?.previewText).not.toContain("{");
+  });
+
+  it("maps invoke_skill tool calls to skill_invoke and keeps them out of the Tools count", async () => {
+    const rolloutPath = await createTempRollout([
+      {
+        timestamp: "2026-05-29T11:00:00.000Z",
+        type: "function_call",
+        call_id: "call-skill-1",
+        name: "invoke_skill",
+        arguments: JSON.stringify({ skill: "read_pdf", summary: "extract entity model from spec.pdf (12 pp)" }),
+      },
+      {
+        timestamp: "2026-05-29T11:00:02.000Z",
+        type: "function_call_output",
+        call_id: "call-skill-1",
+        output: "ok",
+        exit_code: 0,
+      },
+    ]);
+
+    const facts = await parseFixture("thread-skill", rolloutPath);
+    const skill = facts.events.find((event) => event.kind === "skill_invoke");
+    expect(skill).toMatchObject({
+      kind: "skill_invoke",
+      skillName: "read_pdf",
+      skillStatus: "ok",
+      previewText: expect.stringContaining("entity model"),
+    });
+    // Skills are isolated from tool calls so the Tools tab/count excludes them.
+    expect(facts.toolCalls.find((call) => call.callId === "call-skill-1")).toBeUndefined();
+    expect(facts.summary.toolCallCount).toBe(0);
+  });
 });

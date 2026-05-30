@@ -1,6 +1,6 @@
 import type { TimelineEvent, TimelineEventKind } from "../../shared/contracts";
 
-export type TimelineFilterKey = "all" | "messages" | "tools" | "agents" | "tokens" | "warnings";
+export type TimelineFilterKey = "all" | "messages" | "tools" | "skills" | "agents" | "tokens" | "warnings";
 
 export interface TimelineFilterGroup {
   key: TimelineFilterKey;
@@ -22,6 +22,7 @@ export const TIMELINE_FILTERS: TimelineFilterGroup[] = [
   { key: "all", label: "All Events", matches: () => true },
   { key: "messages", label: "Messages", matches: (event) => MESSAGE_KINDS.includes(event.kind) },
   { key: "tools", label: "Tools", matches: (event) => event.kind === "tool_call" },
+  { key: "skills", label: "Skills", matches: (event) => event.kind === "skill_invoke" },
   { key: "agents", label: "Agent Ops", matches: (event) => AGENT_KINDS.includes(event.kind) },
   { key: "tokens", label: "Tokens", matches: (event) => event.kind === "token_snapshot" },
   {
@@ -61,12 +62,20 @@ export const sortTimelineEvents = (events: TimelineEvent[]): TimelineEvent[] => 
 
 const groupFor = (key: string): TimelineFilterGroup => TIMELINE_FILTERS.find((group) => group.key === key) ?? TIMELINE_FILTERS[0];
 
-export const filterTimelineEvents = (events: TimelineEvent[], key: string): TimelineEvent[] => {
+/**
+ * Filters events to a tab. With `hideTokens`, token_snapshot rows are dropped from
+ * every tab EXCEPT the dedicated "tokens" tab (where they're the whole point), so
+ * the noisy per-turn token snapshots can be muted from the All Events stream.
+ */
+export const filterTimelineEvents = (events: TimelineEvent[], key: string, hideTokens = false): TimelineEvent[] => {
   const group = groupFor(key);
-  return events.filter((event) => group.matches(event));
+  return events.filter(
+    (event) => group.matches(event) && !(hideTokens && key !== "tokens" && event.kind === "token_snapshot"),
+  );
 };
 
-export const timelineFilterCount = (events: TimelineEvent[], key: string): number => filterTimelineEvents(events, key).length;
+export const timelineFilterCount = (events: TimelineEvent[], key: string, hideTokens = false): number =>
+  filterTimelineEvents(events, key, hideTokens).length;
 
 export interface TimeWindowOption {
   ms: number;

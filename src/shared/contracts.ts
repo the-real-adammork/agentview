@@ -120,6 +120,7 @@ export type TimelineEventKind =
   | "reasoning"
   | "tool_call"
   | "tool_result"
+  | "skill_invoke"
   | "token_snapshot"
   | "agent_launch"
   | "agent_wait"
@@ -127,6 +128,144 @@ export type TimelineEventKind =
   | "parse_error";
 
 export type EventSeverity = "info" | "warning" | "error";
+
+/**
+ * Structured `exec_command` output, classified server-side once during the
+ * rollout parse and cached on the owning tool_call event. The frontend picks a
+ * renderer component by `kind` and draws it — no client-side parsing. When the
+ * server can't classify an output it omits `outputRender` (or sends `plain`)
+ * and the UI falls back to the raw `<pre>` preview. See
+ * docs/design/workflowkit-evangelion/docs/Exec Renderers Handoff.md.
+ */
+export type DiffLineType = "add" | "del" | "ctx";
+export interface DiffLine {
+  /** add · del · ctx (context). */
+  t: DiffLineType;
+  text: string;
+}
+export interface DiffHunk {
+  /** The `@@ -a,b +c,d @@` header line, already extracted. */
+  header: string;
+  lines: DiffLine[];
+}
+export interface DiffFile {
+  path: string;
+  added: number;
+  removed: number;
+  hunks: DiffHunk[];
+}
+/** `git diff` / `git show` → unified (single-column) diff. */
+export interface DiffOutputRender {
+  kind: "diff";
+  files: DiffFile[];
+}
+
+/** `pytest` / `cargo test` / `vitest` / `go test` → pass/fail summary. */
+export interface TestsOutputRender {
+  kind: "tests";
+  passed: number;
+  failed: number;
+  skipped: number;
+  durationMs?: number;
+  /** Fully-qualified failing test names; empty when all pass. */
+  failing: string[];
+}
+
+export interface StatusFile {
+  /** M | A | D | R | ?? (extend as needed; unknown → faint glyph). */
+  code: string;
+  path: string;
+}
+/** `git status --short` → file list. `files: []` means a clean tree. */
+export interface StatusOutputRender {
+  kind: "status";
+  files: StatusFile[];
+}
+
+/** `sqlite3 -column` / columnar output → table. */
+export interface TableOutputRender {
+  kind: "table";
+  columns: string[];
+  /** May be a truncated slice of `totalRows` (server caps to a sane max). */
+  rows: string[][];
+  totalRows?: number;
+}
+
+export interface FileLine {
+  /** The real source line number (so `sed -n '40,46p'` shows 40–46). */
+  n: number;
+  text: string;
+}
+/** `nl` / `cat` / `sed -n` / `head` → line-numbered file peek. */
+export interface FileOutputRender {
+  kind: "file";
+  path?: string;
+  startLine?: number;
+  totalLines?: number;
+  lines: FileLine[];
+}
+
+export interface MatchLine {
+  n: number;
+  text: string;
+  /** `[start, end]` char offsets to emphasize within `text`; omit for no highlight. */
+  col?: [number, number];
+}
+export interface MatchFile {
+  path: string;
+  matches: MatchLine[];
+}
+/** `rg` / `grep` → matches grouped by file. */
+export interface MatchesOutputRender {
+  kind: "matches";
+  files: MatchFile[];
+}
+
+export interface HttpHeader {
+  k: string;
+  v: string;
+}
+/** `curl` / `wget` → request/response summary. */
+export interface HttpOutputRender {
+  kind: "http";
+  method?: string;
+  url?: string;
+  status: number;
+  statusText?: string;
+  durationMs?: number;
+  size?: string;
+  contentType?: string;
+  /** When true, the UI tints the body as JSON. */
+  json?: boolean;
+  headers?: HttpHeader[];
+  body?: string;
+}
+
+/** `find` / `fd` / `ls` → flat path list. */
+export interface DirectoryOutputRender {
+  kind: "directory";
+  /** One path per entry; a trailing "/" marks a directory. May be a slice of `totalEntries`. */
+  entries: string[];
+  totalEntries?: number;
+}
+
+/** Fallback: render the raw `<pre>` preview. */
+export interface PlainOutputRender {
+  kind: "plain";
+}
+
+export type OutputRender =
+  | DiffOutputRender
+  | TestsOutputRender
+  | StatusOutputRender
+  | TableOutputRender
+  | FileOutputRender
+  | MatchesOutputRender
+  | HttpOutputRender
+  | DirectoryOutputRender
+  | PlainOutputRender;
+
+export type OutputRenderKind = OutputRender["kind"];
 
 export interface TimelineEvent {
   id: string;
@@ -145,6 +284,12 @@ export interface TimelineEvent {
   commandPreview?: string;
   outputPreview?: string;
   outputBytes?: number;
+  /**
+   * Structured, server-classified `exec_command` output for the rich renderers
+   * (diff/tests/status/table/file/matches/http). Lives on the tool_call after
+   * the call↔result join; absent (or `plain`) means render the raw preview.
+   */
+  outputRender?: OutputRender;
   exitCode?: number;
   durationMs?: number;
   childThreadId?: string;
@@ -158,6 +303,10 @@ export interface TimelineEvent {
   isCollapsedByDefault?: boolean;
   hasRawAvailable?: boolean;
   rawPreview?: string;
+  /** skill_invoke: the invoked skill's name (e.g. `read_pdf`). */
+  skillName?: string;
+  /** skill_invoke: result state driving the status chip. */
+  skillStatus?: "ok" | "fail" | "running";
 }
 
 export interface TurnSummary {

@@ -130,7 +130,8 @@ describe("fixture-backed app shell", () => {
     expect(screen.getByText(/Tool Usage · this turn/i)).toBeVisible();
     expect(screen.getByRole("button", { name: /open agent graph/i })).toBeVisible();
     expect(screen.getByRole("list", { name: /Timeline events/i })).toHaveClass("tl-stream");
-    expect(screen.getByText(timelineEventsFixture[0].previewText)).toBeVisible();
+    // task_started is a quiet header marker (no body pre); assert a message row instead.
+    expect(screen.getByText(timelineEventsFixture[1].previewText)).toBeVisible();
 
     fireEvent.click(screen.getByRole("button", { name: "Agent Graph" }));
     expect(screen.getByRole("heading", { name: /agent graph/i })).toBeVisible();
