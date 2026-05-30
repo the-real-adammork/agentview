@@ -8,9 +8,9 @@ import type {
 } from "../../shared/contracts";
 import { maskPreviewSecrets } from "../../shared/redaction";
 import { classifyExecOutput, classifyPatch } from "./classifyExecOutput";
-import { classifyCall, fillCallCounts } from "./classifyCall";
+import { classifyCall, fillCallCounts, fillToolSearch } from "./classifyCall";
 
-export const ROLLOUT_PARSER_VERSION = 17;
+export const ROLLOUT_PARSER_VERSION = 22;
 export const LARGE_OUTPUT_COLLAPSE_BYTES = 4 * 1024;
 /** How much (redacted) output we keep around to classify into `outputRender`. */
 const CLASSIFY_OUTPUT_CAP = 128 * 1024;
@@ -28,6 +28,8 @@ type MutableTimelineEvent = TimelineEvent & {
   fullOutput?: string;
   /** Redacted, bounded raw `apply_patch` arguments, kept to render the patch; stripped before output. */
   fullArguments?: string;
+  /** Raw `tool_search_output.tools` tree carried call↔result; stripped before output. */
+  toolSearchTools?: unknown;
 };
 
 export interface ParseRolloutOptions {
@@ -226,7 +228,15 @@ const derivedToolName = (record: JsonRecord, kind: TimelineEventKind) => {
 const searchQueryFromRecord = (record: JsonRecord) => {
   const payload = nestedPayload(record);
   const action = isRecord(payload.action) ? payload.action : isRecord(record.action) ? record.action : undefined;
-  return stringValue(action?.query, payload.query, record.query);
+  const args = argsObjectFromRecord(record);
+  return stringValue(action?.query, payload.query, record.query, args?.query);
+};
+
+/** Raw `tool_search_output.tools` tree (the namespace/function catalog), if present. */
+const toolSearchToolsFromRecord = (record: JsonRecord): unknown => {
+  const payload = nestedPayload(record);
+  const tools = record.tools ?? payload.tools;
+  return Array.isArray(tools) ? tools : undefined;
 };
 
 const argsFromRecord = (record: JsonRecord) => {
@@ -458,6 +468,7 @@ const classify = (record: JsonRecord): { kind: TimelineEventKind; severity: Even
     type.includes("function_call_output") ||
     type.includes("patch_apply_end") ||
     type.includes("web_search_end") ||
+    type.includes("tool_search_output") ||
     type.includes("image_generation_end")
   ) {
     return { kind: "tool_result", severity: "info" };
@@ -651,6 +662,8 @@ const makeEvent = (record: JsonRecord, options: ParseRolloutOptions, sourceLine:
     fullArguments: patchArgumentsFromRecord(record),
     // Call-side one-liner for read/search/fetch invocations (counts filled at join time).
     callRender: kind === "tool_call" ? classifyCall(toolName, argsObjectFromRecord(record), searchQueryFromRecord(record)) : undefined,
+    // tool_search namespace tree lives on the (result) output; filled at join time.
+    toolSearchTools: toolSearchToolsFromRecord(record),
   };
 };
 
@@ -697,7 +710,8 @@ const deriveFacts = (events: MutableTimelineEvent[]) => {
     const render = classifyExecOutput(call.commandPreview, result?.fullOutput ?? call.fullOutput) ?? classifyPatch(call.fullArguments);
     if (render) call.outputRender = render;
     // Fill the call-side render's hit/result/status count from the joined output.
-    if (call.callRender) fillCallCounts(call.callRender, result?.fullOutput ?? result?.outputPreview);
+    if (call.callRender?.kind === "tool_search") fillToolSearch(call.callRender, result?.toolSearchTools);
+    else if (call.callRender) fillCallCounts(call.callRender, result?.fullOutput ?? result?.outputPreview);
 
     return {
       callId: call.callId as string,
@@ -820,6 +834,7 @@ export const parseRolloutLines = (lines: string[], options: ParseRolloutOptions)
   for (const event of events) {
     delete event.fullOutput;
     delete event.fullArguments;
+    delete event.toolSearchTools;
   }
 
   return {

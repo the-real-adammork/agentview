@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { classifyCall, fillCallCounts } from "../../src/backend/rollout/classifyCall";
-import type { FetchCallRender, ReadCallRender, SearchCallRender } from "../../src/shared/contracts";
+import { classifyCall, fillCallCounts, fillToolSearch } from "../../src/backend/rollout/classifyCall";
+import type {
+  AgentCallRender,
+  FetchCallRender,
+  ReadCallRender,
+  SearchCallRender,
+  ToolSearchCallRender,
+} from "../../src/shared/contracts";
 
 describe("classifyCall", () => {
   it("classifies web_search into a fetch (search) render from the query", () => {
@@ -24,13 +30,44 @@ describe("classifyCall", () => {
     expect(render).toMatchObject({ kind: "read", path: "src/db.rs", startLine: 40, endLine: 46 });
   });
 
+  it("classifies agent coordination tools", () => {
+    expect(classifyCall("spawn_agent", { agent_type: "worker", message: "wire the panel" }, undefined)).toMatchObject({
+      kind: "agent",
+      op: "spawn",
+      role: "worker",
+      task: "wire the panel",
+    });
+    expect(classifyCall("wait_agent", { targets: ["a", "b"] }, undefined)).toMatchObject({ kind: "agent", op: "wait", targets: ["a", "b"] });
+    expect(classifyCall("send_input", { target: "a", message: "go" }, undefined)).toMatchObject({ kind: "agent", op: "send", target: "a", message: "go" });
+  });
+
   it("returns undefined for tools that keep their own event kind or aren't call-rendered", () => {
     expect(classifyCall("exec_command", { cmd: "ls" }, undefined)).toBeUndefined();
-    expect(classifyCall("spawn_agent", { agent_type: "worker" }, undefined)).toBeUndefined();
     expect(classifyCall("skill", { name: "read_pdf" }, undefined)).toBeUndefined();
     expect(classifyCall(undefined, {}, undefined)).toBeUndefined();
     // web_search with neither query nor url → nothing to render
     expect(classifyCall("web_search", {}, undefined)).toBeUndefined();
+  });
+});
+
+describe("fillCallCounts — agent status from result", () => {
+  it("spawn → nickname + open", () => {
+    const r: AgentCallRender = { kind: "agent", op: "spawn", role: "worker" };
+    fillCallCounts(r, '{"agent_id":"019e7016","nickname":"Bacon"}');
+    expect(r).toMatchObject({ nickname: "Bacon", status: "open" });
+  });
+  it("wait → timed_out / ok", () => {
+    const timeout: AgentCallRender = { kind: "agent", op: "wait", targets: ["a"] };
+    fillCallCounts(timeout, '{"status":{},"timed_out":true}');
+    expect(timeout.status).toBe("timed_out");
+    const ok: AgentCallRender = { kind: "agent", op: "wait", targets: ["a"] };
+    fillCallCounts(ok, '{"status":{"a":"done"},"timed_out":false}');
+    expect(ok.status).toBe("ok");
+  });
+  it("send → ok on submission", () => {
+    const r: AgentCallRender = { kind: "agent", op: "send", target: "a" };
+    fillCallCounts(r, '{"submission_id":"019e703a"}');
+    expect(r.status).toBe("ok");
   });
 });
 
@@ -54,5 +91,58 @@ describe("fillCallCounts", () => {
     const zero: SearchCallRender = { kind: "search_call", pattern: "y" };
     fillCallCounts(zero, "no matches");
     expect(zero.hits).toBe(0);
+  });
+});
+
+describe("tool_search call render", () => {
+  it("classifies tool_search into a render skeleton from query + limit", () => {
+    const render = classifyCall("tool_search", { query: "spawn sub-agent worker", limit: 8 }, undefined) as ToolSearchCallRender;
+    expect(render).toMatchObject({
+      kind: "tool_search",
+      query: "spawn sub-agent worker",
+      limit: 8,
+      resultCount: 0,
+      namespaces: [],
+    });
+  });
+
+  it("returns undefined for tool_search without a query", () => {
+    expect(classifyCall("tool_search", {}, undefined)).toBeUndefined();
+  });
+
+  it("fills namespaces, function summaries, param chips and total count from the output tree", () => {
+    const render: ToolSearchCallRender = { kind: "tool_search", query: "q", resultCount: 0, namespaces: [] };
+    fillToolSearch(render, [
+      {
+        type: "namespace",
+        name: "multi_agent_v1",
+        description: "Tools for spawning and managing sub-agents.",
+        tools: [
+          {
+            type: "function",
+            name: "spawn_agent",
+            description: "\n\nSpawn a general-purpose sub-agent worker\nmore detail here",
+            parameters: { type: "object", properties: { agent_type: {}, model: {} } },
+          },
+          {
+            type: "function",
+            name: "wait_agent",
+            description: "Block until target agents settle",
+            parameters: { properties: { targets: {}, timeout_ms: {} } },
+          },
+        ],
+      },
+    ]);
+    expect(render.resultCount).toBe(2);
+    expect(render.namespaces).toEqual([
+      {
+        name: "multi_agent_v1",
+        description: "Tools for spawning and managing sub-agents.",
+        functions: [
+          { name: "spawn_agent", summary: "Spawn a general-purpose sub-agent worker", params: ["agent_type", "model"] },
+          { name: "wait_agent", summary: "Block until target agents settle", params: ["targets", "timeout_ms"] },
+        ],
+      },
+    ]);
   });
 });

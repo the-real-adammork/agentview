@@ -1,8 +1,14 @@
 import type {
   BuildDiagnostic,
   BuildSnippetLine,
+  ComposeOutputRender,
+  ComposeResource,
+  ComposeResourceType,
+  ComposeState,
   DiffFile,
   DiffHunk,
+  DiffstatFile,
+  DiffstatOutputRender,
   FileLine,
   HttpHeader,
   LintFile,
@@ -46,16 +52,21 @@ export function classifyExecOutput(command: string | undefined, output: string |
   // over the file/path-list reading of its first stage.
   return (
     classifyDiff(cmd, text) ??
+    classifyGitShowFile(cmd, text) ??
     classifyHttp(cmd, text) ??
     classifyTests(cmd, text) ??
     classifyStatus(cmd, text) ??
+    classifyCompose(cmd, text) ??
+    classifyDocker(cmd, text) ??
     classifyTable(cmd, text) ??
     classifyMatches(cmd, text) ??
     classifyBuild(cmd, text) ??
     classifyLint(cmd, text) ??
     classifyLog(cmd, text) ??
+    classifyDiffstat(cmd, text) ??
     classifyJson(cmd, text) ??
     classifyTrace(cmd, text) ??
+    classifyGit(cmd, text) ??
     classifyFile(cmd, text) ??
     classifyTree(cmd, text) ??
     undefined
@@ -388,9 +399,38 @@ function dedupe<T>(values: T[]): T[] {
 // ── git status --short ──────────────────────────────────────────────────────
 const STATUS_CODE_CHARS = new Set([" ", "M", "A", "D", "R", "C", "U", "?", "!", "T"]);
 
+// `git show <ref>:<path>` prints a file's contents (a blob) at that ref — not a
+// diff — so it rides the FileView with line numbers synthesized from 1.
+function classifyGitShowFile(cmd: string, text: string): OutputRender | undefined {
+  if (!gitSubcommand("show").test(cmd)) return undefined;
+  const ref = /(?:^|\s)['"]?[^\s:'"]+:([^\s'"]+)/.exec(cmd); // the `<ref>:<path>` token
+  if (!ref) return undefined;
+  const lines = toLines(text);
+  if (lines.length === 0) return undefined;
+  const parsed: FileLine[] = lines.slice(0, MAX_FILE_LINES).map((line, i) => ({ n: i + 1, text: line }));
+  return { kind: "file", path: ref[1], startLine: 1, totalLines: lines.length, lines: parsed };
+}
+
 function classifyStatus(cmd: string, text: string): OutputRender | undefined {
   const isGitStatus = gitSubcommand("status").test(cmd) && /(?:^|\s)(?:--short|-s)\b/.test(cmd);
-  if (!isGitStatus) return undefined;
+  const isNameStatus = gitSubcommand("diff").test(cmd) && /(?:^|\s)--name-status\b/.test(cmd);
+  if (!isGitStatus && !isNameStatus) return undefined;
+
+  // `git diff --name-status` is tab-separated `CODE\tpath` (renames add `\tnew`)
+  // rather than porcelain's `XY path`, but it draws on the same StatusView.
+  if (isNameStatus) {
+    const files: StatusFile[] = [];
+    for (const line of toLines(text)) {
+      if (line.trim() === "") continue;
+      const parts = line.split("\t");
+      if (parts.length < 2) continue;
+      const code = parts[0].replace(/\d+$/, "").trim(); // R100 → R, M → M
+      if (!/^[MADRCTUX]+$/.test(code)) continue;
+      const path = parts.length >= 3 ? `${parts[1]} → ${parts[2]}` : parts[1];
+      files.push({ code, path });
+    }
+    return files.length ? { kind: "status", files } : undefined;
+  }
 
   const files: StatusFile[] = [];
   for (const line of toLines(text)) {
@@ -422,6 +462,128 @@ function classifyTable(cmd: string, text: string): OutputRender | undefined {
   const columns = sliceRow(lines[sepIndex - 1]);
   if (columns.every((column) => column === "")) return undefined;
   const dataLines = lines.slice(sepIndex + 1).filter((line) => line.trim() !== "");
+  const rows = dataLines.slice(0, MAX_TABLE_ROWS).map(sliceRow);
+
+  return { kind: "table", columns, rows, totalRows: dataLines.length };
+}
+
+// `docker compose up` streams a lifecycle log (Network/Volume/Container cycling
+// Creating→Created→Starting→Started) plus image-pull progress by layer hash. We
+// collapse it to one terminal-state row per resource + a single pull chip.
+const COMPOSE_STATE: Record<string, ComposeState> = {
+  creating: "creating",
+  created: "created",
+  starting: "starting",
+  waiting: "starting",
+  started: "started",
+  running: "started",
+  recreate: "recreated",
+  recreated: "recreated",
+  healthy: "healthy",
+  error: "error",
+};
+const COMPOSE_LIFECYCLE =
+  /^\s*(Network|Volume|Container|Image)\s+(.+?)\s+(Creating|Created|Starting|Started|Recreate|Recreated|Running|Waiting|Healthy|Error)\b/i;
+const COMPOSE_PULL =
+  /^\s*([0-9a-f]{8,})\s+(Pulling fs layer|Downloading|Download complete|Extracting|Pull complete|Already exists|Verifying Checksum|Waiting)\b/i;
+
+/** Strip the shared compose-project prefix so resource names read cleanly. */
+function stripCommonProjectPrefix(names: string[]): string[] {
+  if (names.length < 2) return names;
+  let prefix = names[0];
+  for (const name of names.slice(1)) {
+    while (prefix && !name.startsWith(prefix)) prefix = prefix.slice(0, -1);
+    if (!prefix) return names;
+  }
+  // Trim back so the prefix ends just before a separator in every name.
+  while (prefix && !names.every((n) => n.length === prefix.length || /[-_]/.test(n[prefix.length]))) {
+    prefix = prefix.slice(0, -1);
+  }
+  if (!prefix) return names;
+  return names.map((n) => n.slice(prefix.length).replace(/^[-_]/, "") || n);
+}
+
+function classifyCompose(cmd: string, text: string): OutputRender | undefined {
+  if (!/docker(?:\s+compose|-compose)\s+up\b/.test(cmd)) return undefined;
+  const order: string[] = [];
+  const byKey = new Map<string, ComposeResource>();
+  const layers = new Set<string>();
+  const done = new Set<string>();
+
+  for (const line of toLines(text)) {
+    const life = COMPOSE_LIFECYCLE.exec(line);
+    if (life) {
+      const type = life[1].toLowerCase() as ComposeResourceType;
+      const name = life[2].trim();
+      const state = COMPOSE_STATE[life[3].toLowerCase()] ?? "created";
+      const key = `${type}|${name}`;
+      if (!byKey.has(key)) order.push(key);
+      byKey.set(key, { type, name, state }); // last state wins → terminal state
+      continue;
+    }
+    const pull = COMPOSE_PULL.exec(line);
+    if (pull) {
+      layers.add(pull[1]);
+      if (/^(?:Pull complete|Already exists|Download complete)$/i.test(pull[2])) done.add(pull[1]);
+    }
+  }
+
+  if (order.length === 0) return undefined;
+  const resources = order.map((key) => byKey.get(key) as ComposeResource);
+  const names = stripCommonProjectPrefix(resources.map((res) => res.name));
+  const render: ComposeOutputRender = {
+    kind: "compose",
+    resources: resources.map((res, i) => ({ ...res, name: names[i] })).slice(0, MAX_TABLE_ROWS),
+  };
+  if (layers.size > 0) render.pull = { layers: layers.size, done: done.size };
+  return render;
+}
+
+// docker ps / compose ps and friends emit columnar listings with no dashed
+// separator — they ride the same TableView (a STATUS column earns a health dot).
+const DOCKER_LIST =
+  /^docker\s+(?:compose\s+)?(?:ps|images|container\s+ls|image\s+ls|service\s+ls|network\s+ls|volume\s+ls|stack\s+ps|node\s+ls)\b/;
+// Pipe sinks that consume the listing and drop docker's header row.
+const PIPE_FILTERS = new Set([
+  "rg", "grep", "ag", "ack", "head", "tail", "awk", "sed", "jq",
+  "sort", "uniq", "wc", "cut", "tr", "fzf", "less", "tac", "column",
+]);
+
+function classifyDocker(cmd: string, text: string): OutputRender | undefined {
+  if (!DOCKER_LIST.test(cmd)) return undefined;
+  // If the listing is piped into a filter, the header (our column names) is gone.
+  const stages = pipeStages(cmd);
+  if (stages.length > 1 && PIPE_FILTERS.has(stageHead(stages[stages.length - 1]))) return undefined;
+
+  const lines = toLines(text);
+  if (lines.length < 2) return undefined; // need a header + at least one row
+  const header = lines[0];
+
+  // `--format 'table …'` is tab-delimited (empties preserved); otherwise the
+  // output is fixed-width aligned and we slice by the header's column starts.
+  const sliceRow: (line: string) => string[] = header.includes("\t")
+    ? (line) => line.split("\t").map((cell) => cell.trim())
+    : (() => {
+        const first = /\S/.exec(header);
+        if (!first) return undefined as never;
+        const starts = [first.index];
+        const boundary = /\s{2,}\S/g;
+        boundary.lastIndex = first.index;
+        let match: RegExpExecArray | null;
+        while ((match = boundary.exec(header)) !== null) {
+          starts.push(match.index + match[0].length - 1);
+        }
+        return (line: string) =>
+          starts.map((start, i) => line.slice(start, starts[i + 1] ?? line.length).trim());
+      })();
+
+  const columns = sliceRow(header);
+  if (columns.length < 2 || columns.some((column) => column === "")) return undefined;
+  // Agents sometimes run the listing twice, concatenating the output — drop any
+  // repeated header line so it doesn't render as a bogus data row.
+  const headerKey = header.trim();
+  const dataLines = lines.slice(1).filter((line) => line.trim() !== "" && line.trim() !== headerKey);
+  if (dataLines.length === 0) return undefined;
   const rows = dataLines.slice(0, MAX_TABLE_ROWS).map(sliceRow);
 
   return { kind: "table", columns, rows, totalRows: dataLines.length };
@@ -528,6 +690,133 @@ function firstHit(content: string, patterns: string[]): [number, number] | undef
     }
   }
   return bestStart >= 0 ? [bestStart, bestStart + bestLen] : undefined;
+}
+
+// ── diffstat + git ops (commit / add / merge / worktree / branch) ───────────
+/** The git subcommand, skipping global options (`-C <path>`, `--no-pager`, …). */
+function gitSubOf(cmd: string): string | undefined {
+  const stage = pipeStages(cmd)[0] ?? "";
+  if (stageHead(stage) !== "git") return undefined;
+  const tokens = stage.split(/\s+/);
+  let i = 1;
+  while (i < tokens.length) {
+    const token = tokens[i];
+    if (token === "-C" || token === "-c" || token === "--git-dir" || token === "--work-tree") i += 2;
+    else if (token.startsWith("-")) i += 1;
+    else return token.toLowerCase();
+  }
+  return undefined;
+}
+
+/** Parse `path | N +++--` rows + the `N files changed, …` summary into a diffstat. */
+function parseDiffstat(lines: string[]): { files: DiffstatFile[]; totals?: DiffstatOutputRender["totals"] } | undefined {
+  const files: DiffstatFile[] = [];
+  for (const line of lines) {
+    const match = /^\s*(.+?)\s+\|\s+(\d+|Bin)\b\s*([+-]*)/.exec(line);
+    if (!match) continue;
+    if (match[2] === "Bin") {
+      files.push({ path: match[1].trim(), insertions: 0, deletions: 0 });
+      continue;
+    }
+    const total = Number(match[2]);
+    const plus = (match[3].match(/\+/g) ?? []).length;
+    const minus = (match[3].match(/-/g) ?? []).length;
+    let insertions = total;
+    let deletions = 0;
+    if (plus + minus > 0) {
+      insertions = Math.round((total * plus) / (plus + minus));
+      deletions = total - insertions;
+    }
+    files.push({ path: match[1].trim(), insertions, deletions });
+  }
+  if (files.length === 0) return undefined;
+  const summary = /(\d+)\s+files?\s+changed(?:,\s+(\d+)\s+insertions?\(\+\))?(?:,\s+(\d+)\s+deletions?\(-\))?/.exec(lines.join("\n"));
+  const totals = summary
+    ? { files: Number(summary[1]), insertions: Number(summary[2] ?? 0), deletions: Number(summary[3] ?? 0) }
+    : {
+        files: files.length,
+        insertions: files.reduce((sum, file) => sum + file.insertions, 0),
+        deletions: files.reduce((sum, file) => sum + file.deletions, 0),
+      };
+  return { files, totals };
+}
+
+function classifyDiffstat(cmd: string, text: string): OutputRender | undefined {
+  const sub = gitSubOf(cmd);
+  if ((sub !== "diff" && sub !== "show") || !/(?:^|\s)--stat\b/.test(cmd)) return undefined;
+  const parsed = parseDiffstat(toLines(text));
+  if (!parsed) return undefined;
+  return { kind: "diffstat", files: parsed.files.slice(0, MAX_TABLE_ROWS), totals: parsed.totals };
+}
+
+/** Non-flag, non-`&&` path arguments to `git add`. */
+function stagedPathsFromCmd(cmd: string): string[] {
+  const tokens = (pipeStages(cmd)[0] ?? "").split(/\s+/);
+  const addIndex = tokens.findIndex((token) => token.toLowerCase() === "add");
+  if (addIndex < 0) return [];
+  return tokens
+    .slice(addIndex + 1)
+    .filter((token) => token && !token.startsWith("-") && token !== "&&" && token !== "…" && token !== "...");
+}
+
+function classifyGit(cmd: string, text: string): OutputRender | undefined {
+  const sub = gitSubOf(cmd);
+  if (!sub) return undefined;
+  const lines = toLines(text);
+
+  if (sub === "commit") {
+    const head = /^\[(\S+)\s+([0-9a-f]{7,40})\]\s+(.+)$/m.exec(text);
+    if (!head) return undefined;
+    const totals = parseDiffstat(lines)?.totals;
+    const summary = /(\d+)\s+files?\s+changed(?:,\s+(\d+)\s+insertions?\(\+\))?(?:,\s+(\d+)\s+deletions?\(-\))?/.exec(text);
+    return {
+      kind: "git",
+      sub: "commit",
+      branch: head[1],
+      shortSha: head[2].slice(0, 9),
+      subject: head[3].trim(),
+      filesChanged: summary ? Number(summary[1]) : totals?.files,
+      insertions: summary ? Number(summary[2] ?? 0) : totals?.insertions,
+      deletions: summary ? Number(summary[3] ?? 0) : totals?.deletions,
+    };
+  }
+
+  if (sub === "add") {
+    const staged = stagedPathsFromCmd(cmd);
+    return staged.length ? { kind: "git", sub: "add", staged } : undefined;
+  }
+
+  if (sub === "worktree") {
+    if (!/\bworktree\s+add\b/.test(pipeStages(cmd)[0] ?? "")) return undefined;
+    const fatal = /^(?:fatal|error):\s*(.+)$/m.exec(text);
+    const branch = (/new branch '([^']+)'/.exec(text) ?? /\bbranch '([^']+)'/.exec(text))?.[1];
+    const path = (pipeStages(cmd)[0] ?? "").split(/\s+/).find((token) => token.includes("/") && !token.startsWith("-"));
+    if (fatal) return { kind: "git", sub: "worktree", ok: false, branch, path, error: fatal[1].trim() };
+    return { kind: "git", sub: "worktree", ok: true, branch, path, head: /HEAD is now at ([0-9a-f]{7,40})/.exec(text)?.[1] };
+  }
+
+  if (sub === "merge") {
+    const conflict = /^CONFLICT\s*\(([^)]*)\)/m.exec(text)?.[1] ?? (/Automatic merge failed/.test(text) ? "merge failed" : undefined);
+    const strategy = /(?:strategy '([^']+)'|'([^']+)' strategy)/.exec(text);
+    return {
+      kind: "git",
+      sub: "merge",
+      strategy: strategy?.[1] ?? strategy?.[2],
+      fastForward: /Fast-forward/.test(text) || undefined,
+      conflict,
+      diffstat: ((parsed) => (parsed ? { kind: "diffstat" as const, files: parsed.files, totals: parsed.totals } : undefined))(parseDiffstat(lines)),
+    };
+  }
+
+  if (sub === "branch" || sub === "rev-parse") {
+    const trimmed = lines.map((line) => line.trim()).filter(Boolean);
+    const sha = trimmed.find((line) => /^[0-9a-f]{7,40}$/.test(line));
+    const branch = trimmed.find((line) => !/^[0-9a-f]{7,40}$/.test(line) && !line.includes(" "));
+    if (!sha && !branch) return undefined;
+    return { kind: "git", sub: "branch", branch, sha };
+  }
+
+  return undefined;
 }
 
 // ── tree (ls / find / tree) → directory listing ─────────────────────────────

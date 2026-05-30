@@ -87,6 +87,7 @@ export type ToolTypeKey =
   | "diff"
   | "matches"
   | "status"
+  | "diffstat"
   | "tree"
   | "file"
   | "http"
@@ -97,6 +98,13 @@ export type ToolTypeKey =
   | "log"
   | "json"
   | "trace"
+  | "git"
+  | "compose"
+  | "read"
+  | "search_call"
+  | "fetch"
+  | "agent"
+  | "tool_search"
   | "other";
 
 export interface ToolTypeOption {
@@ -109,6 +117,7 @@ export const TOOL_TYPES: ToolTypeOption[] = [
   { key: "diff", label: "Diff" },
   { key: "matches", label: "Search" },
   { key: "status", label: "Git Status" },
+  { key: "diffstat", label: "Diffstat" },
   { key: "tree", label: "Tree" },
   { key: "file", label: "File" },
   { key: "http", label: "HTTP" },
@@ -119,16 +128,26 @@ export const TOOL_TYPES: ToolTypeOption[] = [
   { key: "log", label: "Git Log" },
   { key: "json", label: "JSON" },
   { key: "trace", label: "Trace" },
+  { key: "git", label: "Git" },
+  { key: "compose", label: "Compose" },
+  { key: "read", label: "Read" },
+  { key: "search_call", label: "Search Req" },
+  { key: "fetch", label: "Fetch" },
+  { key: "agent", label: "Agent" },
+  { key: "tool_search", label: "Tool Search" },
   { key: "other", label: "Other" },
 ];
 
 const TYPED_TOOL_KEYS = new Set<string>(TOOL_TYPES.filter((type) => type.key !== "other").map((type) => type.key));
 
-/** The tool sub-type of a tool_call row; null for non-tool events. */
+/** The tool sub-type of a tool_call row (from its output render OR its call render); null for non-tool events. */
 export const toolTypeKey = (event: TimelineEvent): ToolTypeKey | null => {
   if (event.kind !== "tool_call") return null;
-  const kind = event.outputRender?.kind;
-  return kind && TYPED_TOOL_KEYS.has(kind) ? (kind as ToolTypeKey) : "other";
+  const renderKind = event.outputRender?.kind;
+  if (renderKind && TYPED_TOOL_KEYS.has(renderKind)) return renderKind as ToolTypeKey;
+  const callKind = event.callRender?.kind;
+  if (callKind && TYPED_TOOL_KEYS.has(callKind)) return callKind as ToolTypeKey;
+  return "other";
 };
 
 /**

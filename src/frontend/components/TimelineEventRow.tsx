@@ -50,6 +50,9 @@ const EXEC_KIND_CATEGORY: Record<string, ExecCategory> = {
   build: { label: "BUILD", tone: "primary", border: "var(--primary)" },
   lint: { label: "LINT", tone: "amber", border: "var(--amber)" },
   trace: { label: "TRACE", tone: "warn", border: "var(--warn)" },
+  diffstat: { label: "DIFFSTAT", tone: "cyan", border: "var(--cyan)" },
+  compose: { label: "COMPOSE", tone: "cyan", border: "var(--cyan)" },
+  // `git` is left out on purpose — the command-based label ("GIT COMMIT", "GIT ADD") is sharper than a flat "GIT".
 };
 
 const execCategoryFromCommand = (command: string): ExecCategory => {

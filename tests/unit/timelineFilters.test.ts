@@ -144,6 +144,7 @@ describe("tool sub-type filter", () => {
       "diff",
       "matches",
       "status",
+      "diffstat",
       "tree",
       "file",
       "http",
@@ -154,6 +155,13 @@ describe("tool sub-type filter", () => {
       "log",
       "json",
       "trace",
+      "git",
+      "compose",
+      "read",
+      "search_call",
+      "fetch",
+      "agent",
+      "tool_search",
       "other",
     ]);
     expect(TOOL_TYPES.find((type) => type.key === "matches")?.label).toBe("Search");
@@ -172,6 +180,15 @@ describe("tool sub-type filter", () => {
       expect(toolTypeKey(toolWith({ kind: "log", total: 0, commits: [] }))).toBe("log");
       expect(toolTypeKey(toolWith({ kind: "json", value: {} }))).toBe("json");
       expect(toolTypeKey(toolWith({ kind: "trace", lang: "python", exception: "E", message: "", frames: [] }))).toBe("trace");
+      expect(toolTypeKey(toolWith({ kind: "compose", resources: [] }))).toBe("compose");
+    });
+
+    it("maps a call-rendered tool (no output render) by its callRender kind", () => {
+      expect(toolTypeKey(ev("tool_call", { callRender: { kind: "fetch", mode: "search", query: "x" } }))).toBe("fetch");
+      expect(toolTypeKey(ev("tool_call", { callRender: { kind: "agent", op: "spawn" } }))).toBe("agent");
+      expect(toolTypeKey(ev("tool_call", { callRender: { kind: "tool_search", query: "x", resultCount: 0, namespaces: [] } }))).toBe(
+        "tool_search",
+      );
     });
 
     it("buckets plain / unclassified tool calls as 'other'", () => {

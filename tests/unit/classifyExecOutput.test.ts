@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import { classifyExecOutput } from "../../src/backend/rollout/classifyExecOutput";
 import type {
   BuildOutputRender,
+  ComposeOutputRender,
   DiffOutputRender,
+  DiffstatOutputRender,
+  GitOutputRender,
   FileOutputRender,
   HttpOutputRender,
   JsonOutputRender,
@@ -166,6 +169,180 @@ describe("classifyExecOutput — table (sqlite3 -column)", () => {
       ["log", "22014"],
     ]);
     expect(render.totalRows).toBe(2);
+  });
+});
+
+describe("classifyExecOutput — docker (rides the table renderer)", () => {
+  it("parses tab-delimited `docker ps --format 'table …'` output, preserving empty cells", () => {
+    const output = [
+      "CONTAINER ID\tNAMES\tPORTS\tSTATUS",
+      "f9be8f2fc55c\tcontracts-prisma-postgres-1\t0.0.0.0:54322->5432/tcp\tUp About an hour (healthy)",
+      "b03d8f1a9c72\tcontracts-migrate-1\t\tExited (0) 8 minutes ago",
+    ].join("\n");
+    const render = classifyExecOutput(
+      "docker ps --format 'table {{.ID}}\\t{{.Names}}\\t{{.Ports}}\\t{{.Status}}'",
+      output,
+    ) as TableOutputRender;
+    expect(render.kind).toBe("table");
+    expect(render.columns).toEqual(["CONTAINER ID", "NAMES", "PORTS", "STATUS"]);
+    expect(render.rows).toEqual([
+      ["f9be8f2fc55c", "contracts-prisma-postgres-1", "0.0.0.0:54322->5432/tcp", "Up About an hour (healthy)"],
+      ["b03d8f1a9c72", "contracts-migrate-1", "", "Exited (0) 8 minutes ago"],
+    ]);
+    expect(render.totalRows).toBe(2);
+  });
+
+  it("parses fixed-width `docker compose ps` columns, keeping an empty PORTS cell", () => {
+    // Build perfectly-aligned fixed-width rows so the fixture can't drift.
+    const widths = [32, 32, 28];
+    const fw = (cells: string[]) =>
+      cells.map((c, i) => (i === cells.length - 1 ? c : c.padEnd(widths[i]))).join("");
+    const output = [
+      fw(["NAME", "STATUS", "PORTS", "SERVICE"]),
+      fw(["contracts-prisma-postgres-1", "Up About an hour (healthy)", "0.0.0.0:54322->5432/tcp", "postgres"]),
+      fw(["contracts-migrate-1", "Exited (0) 8 minutes ago", "", "migrate"]),
+    ].join("\n");
+    const render = classifyExecOutput("docker compose ps", output) as TableOutputRender;
+    expect(render.kind).toBe("table");
+    expect(render.columns).toEqual(["NAME", "STATUS", "PORTS", "SERVICE"]);
+    expect(render.rows).toEqual([
+      ["contracts-prisma-postgres-1", "Up About an hour (healthy)", "0.0.0.0:54322->5432/tcp", "postgres"],
+      ["contracts-migrate-1", "Exited (0) 8 minutes ago", "", "migrate"],
+    ]);
+    expect(render.totalRows).toBe(2);
+  });
+
+  it("drops a repeated header row when two listings are concatenated", () => {
+    const output = [
+      "CONTAINER ID\tNAMES\tSTATUS",
+      "f9be8f2fc55c\tpg-1\tUp 6 seconds (healthy)",
+      "CONTAINER ID\tNAMES\tSTATUS",
+      "6c829413b595\tpg-1\tUp 32 seconds (healthy)",
+    ].join("\n");
+    const render = classifyExecOutput(
+      "docker ps --format 'table {{.ID}}\\t{{.Names}}\\t{{.Status}}'",
+      output,
+    ) as TableOutputRender;
+    expect(render.rows).toEqual([
+      ["f9be8f2fc55c", "pg-1", "Up 6 seconds (healthy)"],
+      ["6c829413b595", "pg-1", "Up 32 seconds (healthy)"],
+    ]);
+    expect(render.totalRows).toBe(2);
+  });
+
+  it("does not table-ify docker output piped into a filter (the header is gone)", () => {
+    const output = "04b9c2463904 nerdy-phase2-postgres 127.0.0.1:55432->5432/tcp";
+    const render = classifyExecOutput(
+      "docker ps --format '{{.ID}} {{.Names}} {{.Ports}}' | rg '543'",
+      output,
+    );
+    expect(render?.kind).not.toBe("table");
+  });
+});
+
+describe("classifyExecOutput — docker compose up (compose lifecycle)", () => {
+  it("collapses the lifecycle stream to one terminal-state row per resource + a pull chip", () => {
+    const output = [
+      "Network myproj-app_default Creating",
+      "Network myproj-app_default Created",
+      "Volume myproj-app_pgdata Creating",
+      "Volume myproj-app_pgdata Created",
+      "Container myproj-app-postgres-1 Creating",
+      "Container myproj-app-postgres-1 Created",
+      "Container myproj-app-postgres-1 Starting",
+      "Container myproj-app-postgres-1 Started",
+      " a1b2c3d4e5f6 Pulling fs layer 0B",
+      " a1b2c3d4e5f6 Download complete 0B",
+      " 9988776655ff Pulling fs layer 0B",
+      " 9988776655ff Download complete 0B",
+    ].join("\n");
+    const r = classifyExecOutput("docker compose up -d", output) as ComposeOutputRender;
+    expect(r.kind).toBe("compose");
+    expect(r.resources).toEqual([
+      { type: "network", name: "default", state: "created" },
+      { type: "volume", name: "pgdata", state: "created" },
+      { type: "container", name: "postgres-1", state: "started" },
+    ]);
+    expect(r.pull).toEqual({ layers: 2, done: 2 });
+  });
+
+  it("marks an errored container red and has no pull chip when nothing was pulled", () => {
+    const output = [
+      "Network app_default Creating",
+      "Network app_default Created",
+      "Container app-postgres-1 Started",
+      "Container app-migrate-1 Starting",
+      "Container app-web-1 Error",
+      "dependency failed to start: container app-web-1 exited (1)",
+    ].join("\n");
+    const r = classifyExecOutput("set -o pipefail; docker compose up", output) as ComposeOutputRender;
+    expect(r.kind).toBe("compose");
+    expect(r.resources).toEqual([
+      { type: "network", name: "default", state: "created" },
+      { type: "container", name: "postgres-1", state: "started" },
+      { type: "container", name: "migrate-1", state: "starting" },
+      { type: "container", name: "web-1", state: "error" },
+    ]);
+    expect(r.pull).toBeUndefined();
+  });
+
+  it("does not treat `docker compose ps` (a table) as compose", () => {
+    const r = classifyExecOutput("docker compose ps", "Network app_default Created");
+    expect(r?.kind).not.toBe("compose");
+  });
+});
+
+describe("classifyExecOutput — git diff --name-status (rides the status renderer)", () => {
+  it("parses tab-separated M/A/D codes, rendering renames as old → new", () => {
+    const output = [
+      "M\tapps/server/src/app.ts",
+      "A\tapps/web/src/components/CameraDiagnosticsPanel.tsx",
+      "D\tapps/web/src/old/Removed.tsx",
+      "R100\tapps/web/src/Old.tsx\tapps/web/src/New.tsx",
+    ].join("\n");
+    const render = classifyExecOutput(
+      "git diff --name-status impl/foo...impl/bar",
+      output,
+    ) as StatusOutputRender;
+    expect(render.kind).toBe("status");
+    expect(render.files).toEqual([
+      { code: "M", path: "apps/server/src/app.ts" },
+      { code: "A", path: "apps/web/src/components/CameraDiagnosticsPanel.tsx" },
+      { code: "D", path: "apps/web/src/old/Removed.tsx" },
+      { code: "R", path: "apps/web/src/Old.tsx → apps/web/src/New.tsx" },
+    ]);
+  });
+
+  it("tolerates `git -C <path> diff --name-status`", () => {
+    const render = classifyExecOutput(
+      "/usr/bin/git -C /repo diff --name-status HEAD~1",
+      "M\tsrc/index.ts",
+    ) as StatusOutputRender;
+    expect(render.kind).toBe("status");
+    expect(render.files).toEqual([{ code: "M", path: "src/index.ts" }]);
+  });
+});
+
+describe("classifyExecOutput — git show <ref>:<path> (rides the file renderer)", () => {
+  it("renders a blob as a file peek with synthesized line numbers and the blob path", () => {
+    const output = ['worker: "abc"', 'run_id: "123"', 'task: "Task 6"'].join("\n");
+    const render = classifyExecOutput(
+      "/usr/bin/git show impl/phase-1:docs/runs/worker.yaml",
+      output,
+    ) as FileOutputRender;
+    expect(render.kind).toBe("file");
+    expect(render.path).toBe("docs/runs/worker.yaml");
+    expect(render.totalLines).toBe(3);
+    expect(render.lines).toEqual([
+      { n: 1, text: 'worker: "abc"' },
+      { n: 2, text: 'run_id: "123"' },
+      { n: 3, text: 'task: "Task 6"' },
+    ]);
+  });
+
+  it("leaves a commit `git show <sha>` (no :path) to the diff/git renderers", () => {
+    const render = classifyExecOutput("git show HEAD", "commit abc\nAuthor: x\n");
+    expect(render?.kind).not.toBe("file");
   });
 });
 
@@ -554,6 +731,74 @@ describe("classifyExecOutput — trace (python / rust)", () => {
     expect(render.kind).toBe("trace");
     expect(render.lang).toBe("rust");
     expect(render.message).toContain("Result::unwrap()");
+  });
+});
+
+describe("classifyExecOutput — diffstat (git diff --stat)", () => {
+  it("parses per-file ± and the totals line", () => {
+    const output = [
+      "apps/server/src/app.ts | 13 ++",
+      "apps/web/src/App.tsx  | 40 ++++----",
+      " 2 files changed, 49 insertions(+), 4 deletions(-)",
+    ].join("\n");
+    const render = classifyExecOutput("git diff --stat HEAD --", output) as DiffstatOutputRender;
+    expect(render.kind).toBe("diffstat");
+    expect(render.files.map((f) => f.path)).toEqual(["apps/server/src/app.ts", "apps/web/src/App.tsx"]);
+    expect(render.totals).toEqual({ files: 2, insertions: 49, deletions: 4 });
+  });
+
+  it("does not fire for a plain `git diff` (that's the unified diff renderer)", () => {
+    expect(classifyExecOutput("git diff", "apps/a.ts | 2 +-")).not.toMatchObject({ kind: "diffstat" });
+  });
+});
+
+describe("classifyExecOutput — git ops", () => {
+  it("commit → branch, sha, subject, stat", () => {
+    const r = classifyExecOutput(
+      'git commit -m "chore: start"',
+      "[impl/phase-1 82891db] chore: start\n 5 files changed, 67 insertions(+), 33 deletions(-)",
+    ) as GitOutputRender;
+    expect(r).toMatchObject({ kind: "git", sub: "commit", branch: "impl/phase-1", shortSha: "82891db", subject: "chore: start", filesChanged: 5, insertions: 67, deletions: 33 });
+  });
+
+  it("add → staged paths from the command", () => {
+    const r = classifyExecOutput("git add src/a.ts src/b.ts", "") as GitOutputRender;
+    expect(r).toMatchObject({ kind: "git", sub: "add", staged: ["src/a.ts", "src/b.ts"] });
+  });
+
+  it("worktree → ok with branch + HEAD", () => {
+    const r = classifyExecOutput(
+      "git worktree add ../wt/x impl/x",
+      "Preparing worktree (new branch 'impl/x')\nHEAD is now at a42f41e chore: scaffold",
+    ) as GitOutputRender;
+    expect(r).toMatchObject({ kind: "git", sub: "worktree", ok: true, branch: "impl/x", head: "a42f41e" });
+  });
+
+  it("worktree → failure carries the error", () => {
+    const r = classifyExecOutput(
+      "git worktree add ../wt/y impl/y",
+      "Preparing worktree (new branch 'impl/y')\nfatal: cannot lock ref 'refs/heads/impl/y'",
+    ) as GitOutputRender;
+    expect(r).toMatchObject({ kind: "git", sub: "worktree", ok: false, branch: "impl/y" });
+    expect(r.error).toContain("cannot lock ref");
+  });
+
+  it("merge → strategy + embedded diffstat", () => {
+    const r = classifyExecOutput(
+      "git merge --no-ff impl/x",
+      "Merge made by the 'ort' strategy.\n .env.example | 8 +\n apps/server/src/app.ts | 38 ++\n 2 files changed, 46 insertions(+)",
+    ) as GitOutputRender;
+    expect(r).toMatchObject({ kind: "git", sub: "merge", strategy: "ort" });
+    expect(r.diffstat?.files).toHaveLength(2);
+    expect(r.diffstat?.totals?.files).toBe(2);
+  });
+
+  it("branch / rev-parse → branch + sha chips", () => {
+    const r = classifyExecOutput(
+      "git branch --show-current && git rev-parse HEAD^{commit}",
+      "impl/phase-1-diagnostics-foundation\n82891db4c9a1",
+    ) as GitOutputRender;
+    expect(r).toMatchObject({ kind: "git", sub: "branch", branch: "impl/phase-1-diagnostics-foundation", sha: "82891db4c9a1" });
   });
 });
 

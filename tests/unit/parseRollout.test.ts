@@ -517,6 +517,59 @@ describe("parseRolloutFile", () => {
     );
   });
 
+  it("classifies tool_search_call into a tool_search callRender filled from the output namespace tree", async () => {
+    const rolloutPath = await createTempRollout([
+      {
+        timestamp: "2026-05-28T22:50:00.000Z",
+        type: "response_item",
+        payload: {
+          type: "tool_search_call",
+          status: "completed",
+          call_id: "call-ts-1",
+          arguments: { query: "spawn sub-agent worker", limit: 8 },
+        },
+      },
+      {
+        timestamp: "2026-05-28T22:50:00.140Z",
+        type: "response_item",
+        payload: {
+          type: "tool_search_output",
+          status: "completed",
+          call_id: "call-ts-1",
+          tools: [
+            {
+              type: "namespace",
+              name: "multi_agent_v1",
+              description: "Tools for spawning and managing sub-agents.",
+              tools: [
+                { type: "function", name: "spawn_agent", description: "Spawn a worker", parameters: { properties: { agent_type: {}, model: {} } } },
+                { type: "function", name: "wait_agent", description: "Wait for agents", parameters: { properties: { targets: {} } } },
+              ],
+            },
+          ],
+        },
+      },
+    ]);
+
+    const facts = await parseFixture("thread-tool-search", rolloutPath);
+
+    expect(facts.warnings).toEqual([]);
+    const call = facts.events.find((event) => event.kind === "tool_call" && event.callId === "call-ts-1");
+    expect(call?.callRender).toMatchObject({
+      kind: "tool_search",
+      query: "spawn sub-agent worker",
+      limit: 8,
+      resultCount: 2,
+    });
+    const ns = (call?.callRender as { namespaces?: Array<{ functions: Array<{ name: string }> }> }).namespaces;
+    expect(ns?.[0]?.functions.map((fn) => fn.name)).toEqual(["spawn_agent", "wait_agent"]);
+    // The output is joined as a result, not surfaced as a second tool_call.
+    expect(facts.events.find((event) => event.kind === "tool_result" && event.callId === "call-ts-1")).toBeTruthy();
+    // The raw tools tree never leaks into the persisted events.
+    expect(JSON.stringify(facts.events)).not.toContain('"input_schema"');
+    expect(JSON.stringify(facts.events)).not.toContain('"parameters"');
+  });
+
   it("reads a string agent_message payload instead of dumping the raw envelope", async () => {
     const rolloutPath = await createTempRollout([
       {

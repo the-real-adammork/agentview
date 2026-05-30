@@ -350,6 +350,74 @@ export interface TraceOutputRender {
   frames: TraceFrame[];
 }
 
+export interface DiffstatFile {
+  path: string;
+  insertions: number;
+  deletions: number;
+}
+export interface DiffstatTotals {
+  files: number;
+  insertions: number;
+  deletions: number;
+}
+/** `git diff --stat` / `git show --stat` → changed-files summary (no hunks). */
+export interface DiffstatOutputRender {
+  kind: "diffstat";
+  files: DiffstatFile[];
+  totals?: DiffstatTotals;
+}
+
+export type GitSub = "commit" | "add" | "merge" | "worktree" | "branch";
+/** `git commit` / `add` / `merge` / `worktree` / `branch` → one card, body switches on `sub`. */
+export interface GitOutputRender {
+  kind: "git";
+  sub: GitSub;
+  /** commit */
+  branch?: string;
+  shortSha?: string;
+  subject?: string;
+  filesChanged?: number;
+  insertions?: number;
+  deletions?: number;
+  /** add */
+  staged?: string[];
+  /** merge */
+  strategy?: string;
+  fastForward?: boolean;
+  conflict?: string;
+  diffstat?: DiffstatOutputRender;
+  /** worktree */
+  path?: string;
+  head?: string;
+  ok?: boolean;
+  error?: string;
+  /** branch / rev-parse */
+  sha?: string;
+}
+
+export type ComposeResourceType = "network" | "volume" | "container" | "image";
+export type ComposeState =
+  | "creating"
+  | "created"
+  | "starting"
+  | "started"
+  | "recreated"
+  | "healthy"
+  | "error";
+export interface ComposeResource {
+  type: ComposeResourceType;
+  /** Project prefix stripped for display. */
+  name: string;
+  state: ComposeState;
+}
+/** `docker compose up` → streaming lifecycle collapsed to terminal state per resource. */
+export interface ComposeOutputRender {
+  kind: "compose";
+  resources: ComposeResource[];
+  /** Image-layer pull stream, collapsed to a single chip. */
+  pull?: { layers: number; done: number };
+}
+
 /** Fallback: render the raw `<pre>` preview. */
 export interface PlainOutputRender {
   kind: "plain";
@@ -369,6 +437,9 @@ export type OutputRender =
   | BuildOutputRender
   | LintOutputRender
   | TraceOutputRender
+  | DiffstatOutputRender
+  | GitOutputRender
+  | ComposeOutputRender
   | PlainOutputRender;
 
 export type OutputRenderKind = OutputRender["kind"];
@@ -403,7 +474,45 @@ export interface FetchCallRender {
   results?: number;
   status?: number;
 }
-export type CallRender = ReadCallRender | SearchCallRender | FetchCallRender;
+/** `spawn_agent` / `wait_agent` / `send_input` — agent coordination. */
+export interface AgentCallRender {
+  kind: "agent";
+  op: "spawn" | "wait" | "send";
+  nickname?: string;
+  role?: string;
+  task?: string;
+  targets?: string[];
+  target?: string;
+  message?: string;
+  status?: string;
+}
+export interface ToolSearchFunction {
+  name: string;
+  /** First line of the function's description. */
+  summary?: string;
+  /** Parameter names → chips. */
+  params?: string[];
+}
+export interface ToolSearchNamespace {
+  name: string;
+  description?: string;
+  functions: ToolSearchFunction[];
+}
+/** `tool_search_call` — tool-catalog discovery (query → namespace/function tree). */
+export interface ToolSearchCallRender {
+  kind: "tool_search";
+  query: string;
+  limit?: number;
+  /** Total functions across namespaces → drives "+N" overflow. */
+  resultCount: number;
+  namespaces: ToolSearchNamespace[];
+}
+export type CallRender =
+  | ReadCallRender
+  | SearchCallRender
+  | FetchCallRender
+  | AgentCallRender
+  | ToolSearchCallRender;
 
 export interface TimelineEvent {
   id: string;

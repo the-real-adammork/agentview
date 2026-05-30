@@ -2,7 +2,10 @@ import { Fragment, useEffect, useState, type ReactNode } from "react";
 
 import type {
   BuildOutputRender,
+  ComposeOutputRender,
   DiffOutputRender,
+  DiffstatOutputRender,
+  GitOutputRender,
   FileOutputRender,
   HttpOutputRender,
   JsonOutputRender,
@@ -42,6 +45,9 @@ const CAP_JSON = 8;
 const CAP_BUILD = 3;
 const CAP_TRACE = 3;
 const CAP_LINT = 6;
+const CAP_DIFFSTAT = 6;
+const CAP_GIT_ADD = 6;
+const CAP_COMPOSE = 5;
 const CAP_PLAIN = 8;
 
 function DiffView({ r, full }: { r: DiffOutputRender; full?: boolean }) {
@@ -118,8 +124,20 @@ function StatusView({ r, full }: { r: StatusOutputRender; full?: boolean }) {
   );
 }
 
+// Columnar tool output (docker ps / compose ps) rides this renderer; a STATUS
+// column earns a health dot — green for up/healthy, red for exited/restarting.
+export function statusDotTone(value: string): "ok" | "warn" | "dim" {
+  // Check the unhealthy/stopped keywords first: "Up 2 minutes (unhealthy)"
+  // contains "up" but is a failing container — warn must win over ok.
+  if (/\b(exit|exited|dead|restart|restarting|unhealthy|removing|paused|created|fail|failed|error|stopped|crash)\b/i.test(value))
+    return "warn";
+  if (/\b(up|healthy|running|active|open|ready|done|success|passed|ok)\b/i.test(value)) return "ok";
+  return "dim";
+}
+
 function TableView({ r, full }: { r: TableOutputRender; full?: boolean }) {
   const rows = full ? r.rows : r.rows.slice(0, CAP_TABLE);
+  const statusIdx = r.columns.findIndex((column) => /^\s*status\s*$/i.test(String(column)));
   return (
     <div className="xr xr-table-wrap">
       <table className="xr-table">
@@ -135,6 +153,9 @@ function TableView({ r, full }: { r: TableOutputRender; full?: boolean }) {
             <tr key={ri}>
               {row.map((cell, ci) => (
                 <td className="num" key={ci}>
+                  {ci === statusIdx && cell !== "" ? (
+                    <span className={"xr-td-dot " + statusDotTone(String(cell))} />
+                  ) : null}
                   {cell}
                 </td>
               ))}
@@ -436,6 +457,160 @@ function LintView({ r, full }: { r: LintOutputRender; full?: boolean }) {
   );
 }
 
+function DiffstatView({ r, full }: { r: DiffstatOutputRender; full?: boolean }) {
+  const files = full ? r.files : r.files.slice(0, CAP_DIFFSTAT);
+  const maxCh = Math.max(1, ...r.files.map((f) => (f.insertions || 0) + (f.deletions || 0)));
+  const seg = (f: DiffstatOutputRender["files"][number]) => {
+    const ch = (f.insertions || 0) + (f.deletions || 0);
+    const len = Math.max(1, Math.round((ch / maxCh) * 12));
+    let g = ch ? Math.round((f.insertions / ch) * len) : 0;
+    if (f.insertions > 0 && g === 0) g = 1;
+    let d = len - g;
+    if (f.deletions > 0 && d === 0) {
+      d = 1;
+      if (g > 1) g -= 1;
+    }
+    return { g: Math.max(0, g), d: Math.max(0, d) };
+  };
+  return (
+    <div className="xr xr-diffstat">
+      {files.map((f, i) => {
+        const { g, d } = seg(f);
+        return (
+          <div className="xr-ds-row" key={i}>
+            <span className="path">{f.path}</span>
+            <span className="delta num">
+              {f.insertions > 0 ? <span className="a">+{f.insertions}</span> : null}
+              {f.deletions > 0 ? <span className="d">−{f.deletions}</span> : null}
+            </span>
+            <span className="bar" aria-hidden="true">
+              <span className="ga">{"▰".repeat(g)}</span>
+              <span className="gd">{"▰".repeat(d)}</span>
+            </span>
+          </div>
+        );
+      })}
+      {r.totals ? (
+        <div className="xr-ds-total">
+          <span className="f">
+            {r.totals.files} file{r.totals.files === 1 ? "" : "s"} changed
+          </span>
+          <span className="a num">+{r.totals.insertions}</span>
+          <span className="d num">−{r.totals.deletions}</span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function GitView({ r, full }: { r: GitOutputRender; full?: boolean }) {
+  if (r.sub === "commit") {
+    return (
+      <div className="xr xr-git-commit">
+        <span className="dot">●</span>
+        <span className="sha num">{r.shortSha}</span>
+        {r.branch ? <span className="branch">{r.branch}</span> : null}
+        <span className="subj">{r.subject}</span>
+        <span className="stat num">
+          <span className="a">+{r.insertions || 0}</span>
+          <span className="d">−{r.deletions || 0}</span>
+          <span className="sep">·</span>
+          <span className="fc">
+            {r.filesChanged ?? 0} file{r.filesChanged === 1 ? "" : "s"}
+          </span>
+        </span>
+      </div>
+    );
+  }
+  if (r.sub === "add") {
+    const staged = r.staged ?? [];
+    const paths = full ? staged : staged.slice(0, CAP_GIT_ADD);
+    return (
+      <div className="xr xr-git-add">
+        <div className="xr-ga-hd">
+          <span className="plus">+</span> staged {staged.length} file{staged.length === 1 ? "" : "s"}
+        </div>
+        <div className="xr-ga-list">
+          {paths.map((p, i) => (
+            <div className="xr-ga-row" key={i}>
+              <span className="g">+</span>
+              <span className="path">{p}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  if (r.sub === "worktree") {
+    return (
+      <div className="xr xr-call-line git-wt">
+        <span className="cl-icon">⌂</span>
+        <span className="cl-path">{r.branch}</span>
+        <span className="cl-q">{r.path ?? ""}</span>
+        {r.ok && r.head ? <span className="cl-meta num">HEAD {r.head}</span> : null}
+        <span className={`cl-res ${r.ok ? "ok" : "warn"}`}>{r.ok ? "worktree ready" : r.error ?? "failed"}</span>
+      </div>
+    );
+  }
+  if (r.sub === "branch") {
+    return (
+      <div className="xr xr-git-chips">
+        {r.branch ? <span className="gchip branch">{r.branch}</span> : null}
+        {r.sha ? <span className="gchip sha num">{r.sha}</span> : null}
+      </div>
+    );
+  }
+  // merge
+  const tone = r.conflict ? "conflict" : r.fastForward ? "ff" : "merge";
+  const line = r.conflict
+    ? `CONFLICT — ${r.conflict}`
+    : r.fastForward
+      ? `Fast-forward${r.head ? ` → ${r.head}` : ""}`
+      : `Merge made by the '${r.strategy ?? "ort"}' strategy`;
+  return (
+    <div className="xr xr-git-merge">
+      <div className={`xr-gm-result ${tone}`}>
+        <span className="gm-glyph">{r.conflict ? "✗" : "⎇"}</span>
+        <span className="gm-line">{line}</span>
+      </div>
+      {r.diffstat ? <DiffstatView r={r.diffstat} full={full} /> : null}
+    </div>
+  );
+}
+
+// docker compose up — streaming lifecycle collapsed to terminal state per
+// resource (status-dot vocabulary); image-pull churn folds into one summary chip.
+export function composeTone(state: string): "ok" | "wait" | "warn" | "dim" {
+  if (/^(?:started|created|recreated|healthy|running)$/i.test(state)) return "ok";
+  if (/^(?:creating|starting|waiting|recreate|pulling)$/i.test(state)) return "wait";
+  if (/^(?:error|exited|dead|unhealthy)$/i.test(state)) return "warn";
+  return "dim";
+}
+
+function ComposeView({ r, full }: { r: ComposeOutputRender; full?: boolean }) {
+  const resources = full ? r.resources : r.resources.slice(0, CAP_COMPOSE);
+  return (
+    <div className="xr xr-compose">
+      {r.pull ? (
+        <div className="xr-cp-pull">
+          <span className="g">↓</span>
+          <span className="lbl">
+            {r.pull.done}/{r.pull.layers} layer{r.pull.layers === 1 ? "" : "s"} pulled
+          </span>
+        </div>
+      ) : null}
+      {resources.map((res, i) => (
+        <div className="xr-cp-row" key={i}>
+          <span className={`xr-cp-dot ${composeTone(res.state)}`} />
+          <span className="ty">{res.type}</span>
+          <span className="nm">{res.name}</span>
+          <span className={`stt ${composeTone(res.state)}`}>{res.state}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function HttpView({ r, full }: { r: HttpOutputRender; full?: boolean }) {
   const statusClass =
     r.status === undefined ? "" : r.status >= 500 ? "s5" : r.status >= 400 ? "s4" : r.status >= 300 ? "s3" : "s2";
@@ -517,6 +692,12 @@ function RenderOutput({ render, plainText, full }: { render?: OutputRender; plai
       return <TraceView r={render} full={full} />;
     case "lint":
       return <LintView r={render} full={full} />;
+    case "diffstat":
+      return <DiffstatView r={render} full={full} />;
+    case "git":
+      return <GitView r={render} full={full} />;
+    case "compose":
+      return <ComposeView r={render} full={full} />;
     case "http":
       return <HttpView r={render} full={full} />;
     default:
@@ -571,6 +752,15 @@ export function execOverflow(event: TimelineEvent): string | null {
       const total = render.files.reduce((sum, file) => sum + file.issues.length, 0);
       return total > CAP_LINT ? `${total - CAP_LINT} more issues` : null;
     }
+    case "diffstat":
+      return render.files.length > CAP_DIFFSTAT ? `${render.files.length - CAP_DIFFSTAT} more files` : null;
+    case "git":
+      if (render.sub === "add") return (render.staged?.length ?? 0) > CAP_GIT_ADD ? `${render.staged!.length - CAP_GIT_ADD} more files` : null;
+      if (render.sub === "merge" && render.diffstat)
+        return render.diffstat.files.length > CAP_DIFFSTAT ? `${render.diffstat.files.length - CAP_DIFFSTAT} more files` : null;
+      return null;
+    case "compose":
+      return render.resources.length > CAP_COMPOSE ? `${render.resources.length - CAP_COMPOSE} more resources` : null;
     case "http": {
       const headers = (render.headers ?? []).length;
       const bodyLines = (render.body ?? "").split("\n").length;
@@ -616,6 +806,12 @@ const kindLabel = (event: TimelineEvent): string => {
       return `TRACE · ${render.exception}`.trim();
     case "lint":
       return `LINT${render.errors + render.warnings ? ` · ${render.errors + render.warnings}` : ""}`;
+    case "diffstat":
+      return `DIFFSTAT${render.totals ? ` · ${render.totals.files} FILES` : ""}`;
+    case "git":
+      return `GIT · ${render.sub.toUpperCase()}`;
+    case "compose":
+      return `COMPOSE · ${render.resources.length} RES`;
     case "http":
       return render.status !== undefined ? `HTTP ${render.status}` : render.error ? "HTTP · ERR" : "HTTP";
     default:
