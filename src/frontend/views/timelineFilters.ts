@@ -83,7 +83,21 @@ export const timelineFilterCount = (events: TimelineEvent[], key: string, hideTo
  * with an "other" bucket for tool calls we couldn't classify (plain/no render).
  * Non-tool events are not governed by this filter; they stay under the group tabs.
  */
-export type ToolTypeKey = "diff" | "matches" | "status" | "tree" | "file" | "http" | "table" | "tests" | "other";
+export type ToolTypeKey =
+  | "diff"
+  | "matches"
+  | "status"
+  | "tree"
+  | "file"
+  | "http"
+  | "table"
+  | "tests"
+  | "build"
+  | "lint"
+  | "log"
+  | "json"
+  | "trace"
+  | "other";
 
 export interface ToolTypeOption {
   key: ToolTypeKey;
@@ -100,6 +114,11 @@ export const TOOL_TYPES: ToolTypeOption[] = [
   { key: "http", label: "HTTP" },
   { key: "table", label: "Table" },
   { key: "tests", label: "Tests" },
+  { key: "build", label: "Build" },
+  { key: "lint", label: "Lint" },
+  { key: "log", label: "Git Log" },
+  { key: "json", label: "JSON" },
+  { key: "trace", label: "Trace" },
   { key: "other", label: "Other" },
 ];
 

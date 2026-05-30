@@ -9,7 +9,7 @@ import type {
 import { maskPreviewSecrets } from "../../shared/redaction";
 import { classifyExecOutput, classifyPatch } from "./classifyExecOutput";
 
-export const ROLLOUT_PARSER_VERSION = 15;
+export const ROLLOUT_PARSER_VERSION = 16;
 export const LARGE_OUTPUT_COLLAPSE_BYTES = 4 * 1024;
 /** How much (redacted) output we keep around to classify into `outputRender`. */
 const CLASSIFY_OUTPUT_CAP = 128 * 1024;

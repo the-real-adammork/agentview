@@ -432,11 +432,42 @@ describe("classifyExecOutput — build (cargo / tsc / go)", () => {
     expect(render.diagnostics[0]).toMatchObject({ severity: "error", code: "TS2339", file: "src/db.ts", line: 44, col: 14 });
   });
 
-  it("parses cargo error[CODE] with the --> location on the next line", () => {
-    const output = ["error[E0599]: no method named `busy_timeout`", "  --> src/db.rs:44:14", "Compiling observatory"].join("\n");
+  it("parses a cargo code frame into a snippet with a caret span, plus the build duration", () => {
+    const output = [
+      "error[E0599]: no method named `busy_timeout` found for struct `Connection`",
+      "  --> src/db.rs:44:14",
+      "   |",
+      "44 |     conn.busy_timeout(Duration::from_millis(5000))?;",
+      "   |          ^^^^^^^^^^^^ method not found",
+      "   |",
+      "",
+      "    Finished release [optimized] target(s) in 11.20s",
+    ].join("\n");
     const render = classifyExecOutput("cargo build --release", output) as BuildOutputRender;
     expect(render.kind).toBe("build");
-    expect(render.diagnostics[0]).toMatchObject({ severity: "error", code: "E0599", file: "src/db.rs", line: 44 });
+    expect(render.durationMs).toBe(11200);
+    expect(render.diagnostics).toHaveLength(1);
+    expect(render.diagnostics[0]).toMatchObject({ severity: "error", code: "E0599", file: "src/db.rs", line: 44, col: 14 });
+    expect(render.diagnostics[0].snippet).toEqual([
+      { n: 44, text: "    conn.busy_timeout(Duration::from_millis(5000))?;", caret: [9, 21] },
+    ]);
+  });
+
+  it("parses a multi-line cargo frame (context line + offending line)", () => {
+    const output = [
+      "error[E0277]: the trait `FromSql` is not implemented",
+      "  --> src/query.rs:88:9",
+      "   |",
+      "87 |     let row = stmt.next()?;",
+      "88 |         row.get::<_, Depth>(4)?",
+      "   |         ^^^^^^^^^^^^^^^^^^^ trait not satisfied",
+      "",
+    ].join("\n");
+    const render = classifyExecOutput("cargo check", output) as BuildOutputRender;
+    expect(render.diagnostics[0].snippet).toEqual([
+      { n: 87, text: "    let row = stmt.next()?;" },
+      { n: 88, text: "        row.get::<_, Depth>(4)?", caret: [8, 27] },
+    ]);
   });
 
   it("ignores non-build commands", () => {

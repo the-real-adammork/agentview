@@ -149,6 +149,11 @@ describe("tool sub-type filter", () => {
       "http",
       "table",
       "tests",
+      "build",
+      "lint",
+      "log",
+      "json",
+      "trace",
       "other",
     ]);
     expect(TOOL_TYPES.find((type) => type.key === "matches")?.label).toBe("Search");
@@ -159,6 +164,14 @@ describe("tool sub-type filter", () => {
     it("returns the typed render kind of a tool call", () => {
       expect(toolTypeKey(toolWith({ kind: "tree", entries: [] }))).toBe("tree");
       expect(toolTypeKey(toolWith({ kind: "status", files: [] }))).toBe("status");
+    });
+
+    it("maps the new typed render kinds to their own key (not 'other')", () => {
+      expect(toolTypeKey(toolWith({ kind: "build", tool: "cargo", errors: 0, warnings: 0, diagnostics: [] }))).toBe("build");
+      expect(toolTypeKey(toolWith({ kind: "lint", tool: "eslint", errors: 0, warnings: 0, files: [] }))).toBe("lint");
+      expect(toolTypeKey(toolWith({ kind: "log", total: 0, commits: [] }))).toBe("log");
+      expect(toolTypeKey(toolWith({ kind: "json", value: {} }))).toBe("json");
+      expect(toolTypeKey(toolWith({ kind: "trace", lang: "python", exception: "E", message: "", frames: [] }))).toBe("trace");
     });
 
     it("buckets plain / unclassified tool calls as 'other'", () => {

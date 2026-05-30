@@ -1,5 +1,6 @@
 import type {
   BuildDiagnostic,
+  BuildSnippetLine,
   DiffFile,
   DiffHunk,
   FileLine,
@@ -646,21 +647,50 @@ function classifyBuild(cmd: string, text: string): OutputRender | undefined {
       diagnostics.push({ severity: "error", file: m[1], line: Number(m[2]), col: m[3] ? Number(m[3]) : undefined, message: m[4].trim() });
       continue;
     }
-    // cargo/rustc: "error[E0599]: msg" then "  --> src/db.rs:44:14"
-    m = /^(error|warning)(?:\[([A-Z]\d+)\])?:\s*(.*)$/.exec(line);
+    // cargo/rustc: "error[E0599]: msg" then "  --> src/db.rs:44:14" then a code frame.
+    m = /^(error|warning)(?:\[([A-Z][0-9]+|[a-z_]+)\])?:\s*(.*)$/.exec(line);
     const loc = /^\s*-->\s*(\S+?):(\d+)(?::(\d+))?/.exec(lines[i + 1] ?? "");
     if (m && loc) {
-      diagnostics.push({
+      const diagnostic: BuildDiagnostic = {
         severity: m[1] === "warning" ? "warning" : "error",
         code: m[2] || undefined,
         file: loc[1],
         line: Number(loc[2]),
         col: loc[3] ? Number(loc[3]) : undefined,
         message: m[3].trim(),
-      });
+      };
+      // Parse the rustc code frame that follows: "<n> | <source>" rows and
+      // "   |   ^^^^ label" caret rows (the caret applies to the line above).
+      const snippet: BuildSnippetLine[] = [];
+      let j = i + 2;
+      let last: BuildSnippetLine | undefined;
+      for (; j < lines.length; j += 1) {
+        const source = /^\s*(\d+)\s+\|\s?(.*)$/.exec(lines[j]);
+        if (source) {
+          last = { n: Number(source[1]), text: source[2] };
+          snippet.push(last);
+          continue;
+        }
+        const gutter = /^\s*\|(.*)$/.exec(lines[j]);
+        if (gutter) {
+          const caret = /\^+/.exec(gutter[1].replace(/^\s/, ""));
+          if (caret && last) last.caret = [caret.index, caret.index + caret[0].length];
+          continue;
+        }
+        break; // blank line / next diagnostic ends the frame
+      }
+      if (snippet.length) diagnostic.snippet = snippet.slice(0, 12);
+      diagnostics.push(diagnostic);
+      i = j - 1;
       continue;
     }
   }
+
+  // Compile time, e.g. cargo "Finished … in 11.20s" / "in 1m 02s".
+  const durationMatch = /\b(?:Finished|Compiled|Build complete|Done)[^\n]*\bin\s+(?:(\d+)m\s+)?([\d.]+)\s*s\b/i.exec(text);
+  const durationMs = durationMatch
+    ? Math.round(((durationMatch[1] ? Number(durationMatch[1]) * 60 : 0) + Number(durationMatch[2])) * 1000)
+    : undefined;
 
   let errors = diagnostics.filter((d) => d.severity === "error").length;
   const warnings = diagnostics.filter((d) => d.severity === "warning").length;
@@ -670,7 +700,7 @@ function classifyBuild(cmd: string, text: string): OutputRender | undefined {
     diagnostics.length > 0 ||
     /\b(Compiling|Finished|Found \d+ error|webpack \d|Build complete|error TS|error\[|warning:)\b/.test(text);
   if (!hasSignal) return undefined;
-  return { kind: "build", tool, errors, warnings, diagnostics: diagnostics.slice(0, 200) };
+  return { kind: "build", tool, errors, warnings, durationMs, diagnostics: diagnostics.slice(0, 200) };
 }
 
 // ── lint (eslint / ruff / clippy) ───────────────────────────────────────────
