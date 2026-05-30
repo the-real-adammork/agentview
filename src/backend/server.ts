@@ -8,6 +8,7 @@ import { handleHealthApiRequest } from "./api/health";
 import { handleSessionsApiRequest } from "./api/sessions";
 import { handleStreamApiRequest } from "./api/stream";
 import { handleTimelineApiRequest } from "./api/timeline";
+import { handleTimelineRawApiRequest } from "./api/timelineRaw";
 import { handleTokensApiRequest } from "./api/tokens";
 import { resolveCodexHome } from "./codexPaths";
 import { openLogStore } from "./sqlite/logStore";
@@ -33,6 +34,10 @@ const server = createServer(async (request, response) => {
     }
 
     if (await handleTimelineApiRequest(request, response)) {
+      return;
+    }
+
+    if (await handleTimelineRawApiRequest(request, response)) {
       return;
     }
 

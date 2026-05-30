@@ -1502,6 +1502,17 @@ tbody tr[aria-current="true"] {
   padding: 10px 12px;
   text-transform: uppercase;
 }
+.tl-graph-link:hover:not(:disabled) { background: rgba(255, 107, 26, 0.08); }
+.tl-graph-link:disabled { opacity: 0.45; cursor: default; }
+/* Export reads as a secondary action under the graph link: dimmer border, tighter gap. */
+.tl-export {
+  margin-top: 8px;
+  border-color: var(--rule-strong);
+  color: var(--ink-dim);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+.tl-export:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); background: rgba(255, 107, 26, 0.06); }
 
 .tl-tabs__aux {
   color: var(--ink-dim);
@@ -4960,6 +4971,20 @@ tbody tr[aria-current="true"] {
 .xr-json-body .j-str { color: var(--good); }
 .xr-json-body .j-num { color: var(--amber); }
 .xr-json-body .j-kw { color: var(--primary); }
+
+/* call-side one-liners (read / search request / fetch) */
+.xr-call-line { display: flex; align-items: baseline; gap: 9px; padding: 7px 10px; font-family: var(--mono); font-size: 11px; }
+.xr-call-line .cl-icon { color: var(--ink-faint); flex-shrink: 0; }
+.xr-call-line .cl-path { color: var(--ink-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xr-call-line .cl-meta { color: var(--ink-dim); font-size: 10px; }
+.xr-call-line .cl-pat { color: var(--good); }
+.xr-call-line .cl-scope { color: var(--ink-dim); }
+.xr-call-line .cl-q { color: var(--ink); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xr-call-line .cl-mode { font-family: var(--display); font-weight: 700; font-size: 9px; letter-spacing: 0.14em; padding: 1px 5px; border: 1px solid var(--rule); flex-shrink: 0; }
+.xr-call-line .cl-mode.get { color: var(--cyan); border-color: rgba(70, 216, 255, 0.4); }
+.xr-call-line .cl-mode.srch { color: var(--cyan); border-color: var(--rule-strong); }
+.xr-call-line .cl-res { margin-left: auto; color: var(--ink-dim); font-size: 10px; flex-shrink: 0; }
+.xr-call-line .cl-res.zero { color: var(--ink-faint); }
 
 /* HTTP (curl / wget) */
 .xr-http { font-family: var(--mono); font-size: 11px; }

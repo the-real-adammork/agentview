@@ -215,6 +215,30 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<ApiResu
   return body;
 }
 
+/**
+ * Fetch the raw (verbatim, unredacted) rollout JSONL for a set of source lines.
+ * Returns NDJSON text; throws with the server's message on failure. Used by the
+ * timeline raw export, which sends the filtered events' `sourceLine`s.
+ */
+export async function getRawTimeline(threadId: string, sourceLines: number[], includeResults = true): Promise<string> {
+  const response = await fetch(`${apiBaseUrl}/api/timeline/raw`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ threadId, sourceLines, includeResults }),
+  });
+  if (!response.ok) {
+    let message = `HTTP ${response.status}`;
+    try {
+      const body = (await response.json()) as { error?: { message?: string } };
+      if (body?.error?.message) message = body.error.message;
+    } catch {
+      // non-JSON error body; keep the HTTP status message
+    }
+    throw new Error(message);
+  }
+  return response.text();
+}
+
 const getJson = <T>(path: string): Promise<ApiResult<T>> => requestJson<T>(path);
 
 const postJson = <T>(path: string, payload: unknown): Promise<ApiResult<T>> =>

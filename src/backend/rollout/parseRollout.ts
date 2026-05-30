@@ -8,8 +8,9 @@ import type {
 } from "../../shared/contracts";
 import { maskPreviewSecrets } from "../../shared/redaction";
 import { classifyExecOutput, classifyPatch } from "./classifyExecOutput";
+import { classifyCall, fillCallCounts } from "./classifyCall";
 
-export const ROLLOUT_PARSER_VERSION = 16;
+export const ROLLOUT_PARSER_VERSION = 17;
 export const LARGE_OUTPUT_COLLAPSE_BYTES = 4 * 1024;
 /** How much (redacted) output we keep around to classify into `outputRender`. */
 const CLASSIFY_OUTPUT_CAP = 128 * 1024;
@@ -648,6 +649,8 @@ const makeEvent = (record: JsonRecord, options: ParseRolloutOptions, sourceLine:
     // join time. Stripped from every event before the facts are returned.
     fullOutput: output === undefined ? undefined : maskPreviewSecrets(output).slice(0, CLASSIFY_OUTPUT_CAP),
     fullArguments: patchArgumentsFromRecord(record),
+    // Call-side one-liner for read/search/fetch invocations (counts filled at join time).
+    callRender: kind === "tool_call" ? classifyCall(toolName, argsObjectFromRecord(record), searchQueryFromRecord(record)) : undefined,
   };
 };
 
@@ -693,6 +696,8 @@ const deriveFacts = (events: MutableTimelineEvent[]) => {
     // `outputRender` directly — no client-side parsing.
     const render = classifyExecOutput(call.commandPreview, result?.fullOutput ?? call.fullOutput) ?? classifyPatch(call.fullArguments);
     if (render) call.outputRender = render;
+    // Fill the call-side render's hit/result/status count from the joined output.
+    if (call.callRender) fillCallCounts(call.callRender, result?.fullOutput ?? result?.outputPreview);
 
     return {
       callId: call.callId as string,

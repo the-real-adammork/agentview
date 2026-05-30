@@ -373,6 +373,38 @@ export type OutputRender =
 
 export type OutputRenderKind = OutputRender["kind"];
 
+/**
+ * Call-side renderers: a one-line summary of a tool *invocation* (read / search /
+ * fetch), classified from the call's arguments. Complementary to `outputRender`,
+ * which renders the tool's result. Agent and skill invocations keep their own
+ * first-class event kinds (richer than a one-liner), so they're not call-rendered.
+ */
+export interface ReadCallRender {
+  kind: "read";
+  path: string;
+  startLine?: number;
+  endLine?: number;
+  totalLines?: number;
+}
+/** `grep` / `search_files` — the search request (the `matches` output renders the hits). */
+export interface SearchCallRender {
+  kind: "search_call";
+  pattern: string;
+  path?: string;
+  flags?: string;
+  hits?: number;
+}
+/** `web_search` / `web_fetch`. */
+export interface FetchCallRender {
+  kind: "fetch";
+  mode: "search" | "fetch";
+  query?: string;
+  url?: string;
+  results?: number;
+  status?: number;
+}
+export type CallRender = ReadCallRender | SearchCallRender | FetchCallRender;
+
 export interface TimelineEvent {
   id: string;
   threadId: string;
@@ -396,6 +428,8 @@ export interface TimelineEvent {
    * the call↔result join; absent (or `plain`) means render the raw preview.
    */
   outputRender?: OutputRender;
+  /** Call-side one-line render for read/search/fetch tool invocations. */
+  callRender?: CallRender;
   exitCode?: number;
   durationMs?: number;
   childThreadId?: string;

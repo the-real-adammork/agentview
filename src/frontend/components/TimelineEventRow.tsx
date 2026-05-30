@@ -1,5 +1,6 @@
 import type { TimelineEvent, TimelineEventKind } from "../../shared/contracts";
 import { ExecOutput, isExpandable } from "./execRenderers";
+import { CallLine, callCategory } from "./callRenderers";
 
 const numberFormatter = new Intl.NumberFormat("en-US");
 const formatTime = (value: string) => new Date(value).toLocaleTimeString("en-US");
@@ -115,6 +116,11 @@ const presentationFor = (event: TimelineEvent): KindPresentation => {
       return { evClass: "context", who: "REASONING", whoTone: "dim", border: "var(--rule-soft)" };
     case "tool_call": {
       const toolName = event.toolName ?? "";
+      // A call-rendered invocation (read / search / fetch) is typed by its call kind.
+      if (event.callRender) {
+        const category = callCategory(event.callRender);
+        return { evClass: "tool", who: `▸ ${category.label}`, whoTone: category.tone, border: category.border };
+      }
       const renderKind = event.outputRender?.kind;
       const hasTypedRender = Boolean(renderKind && renderKind !== "plain" && EXEC_KIND_CATEGORY[renderKind]);
       const isShell = toolName === "exec_command" || toolName === "shell" || (!toolName && Boolean(event.commandPreview));
@@ -265,7 +271,7 @@ export function TimelineEventRow({ event, meta, delta, isNew, source, onOpenThre
   const showChildAction = event.kind === "agent_launch" && Boolean(event.childThreadId);
   // A tool row with structured or overflowing output opens the full-output modal;
   // the whole body becomes the affordance (spawn rows keep their ↗ open child).
-  const expandable = isTool && hasOutput && isExpandable(event) && Boolean(onExpand);
+  const expandable = isTool && hasOutput && !event.callRender && isExpandable(event) && Boolean(onExpand);
   const openModal = expandable ? () => onExpand?.(event) : undefined;
 
   const args =
@@ -351,7 +357,7 @@ export function TimelineEventRow({ event, meta, delta, isNew, source, onOpenThre
           ) : null}
         </div>
 
-        {args ? <div className="args">$ {args}</div> : null}
+        {args && !event.callRender ? <div className="args">$ {args}</div> : null}
 
         {/* task_started is a quiet header marker — its config shows in the head meta,
             so the body stays empty (matches the handoff). turn_context / reasoning
@@ -364,7 +370,11 @@ export function TimelineEventRow({ event, meta, delta, isNew, source, onOpenThre
           <pre className={present.whoTone === "warn" ? "tone-warn" : undefined}>{event.previewText}</pre>
         )}
 
-        {isTool && hasOutput ? <ExecOutput event={event} onExpand={openModal} /> : null}
+        {event.callRender ? (
+          <CallLine render={event.callRender} />
+        ) : isTool && hasOutput ? (
+          <ExecOutput event={event} onExpand={openModal} />
+        ) : null}
       </div>
     </li>
   );

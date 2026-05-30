@@ -1,5 +1,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 
+import { exportFilteredRollout } from "../export/exportFilteredRollout";
+
 import { AnimatedNumber } from "../components/AnimatedNumber";
 import { useEnteringIds } from "../live/useEnteringIds";
 import { TimelineEventRow, type EventSource } from "../components/TimelineEventRow";
@@ -193,6 +195,8 @@ export function TimelineView({
   // the toggle pulses. The real stream is SSE-driven (App owns it); turning this
   // on also pulls the newest bytes immediately.
   const [live, setLive] = useState(false);
+  // Raw JSONL export of the currently-filtered events (for analyzing new exec types).
+  const [exportState, setExportState] = useState<"idle" | "working" | "error">("idle");
   // How many of the most-recent visible events to actually render; "load older"
   // grows it. Reset when the filter/window/scope/session changes (below).
   const [renderLimit, setRenderLimit] = useState(DEFAULT_RENDER_LIMIT);
@@ -563,6 +567,27 @@ export function TimelineView({
           </div>
 
           <button className="tl-graph-link" type="button" onClick={() => onOpenGraph?.()}>▸ Open Agent Graph</button>
+          <button
+            className="tl-graph-link tl-export"
+            type="button"
+            disabled={exportState === "working" || visibleEvents.length === 0}
+            title="Download the raw original-rollout JSONL for the events matching the current filters (incl. tool outputs)"
+            onClick={async () => {
+              setExportState("working");
+              try {
+                await exportFilteredRollout(visibleEvents, activeKind);
+                setExportState("idle");
+              } catch {
+                setExportState("error");
+              }
+            }}
+          >
+            {exportState === "working"
+              ? "⬇ Exporting…"
+              : exportState === "error"
+                ? "⬇ Export failed — retry"
+                : `⬇ Export filtered · ${visibleEvents.length} JSONL`}
+          </button>
         </div>
       </aside>
 
