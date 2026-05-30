@@ -256,6 +256,70 @@ const jsonSmall = mk("jq .exporters health.json", { kind: "json", source: "healt
   otlp: "ok", logging: "ok", queue_depth: 0,
 } }, { durationMs: 18 });
 
+/* ---- DIFFSTAT (git diff --stat) ---- */
+const diffstatBig = mk("git diff --stat impl/…-foundation...impl/…-diagnostics-ui", { kind: "diffstat", files: [
+  { path: "apps/server/src/app.ts", insertions: 11, deletions: 2 },
+  { path: "apps/web/package.json", insertions: 1, deletions: 0 },
+  { path: "apps/web/src/App.tsx", insertions: 34, deletions: 6 },
+  { path: "apps/web/src/components/DiagnosticsPanel.tsx", insertions: 58, deletions: 0 },
+  { path: "apps/web/src/hooks/useDiagnostics.ts", insertions: 22, deletions: 0 },
+  { path: "docs/runs/run.yaml", insertions: 4, deletions: 1 },
+  { path: "tests/e2e/src/scenarios/diagnostics.spec.ts", insertions: 47, deletions: 0 },
+], totals: { files: 7, insertions: 177, deletions: 9 } }, { durationMs: 60 });
+
+const diffstatSmall = mk("git diff --stat HEAD --", { kind: "diffstat", files: [
+  { path: "docs/runs/app-scaffold-tooling-20260528T193425Z.yaml", insertions: 116, deletions: 7 },
+], totals: { files: 1, insertions: 116, deletions: 7 } }, { durationMs: 18 });
+
+/* ---- GIT OPS (one card, switched on `sub`) ---- */
+const gitCommit = mk("git commit -m \"chore: start diagnostics foundation orchestration\"", { kind: "git", sub: "commit",
+  branch: "impl/phase-1-diagnostics-foundation", shortSha: "82891db",
+  subject: "chore: start diagnostics foundation orchestration",
+  filesChanged: 5, insertions: 67, deletions: 33 }, { durationMs: 120, output:
+  "[impl/phase-1-diagnostics-foundation 82891db] chore: start diagnostics foundation orchestration\n 5 files changed, 67 insertions(+), 33 deletions(-)" });
+
+const gitAdd = mk("git add docs/.../run.yaml docs/.../phase-1-diagnostics-foundation.yaml …", { kind: "git", sub: "add", staged: [
+  "docs/runs/run.yaml",
+  "docs/runs/phase-1-diagnostics-foundation.yaml",
+  "docs/runs/app-scaffold-tooling-20260528T193425Z.yaml",
+  "apps/server/src/app.ts",
+  "apps/web/src/App.tsx",
+  "apps/web/package.json",
+  ".env.example",
+  "tests/e2e/src/scenarios/local-web-demo.spec.ts",
+] }, { durationMs: 28, output: "" });
+
+const gitWorktree = mk("git worktree add ../wt/app-scaffold-tooling impl/phase-2/app-scaffold-tooling", { kind: "git", sub: "worktree",
+  ok: true, branch: "impl/phase-2/app-scaffold-tooling", path: "../wt/app-scaffold-tooling", head: "a42f41e" }, { durationMs: 60, output:
+  "Preparing worktree (new branch 'impl/phase-2/app-scaffold-tooling')\nHEAD is now at a42f41e scaffold tooling" });
+
+const gitWorktreeFail = mk("git worktree add ../wt/diagnostics-ui impl/phase-1/diagnostics-ui", { kind: "git", sub: "worktree",
+  ok: false, branch: "impl/phase-1/diagnostics-ui", error: "cannot lock ref" }, { exit: 128, fail: true, durationMs: 40, output:
+  "fatal: cannot lock ref 'refs/heads/impl/phase-1/diagnostics-ui'" });
+
+const gitMerge = mk("git merge impl/phase-1-diagnostics-ui", { kind: "git", sub: "merge", strategy: "ort", diffstat: { files: [
+  { path: ".env.example", insertions: 8, deletions: 0 },
+  { path: "apps/server/src/app.ts", insertions: 36, deletions: 2 },
+  { path: "apps/web/src/App.tsx", insertions: 40, deletions: 6 },
+  { path: "apps/web/package.json", insertions: 1, deletions: 0 },
+], totals: { files: 4, insertions: 85, deletions: 8 } } }, { durationMs: 90, output:
+  "Merge made by the 'ort' strategy.\n .env.example | 8 +\n apps/server/src/app.ts | 38 +-\n apps/web/src/App.tsx | 46 +-\n apps/web/package.json | 1 +" });
+
+const gitBranch = mk("git branch --show-current && git rev-parse HEAD", { kind: "git", sub: "branch",
+  branch: "impl/phase-1-diagnostics-foundation", sha: "82891db4c9a1" }, { durationMs: 20, output:
+  "impl/phase-1-diagnostics-foundation\n82891db4c9a17e2f0b3c5d18a44e0f9912abcd34" });
+
+/* ---- DOCKER (columnar — rides the TABLE renderer + a STATUS health dot) ---- */
+const tableDocker = mk("docker ps --format 'table {{.ID}}\\t{{.Names}}\\t{{.Ports}}\\t{{.Status}}'", { kind: "table",
+  columns: ["CONTAINER ID", "NAMES", "PORTS", "STATUS"],
+  rows: [
+    ["f9be8f2fc55c", "contracts-prisma-postgres-1", "0.0.0.0:54322->5432/tcp", "Up About an hour (healthy)"],
+    ["2a17c0d9e431", "contracts-redis-1", "0.0.0.0:6379->6379/tcp", "Up About an hour"],
+    ["7c4419ab02de", "contracts-otel-collector-1", "0.0.0.0:4317->4317/tcp", "Up 12 minutes (healthy)"],
+    ["b03d8f1a9c72", "contracts-migrate-1", "", "Exited (0) 8 minutes ago"],
+    ["e51a7d2b6f80", "contracts-web-1", "0.0.0.0:5173->5173/tcp", "Restarting (1) 3 seconds ago"],
+  ], totalRows: 5 }, { durationMs: 120 });
+
 /* ============================================================
    ENVELOPE — the shared exec_command contract every renderer rides on
    ============================================================ */
@@ -471,8 +535,8 @@ const SPECS = [
   },
   {
     id: "table", n: "07", group: "READING THE REPO", name: "TableView", title: "TABLE", accent: "--primary", accentName: "primary",
-    triggers: "sqlite3 -column · columnar",
-    desc: "Aligned columns, header emphasis, tabular-nums cells, horizontal scroll for wide results.",
+    triggers: "sqlite3 -column · docker ps · columnar",
+    desc: "Aligned columns, header emphasis, tabular-nums cells, horizontal scroll for wide results. Columnar tool output (e.g. docker ps) rides this same renderer; a STATUS column earns a health dot.",
     schema:
 `interface TableRender {
   kind: "table";
@@ -485,12 +549,14 @@ const SPECS = [
       ["Overflow", "+N rows  (totalRows − 6)"],
       ["Modal", "same TableView · full · scrolls H + V"],
       ["Wide", "horizontal scroll preserves column alignment"],
+      ["Status dot", "docker STATUS col → green Up/healthy · red Exited/Restarting"],
     ],
-    tokens: [["header", "--ink-dim"], ["cell", "--ink"], ["rule", "--rule-soft"]],
-    states: [["SMALL", "ok"], ["WIDE + TRUNCATED", "preview"]],
+    tokens: [["header", "--ink-dim"], ["cell", "--ink"], ["up · healthy", "--good"], ["exited", "--warn-bright"]],
+    states: [["SMALL", "ok"], ["WIDE + TRUNCATED", "preview"], ["DOCKER · STATUS", "ok"]],
     samples: [
       { label: "Table · small", tone: "ok", note: "4 rows, fits inline", s: tableSmall },
       { label: "Table · wide + truncated", tone: "preview", note: "6-col / 50-row — capped, modal scrolls H+V", s: tableBig },
+      { label: "Table · docker ps", tone: "ok", note: "Columnar docker output — STATUS column carries a health dot", s: tableDocker },
     ],
   },
   {
@@ -705,6 +771,85 @@ function PlainOut({ output, full }) {
     samples: [
       { label: "Trace · Python", tone: "fail", note: "KeyError — innermost 3 frames; ⋯ marks the elided outer frame", s: tracePy },
       { label: "Trace · Rust panic", tone: "fail", note: "unwrap() on Err — user frames emphasized", s: traceRust },
+    ],
+  },
+  {
+    id: "git", n: "15", group: "VERSION CONTROL", name: "GitView", title: "GIT OPS", accent: "--amber", accentName: "amber",
+    triggers: "git commit · add · merge · worktree · branch",
+    desc: "One card whose body switches on subcommand — commit rides the log-row, add the status list, merge embeds a diffstat (#16), worktree collapses to a call-line and branch to a chip pair. Heavy reuse, little new glue.",
+    schema:
+`interface GitRender {
+  kind: "git";
+  sub: "commit" | "add" | "merge"
+     | "worktree" | "branch";
+
+  // sub: commit  → log-row + stat chip
+  branch?: string; shortSha?: string;
+  subject?: string; filesChanged?: number;
+  insertions?: number; deletions?: number;
+
+  // sub: add     → staged path list
+  staged?: string[];
+
+  // sub: merge   → result line + diffstat
+  strategy?: string; fastForward?: boolean;
+  conflict?: string; diffstat?: DiffstatRender;
+
+  // sub: worktree → call-line + ok/fail
+  path?: string; head?: string;
+  ok?: boolean; error?: string;
+
+  // sub: branch  → branch · sha chips
+  sha?: string;
+}`,
+    behavior: [
+      ["Inline cap", "add 6 paths · merge 6 files · others 1 line"],
+      ["Overflow", "+N files  (add / merge bodies only)"],
+      ["Modal", "same GitView · full · every path / diffstat row"],
+      ["Reuse", "commit→log-row · add→status list · merge→#16"],
+      ["Worktree", "call-line one-liner · ok/fail chip + HEAD"],
+    ],
+    tokens: [["commit / sha", "--amber"], ["add", "--good"], ["worktree", "--cyan"], ["conflict", "--warn-bright"], ["meta", "--ink-dim"]],
+    states: [["COMMIT", "ok"], ["ADD", "preview"], ["MERGE", "preview"], ["WORKTREE", "ok"], ["FAILURE", "fail"]],
+    samples: [
+      { label: "git commit", tone: "ok", note: "Log-row one-liner — sha · branch · subject + +67 −33 · 5 files", s: gitCommit },
+      { label: "git add", tone: "preview", note: "8 staged paths — capped at 6; '+ staged N files' header", s: gitAdd },
+      { label: "git merge", tone: "preview", note: "Result line above an embedded #16 diffstat", s: gitMerge },
+      { label: "git worktree · ok", tone: "ok", note: "Call-line — branch + ready chip + HEAD sha", s: gitWorktree },
+      { label: "git worktree · fail", tone: "fail", note: "fatal: cannot lock ref — red fail chip", s: gitWorktreeFail },
+      { label: "git branch · rev-parse", tone: "ok", note: "Two chips — current branch · short sha", s: gitBranch },
+    ],
+  },
+  {
+    id: "diffstat", n: "16", group: "VERSION CONTROL", name: "DiffstatView", title: "DIFFSTAT", accent: "--cyan", accentName: "cyan",
+    triggers: "git diff --stat · git show --stat",
+    desc: "A changed-files summary without hunks — per-file +ins/−del with a small proportional add/del bar (scaled to the busiest file), plus a footer total. A trim of the diff file-header; also embedded by git merge.",
+    schema:
+`interface DiffstatRender {
+  kind: "diffstat";
+  files: {
+    path: string;
+    insertions: number;  // +N  (green)
+    deletions: number;   // −M  (red)
+  }[];
+  totals: {
+    files: number;
+    insertions: number;
+    deletions: number;
+  };
+}`,
+    behavior: [
+      ["Inline cap", "6 files"],
+      ["Overflow", "+N files  (files − 6)"],
+      ["Modal", "same DiffstatView · full · every file + total"],
+      ["Bar", "▰ glyphs · green/red split scaled to busiest file"],
+      ["Embedded", "reused inside GitView · sub merge"],
+    ],
+    tokens: [["insertions", "--good"], ["deletions", "--warn-bright"], ["path", "--ink-strong"], ["total", "--ink-dim"]],
+    states: [["MULTI-FILE", "preview"], ["SINGLE FILE", "ok"]],
+    samples: [
+      { label: "Diffstat · multi-file", tone: "preview", note: "7 files — capped at 6; proportional add/del bars", s: diffstatBig },
+      { label: "Diffstat · single file", tone: "ok", note: "git show --stat HEAD — one file, +116 −7", s: diffstatSmall },
     ],
   },
 ];

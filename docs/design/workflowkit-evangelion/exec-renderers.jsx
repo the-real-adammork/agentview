@@ -82,13 +82,22 @@ function StatusView({ r, full }) {
 function TableView({ r, full }) {
   const CAP = 6;
   const rows = full ? r.rows : r.rows.slice(0, CAP);
+  // docker-style columnar: a STATUS column gets a health dot (Up/healthy green · Exited/Restarting red)
+  const statusIdx = r.columns.findIndex((c) => /^\s*status\s*$/i.test(String(c)));
+  const dotTone = (v) => /\b(up|healthy|running|active|open|ready|done|success|passed|ok)\b/i.test(v) ? "ok"
+    : /\b(exit|exited|dead|restart|restarting|unhealthy|removing|paused|created|fail|failed|error|stopped|crash)\b/i.test(v) ? "warn" : "dim";
   return (
     <div className="xr xr-table-wrap">
       <table className="xr-table">
         <thead><tr>{r.columns.map((c, i) => <th key={i}>{c}</th>)}</tr></thead>
         <tbody>
           {rows.map((row, ri) => (
-            <tr key={ri}>{row.map((cell, ci) => <td key={ci} className="num">{cell}</td>)}</tr>
+            <tr key={ri}>{row.map((cell, ci) => (
+              <td key={ci} className="num">
+                {ci === statusIdx && cell !== "" && <span className={"xr-td-dot " + dotTone(String(cell))}></span>}
+                {cell}
+              </td>
+            ))}</tr>
           ))}
         </tbody>
       </table>
@@ -365,6 +374,132 @@ function LogView({ r, full }) {
   );
 }
 
+// diffstat (git diff --stat · git show --stat): changed-files summary, no hunks.
+// per-file +ins/−del with a proportional add/del bar, scaled to the busiest file.
+function DiffstatView({ r, full }) {
+  const CAP = 6;
+  const files = full ? r.files : r.files.slice(0, CAP);
+  const maxCh = Math.max(1, ...r.files.map((f) => (f.insertions || 0) + (f.deletions || 0)));
+  const seg = (f) => {
+    const ch = (f.insertions || 0) + (f.deletions || 0);
+    const len = Math.max(1, Math.round((ch / maxCh) * 12));
+    let g = ch ? Math.round((f.insertions / ch) * len) : 0;
+    if (f.insertions > 0 && g === 0) g = 1;
+    let d = len - g;
+    if (f.deletions > 0 && d === 0) { d = 1; if (g > 1) g -= 1; }
+    return { g: Math.max(0, g), d: Math.max(0, d) };
+  };
+  return (
+    <div className="xr xr-diffstat">
+      {files.map((f, i) => {
+        const { g, d } = seg(f);
+        return (
+          <div key={i} className="xr-ds-row">
+            <span className="path">{f.path}</span>
+            <span className="delta num">
+              {f.insertions > 0 && <span className="a">+{f.insertions}</span>}
+              {f.deletions > 0 && <span className="d">−{f.deletions}</span>}
+            </span>
+            <span className="bar" aria-hidden="true">
+              <span className="ga">{"▰".repeat(g)}</span><span className="gd">{"▰".repeat(d)}</span>
+            </span>
+          </div>
+        );
+      })}
+      {r.totals && (
+        <div className="xr-ds-total">
+          <span className="f">{r.totals.files} file{r.totals.files === 1 ? "" : "s"} changed</span>
+          <span className="a num">+{r.totals.insertions}</span>
+          <span className="d num">−{r.totals.deletions}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// git ops (commit · add · merge · worktree · branch): one card, body switches on `sub`.
+// commit rides the log-row · add the status list · merge embeds a diffstat ·
+// worktree the call-line · branch a chip pair.
+function GitCommit({ r }) {
+  return (
+    <div className="xr xr-git-commit">
+      <span className="dot">●</span>
+      <span className="sha num">{r.shortSha}</span>
+      {r.branch && <span className="branch">{r.branch}</span>}
+      <span className="subj">{r.subject}</span>
+      <span className="stat num">
+        <span className="a">+{r.insertions || 0}</span>
+        <span className="d">−{r.deletions || 0}</span>
+        <span className="sep">·</span>
+        <span className="fc">{r.filesChanged} file{r.filesChanged === 1 ? "" : "s"}</span>
+      </span>
+    </div>
+  );
+}
+
+function GitAdd({ r, full }) {
+  const CAP = 6;
+  const paths = full ? r.staged : r.staged.slice(0, CAP);
+  return (
+    <div className="xr xr-git-add">
+      <div className="xr-ga-hd"><span className="plus">+</span> staged {r.staged.length} file{r.staged.length === 1 ? "" : "s"}</div>
+      <div className="xr-ga-list">
+        {paths.map((p, i) => (
+          <div key={i} className="xr-ga-row"><span className="g">+</span><span className="path">{p}</span></div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function GitWorktree({ r }) {
+  return (
+    <div className="xr xr-call-line git-wt">
+      <span className="cl-icon">⌂</span>
+      <span className="cl-path">{r.branch}</span>
+      <span className="cl-q">{r.path || (r.ok ? "" : "")}</span>
+      {r.ok && r.head && <span className="cl-meta num">HEAD {r.head}</span>}
+      <span className={"cl-res " + (r.ok ? "ok" : "warn")}>{r.ok ? "worktree ready" : (r.error || "failed")}</span>
+    </div>
+  );
+}
+
+function GitBranch({ r }) {
+  return (
+    <div className="xr xr-git-chips">
+      <span className="gchip branch">{r.branch}</span>
+      {r.sha && <span className="gchip sha num">{r.sha}</span>}
+    </div>
+  );
+}
+
+function GitMerge({ r, full }) {
+  const tone = r.conflict ? "conflict" : r.fastForward ? "ff" : "merge";
+  const line = r.conflict ? `CONFLICT — ${r.conflict}`
+    : r.fastForward ? `Fast-forward${r.head ? ` → ${r.head}` : ""}`
+    : `Merge made by the '${r.strategy || "ort"}' strategy`;
+  return (
+    <div className="xr xr-git-merge">
+      <div className={"xr-gm-result " + tone}>
+        <span className="gm-glyph">{r.conflict ? "✗" : "⎇"}</span>
+        <span className="gm-line">{line}</span>
+      </div>
+      {r.diffstat && <DiffstatView r={r.diffstat} full={full} />}
+    </div>
+  );
+}
+
+function GitView({ r, out, full }) {
+  switch (r.sub) {
+    case "commit": return <GitCommit r={r} />;
+    case "add": return <GitAdd r={r} full={full} />;
+    case "worktree": return <GitWorktree r={r} />;
+    case "branch": return <GitBranch r={r} />;
+    case "merge": return <GitMerge r={r} full={full} />;
+    default: return <PlainOut output={out ? out.output : ""} full={full} />;
+  }
+}
+
 // JSON token colorizer — keys, strings, numbers, keywords
 function tokenizeJson(line) {
   const out = [];
@@ -435,6 +570,12 @@ function execOverflow(out) {
   if (r.kind === "tree") { const n = r.entries.length; return n > 8 ? `+${(r.totalEntries || n) - 8} entries` : null; }
   if (r.kind === "log") { const n = r.commits.length; return n > 5 ? `+${(r.total || n) - 5} commits` : null; }
   if (r.kind === "json") { const n = jsonLineCount(r); return n > 8 ? `+${n - 8} lines` : null; }
+  if (r.kind === "diffstat") { const n = r.files.length; return n > 6 ? `+${n - 6} files` : null; }
+  if (r.kind === "git") {
+    if (r.sub === "add") return r.staged.length > 6 ? `+${r.staged.length - 6} files` : null;
+    if (r.sub === "merge" && r.diffstat) return r.diffstat.files.length > 6 ? `+${r.diffstat.files.length - 6} files` : null;
+    return null;
+  }
   return null;
 }
 
@@ -462,9 +603,11 @@ function ExecOutput({ out, onExpand }) {
     : kind === "tree" ? <TreeView r={r} />
     : kind === "log" ? <LogView r={r} />
     : kind === "json" ? <JsonView r={r} />
+    : kind === "diffstat" ? <DiffstatView r={r} />
+    : kind === "git" ? <GitView r={r} out={out} />
     : <PlainOut output={out.output} />;
 
-  const label = { diff: "DIFF", tests: "TEST RESULTS", status: "GIT STATUS", table: `${(out.outputRender && out.outputRender.totalRows) || ""} ROWS`.trim() || "TABLE", file: `FILE · ${((out.outputRender && out.outputRender.path) || "").split("/").pop()}`, matches: `${(r && r.kind === "matches") ? r.files.reduce((a, f) => a + f.matches.length, 0) : ""} MATCHES`.trim() || "MATCHES", http: `HTTP ${(r && r.status) || ""}`.trim(), build: `BUILD${r && r.errors ? ` · ${r.errors} ERR` : ""}`, trace: `TRACE · ${(r && r.exception) || ""}`.trim(), lint: `LINT${r && (r.errors + r.warnings) ? ` · ${r.errors + r.warnings}` : ""}`, tree: `TREE${r && r.totalEntries ? ` · ${r.totalEntries}` : ""}`, log: "GIT LOG", json: `JSON · ${(((r && r.source) || "").split("/").pop()) || "data"}`, plain: `STDOUT · ${(out.output || "").length} bytes` }[kind];
+  const label = { diff: "DIFF", tests: "TEST RESULTS", status: "GIT STATUS", table: `${(out.outputRender && out.outputRender.totalRows) || ""} ROWS`.trim() || "TABLE", file: `FILE · ${((out.outputRender && out.outputRender.path) || "").split("/").pop()}`, matches: `${(r && r.kind === "matches") ? r.files.reduce((a, f) => a + f.matches.length, 0) : ""} MATCHES`.trim() || "MATCHES", http: `HTTP ${(r && r.status) || ""}`.trim(), build: `BUILD${r && r.errors ? ` · ${r.errors} ERR` : ""}`, trace: `TRACE · ${(r && r.exception) || ""}`.trim(), lint: `LINT${r && (r.errors + r.warnings) ? ` · ${r.errors + r.warnings}` : ""}`, tree: `TREE${r && r.totalEntries ? ` · ${r.totalEntries}` : ""}`, log: "GIT LOG", json: `JSON · ${(((r && r.source) || "").split("/").pop()) || "data"}`, diffstat: `DIFFSTAT${r && r.totals ? ` · ${r.totals.files} FILES` : ""}`, git: `GIT · ${(r && r.sub ? r.sub.toUpperCase() : "")}`, plain: `STDOUT · ${(out.output || "").length} bytes` }[kind];
 
   return (
     <div className={"out xr-out" + (out.fail ? " fail" : "")}>
@@ -507,6 +650,8 @@ function ExecModal({ ev, out, onClose }) {
     : kind === "tree" ? <TreeView r={r} full />
     : kind === "log" ? <LogView r={r} full />
     : kind === "json" ? <JsonView r={r} full />
+    : kind === "diffstat" ? <DiffstatView r={r} full />
+    : kind === "git" ? <GitView r={r} out={out} full />
     : <PlainOut output={out.output} full />;
   return (
     <div className="xr-modal-scrim" onClick={onClose}>

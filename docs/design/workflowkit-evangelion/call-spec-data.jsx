@@ -58,9 +58,10 @@ const searchZero = mkCall("grep", { kind: "search_call", pattern: "TODO\\(legacy
 const webSearch = mkCall("web_search", { kind: "fetch", mode: "search", query: "sqlite WAL busy_timeout concurrent readers", results: 6 }, { durationMs: 880, output: "6 results" });
 const webFetch = mkCall("web_fetch", { kind: "fetch", mode: "fetch", url: "https://www.sqlite.org/wal.html", status: 200 }, { durationMs: 420, output: "200 · 38 KB" });
 
-/* ---- AGENT (spawn_agent / wait_agent) ---- */
-const agentSpawn = mkCall("spawn_agent", { kind: "agent", op: "spawn", nickname: "ARCHIMEDES", role: "researcher", task: "investigate WAL busy_timeout under concurrent readers", status: "open" }, { durationMs: 60, output: "spawned thread 0BM21042" });
-const agentWait = mkCall("wait_agent", { kind: "agent", op: "wait", threadId: "0BM21042", status: "ok" }, { durationMs: 184000, output: "child completed" });
+/* ---- AGENT (spawn_agent / wait_agent / send_input) ---- */
+const agentSpawn = mkCall("spawn_agent", { kind: "agent", op: "spawn", nickname: "Bacon", role: "worker", task: "general-purpose implementation worker — wire the diagnostics panel into App.tsx", status: "open" }, { callId: "call_019e7016", durationMs: 60, output: "{\"agent_id\":\"019e7016-…\",\"nickname\":\"Bacon\"}" });
+const agentTimeout = mkCall("wait_agent", { kind: "agent", op: "wait", targets: ["019e7016"], status: "timed_out" }, { callId: "call_019e7022", durationMs: 60000, output: "{\"status\":{},\"timed_out\":true}" });
+const agentSend = mkCall("send_input", { kind: "agent", op: "send", nickname: "Bacon", target: "019e702e", message: "Approved. Proceed with Task 3 — wire the diagnostics panel into App.tsx", status: "ok" }, { callId: "call_019e703a", durationMs: 30, output: "{\"submission_id\":\"019e703a-…\"}" });
 
 /* ---- SKILL (skill_invoke) ---- */
 const skillSearch = mkCall("skill_invoke", { kind: "skill", name: "web_search", summary: "OpenTelemetry log sampling defaults", status: "ok" }, { durationMs: 1200, output: "ok" });
@@ -215,29 +216,33 @@ const CALL_SPECS = [
   },
   {
     id: "agent", n: "C5", group: "RESEARCH & AGENTS", name: "AgentView", title: "AGENT OPS", accent: "--good", accentName: "good",
-    triggers: "spawn_agent · wait_agent",
-    desc: "Sub-agent orchestration — spawn (nickname · role · task) and wait (thread id), each with child status. Formalizes the bespoke one-liners in the timeline.",
+    triggers: "spawn_agent · wait_agent · send_input",
+    desc: "Sub-agent orchestration — spawn (nickname · role · task), wait (targets + timeout) and send_input (steer a running agent). One call-line, switched on op; formalizes the bare tool names that used to fall through to 'Other'.",
     schema:
 `interface AgentRender {
   kind: "agent";
-  op: "spawn" | "wait";
-  nickname?: string;   // spawn
-  role?: string;       // spawn
+  op: "spawn" | "wait" | "send";
+  nickname?: string;   // spawn · send
+  role?: string;       // spawn (agent_type)
   task?: string;       // spawn
-  threadId?: string;   // wait
-  status?: string;     // open · ok · failed
+  targets?: string[];  // wait (one or many)
+  target?: string;     // send
+  message?: string;    // send (truncated)
+  status?: string;     // open · ok · timed_out · failed
 }`,
     behavior: [
       ["Inline cap", "single line"],
-      ["Overflow", "none"],
-      ["Spawn", "nickname · role · task + child status"],
-      ["Wait", "thread id + completion status"],
+      ["Overflow", "none — task / message truncate"],
+      ["Spawn", "⊕ nickname · role · task + child status"],
+      ["Wait", "◌ targets (N) + open / ok / timed out"],
+      ["Send", "→ target · message + submission status"],
     ],
-    tokens: [["spawn", "--good"], ["wait", "--cyan"], ["role", "--ink-dim"]],
-    states: [["SPAWN", "ok"], ["WAIT", "ok"]],
+    tokens: [["spawn", "--good"], ["wait", "--cyan"], ["send", "--amber"], ["timed out", "--warn-bright"]],
+    states: [["SPAWN", "ok"], ["WAIT · TIMED OUT", "fail"], ["SEND INPUT", "ok"]],
     samples: [
-      { label: "spawn_agent", tone: "ok", note: "nickname · role · task + child status (open)", s: agentSpawn },
-      { label: "wait_agent", tone: "ok", note: "await thread id + completion status", s: agentWait },
+      { label: "spawn_agent", tone: "ok", note: "⊕ Bacon (worker) · task + child status (open)", s: agentSpawn },
+      { label: "wait_agent · timed out", tone: "fail", note: "◌ await target — 60s elapsed, timed_out → red", s: agentTimeout },
+      { label: "send_input", tone: "ok", note: "→ steer Bacon mid-run with an approval message", s: agentSend },
     ],
   },
   {

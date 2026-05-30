@@ -14,7 +14,7 @@ const CALL_SPECS = window.CALL_SPECS;
 const CALL_ENVELOPE = window.CALL_ENVELOPE;
 
 // display order: group order, then number within group
-const GROUP_ORDER = ["READING THE REPO", "EXECUTION & DIAGNOSTICS", "STATE & FALLBACK"];
+const GROUP_ORDER = ["READING THE REPO", "VERSION CONTROL", "EXECUTION & DIAGNOSTICS", "STATE & FALLBACK"];
 const ORDERED = [...SPECS].sort((a, b) => {
   const g = GROUP_ORDER.indexOf(a.group) - GROUP_ORDER.indexOf(b.group);
   return g !== 0 ? g : a.n.localeCompare(b.n);

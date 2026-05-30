@@ -102,22 +102,31 @@ function FetchView({ r }) {
   );
 }
 
-// spawn_agent / wait_agent — agent ops
+// spawn_agent / wait_agent / send_input — agent ops
 function AgentView({ r }) {
-  const isSpawn = r.op === "spawn";
+  const icon = r.op === "spawn" ? "⊕" : r.op === "send" ? "→" : "◌";
+  const opCls = r.op === "spawn" ? "spawn" : r.op === "send" ? "send" : "wait";
+  const resTone = (r.status === "open" || r.status === "ok") ? "ok"
+    : (r.status === "failed" || r.status === "timed_out") ? "warn" : "";
+  const waitTargets = r.targets ? r.targets.join(", ") : r.threadId;
   return (
     <div className="xr xr-call-line agent">
-      <span className={"cl-op " + (isSpawn ? "spawn" : "wait")}>{isSpawn ? "⊕" : "◌"}</span>
-      {isSpawn ? (
+      <span className={"cl-op " + opCls}>{icon}</span>
+      {r.op === "spawn" ? (
         <>
           <span className="cl-nick">{r.nickname}</span>
-          <span className="cl-role">{r.role}</span>
+          {r.role && <span className="cl-role">{r.role}</span>}
           <span className="cl-task">// {r.task}</span>
         </>
+      ) : r.op === "send" ? (
+        <>
+          <span className="cl-nick">{r.nickname || r.target}</span>
+          <span className="cl-task">// {r.message}</span>
+        </>
       ) : (
-        <span className="cl-q">await {r.threadId}…</span>
+        <span className="cl-q">await {waitTargets}{r.targets && r.targets.length > 1 ? ` (${r.targets.length})` : ""}…</span>
       )}
-      {r.status && <span className={"cl-res " + (r.status === "open" || r.status === "ok" ? "ok" : r.status === "failed" ? "warn" : "")}>{r.status}</span>}
+      {r.status && <span className={"cl-res " + resTone}>{r.status === "timed_out" ? "timed out" : r.status}</span>}
     </div>
   );
 }
@@ -165,7 +174,7 @@ function callMeta(ev) {
     case "read": return { kind: "read", label: "READ" };
     case "search_call": return { kind: "search_call", label: "SEARCH" };
     case "fetch": return { kind: "fetch", label: r.mode === "fetch" ? "WEB FETCH" : "WEB SEARCH" };
-    case "agent": return { kind: "agent", label: r.op === "spawn" ? "SPAWN AGENT" : "WAIT AGENT" };
+    case "agent": return { kind: "agent", label: r.op === "spawn" ? "SPAWN AGENT" : r.op === "send" ? "SEND INPUT" : "WAIT AGENT" };
     case "skill": return { kind: "skill", label: `SKILL · ${r.name}` };
     default: return { kind: "plain", label: ev.name ? ev.name.toUpperCase() : "CALL" };
   }
