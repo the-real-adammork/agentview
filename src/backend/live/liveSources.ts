@@ -5,7 +5,6 @@ import { createCodexSource } from "../sources/codex/CodexSource";
 import { createSourceRegistry, type SourceRegistry } from "../sources/registry";
 import type { LiveTailSource, LiveTokenSource, ResolvedSession } from "../sources/SessionSource";
 import { openLogStore, type LogStore } from "../sqlite/logStore";
-import { openStateStore, type StateStore } from "../sqlite/stateStore";
 import type { LiveConnection, LiveHub } from "./liveHub";
 import type { WatchManager } from "./watchManager";
 
@@ -99,25 +98,15 @@ export const createLiveSources = ({
   const sourceRegistry: SourceRegistry =
     registry ?? createSourceRegistry(codexHome ? [createCodexSource({ codexHome })] : []);
 
-  // Long-lived read-only Codex stores for the sessions/diagnostics snapshots,
-  // opened lazily and reused. Only used when `codexHome` is set.
-  let stateStore: StateStore | null = null;
+  // Long-lived read-only Codex logs store for the diagnostics snapshot, opened
+  // lazily and reused. Only used when `codexHome` is set. (The sessions feed now
+  // comes from the cross-source registry, not a Codex-only state store.)
   let logStore: LogStore | null = null;
 
-  const getStateStore = async () => {
-    if (!codexHome) throw new Error("No codexHome configured for the Codex sessions feed.");
-    if (!stateStore) stateStore = await openStateStore({ codexHome });
-    return stateStore;
-  };
   const getLogStore = async () => {
     if (!codexHome) throw new Error("No codexHome configured for the Codex diagnostics feed.");
     if (!logStore) logStore = await openLogStore({ codexHome });
     return logStore;
-  };
-  const dropStateStore = async () => {
-    const store = stateStore;
-    stateStore = null;
-    await store?.close().catch(() => undefined);
   };
   const dropLogStore = async () => {
     const store = logStore;
@@ -187,11 +176,13 @@ export const createLiveSources = ({
 
       const pushSessions = async () => {
         try {
-          const store = await getStateStore();
-          const sessions = await store.listSessions(filter, page);
+          // Merged across all registered sources (Codex + Claude Code), matching the
+          // /api/sessions fan-out — so a live tick never clobbers the list down to a
+          // single source. Triggered by the Codex state-db watch below; CC rows are
+          // re-discovered on each push (and on the next list fetch / filter change).
+          const sessions = await sourceRegistry.listSessions(filter, page);
           hub.send(connection, "sessions", { sessions });
         } catch {
-          await dropStateStore();
           degrade(connection, "SESSIONS_UNAVAILABLE", "Session list feed degraded.", "sessions");
         }
       };
@@ -275,7 +266,6 @@ export const createLiveSources = ({
       };
     },
     async close() {
-      await dropStateStore();
       await dropLogStore();
     },
   };

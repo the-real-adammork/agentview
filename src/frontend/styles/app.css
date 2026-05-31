@@ -541,6 +541,25 @@ button {
   color: var(--cyan);
 }
 
+/* Tool-source badge: which CLI produced the session. Filled (faint tint) so it
+   reads as identity, distinct from the outline status/thread-source chips. */
+.chip.tool {
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.chip.tool-codex {
+  border-color: rgba(70, 216, 255, 0.55);
+  color: var(--cyan);
+  background: rgba(70, 216, 255, 0.08);
+}
+
+.chip.tool-cc {
+  border-color: rgba(217, 119, 87, 0.6);
+  color: var(--cc-accent);
+  background: rgba(217, 119, 87, 0.1);
+}
+
 .overview {
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);

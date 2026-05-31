@@ -67,6 +67,13 @@ describe("routing — parseLocation", () => {
     expect(state.scope).toBe("all");
     expect(state.kind).toBe("tool");
   });
+
+  it("reads the session source from ?sourceId, defaulting to undefined", () => {
+    expect(parse("/session/x/timeline?sourceId=claude-code").source).toBe("claude-code");
+    expect(parse("/session/x/timeline?sourceId=codex").source).toBe("codex");
+    expect(parse("/session/x/timeline").source).toBeUndefined();
+    expect(parse("/session/x/timeline?sourceId=bogus").source).toBeUndefined();
+  });
 });
 
 describe("routing — buildPath", () => {
@@ -74,11 +81,25 @@ describe("routing — buildPath", () => {
     view: "Sessions",
     repo: null,
     sessionId: null,
+    source: undefined,
     search: "",
     archived: undefined,
     scope: "this",
     kind: "all",
   };
+
+  it("attaches sourceId only for a non-codex session detail view", () => {
+    expect(buildPath({ ...base, view: "Timeline", sessionId: "abc", source: "claude-code" })).toBe(
+      "/session/abc/timeline?sourceId=claude-code",
+    );
+    // codex is the default — omitted so existing Codex links stay unchanged.
+    expect(buildPath({ ...base, view: "Timeline", sessionId: "abc", source: "codex" })).toBe("/session/abc/timeline");
+    expect(buildPath({ ...base, view: "Timeline", sessionId: "abc", source: undefined })).toBe("/session/abc/timeline");
+    // works for any detail view, not just Timeline
+    expect(buildPath({ ...base, view: "Agent Graph", sessionId: "abc", source: "claude-code" })).toBe(
+      "/session/abc/graph?sourceId=claude-code",
+    );
+  });
 
   it("builds `/` for the all-repos Sessions list", () => {
     expect(buildPath(base)).toBe("/");
@@ -130,6 +151,8 @@ describe("routing — round-trip", () => {
     "/session/019e7486/timeline",
     "/session/019e7486/tokens",
     "/session/019e7486/timeline?scope=all&kind=tool",
+    "/session/019e7486/timeline?sourceId=claude-code",
+    "/session/019e7486/graph?sourceId=claude-code",
   ];
   for (const url of urls) {
     it(`round-trips ${url}`, () => {

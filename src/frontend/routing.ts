@@ -1,4 +1,4 @@
-import type { ArchivedFilter } from "../shared/contracts";
+import type { ArchivedFilter, SourceId } from "../shared/contracts";
 import type { ObservatoryView } from "./App";
 
 /**
@@ -13,6 +13,12 @@ export interface RouteState {
   repo: string | null;
   /** Open session for the detail views (Timeline/Agent Graph/Tokens/Diagnostics). */
   sessionId: string | null;
+  /**
+   * Tool the open session belongs to, so a deep-linked Claude Code session
+   * dispatches correctly on reload. Omitted from the URL for the default ("codex"),
+   * keeping existing Codex links unchanged; undefined when no session is open.
+   */
+  source: SourceId | undefined;
   /** Sessions-list search query ("" = none). */
   search: string;
   /** Sessions-list archived filter; undefined = the default ("exclude"). */
@@ -36,9 +42,12 @@ const SLUG_TO_VIEW: Record<string, ObservatoryView> = {
   diagnostics: "Diagnostics",
 };
 const ARCHIVED_VALUES: ArchivedFilter[] = ["include", "exclude", "only"];
+const SOURCE_VALUES: SourceId[] = ["codex", "claude-code"];
+const parseSourceId = (value: string | null): SourceId | undefined =>
+  SOURCE_VALUES.includes(value as SourceId) ? (value as SourceId) : undefined;
 const isDetailView = (view: ObservatoryView): boolean => view in VIEW_TO_SLUG;
 
-const DEFAULTS: Omit<RouteState, "view" | "repo" | "sessionId"> = {
+const DEFAULTS: Omit<RouteState, "view" | "repo" | "sessionId" | "source"> = {
   search: "",
   archived: undefined,
   scope: "this",
@@ -58,16 +67,16 @@ export function parseLocation(location: { pathname: string; search: string }): R
   };
 
   if (segments[0] === "repos") {
-    return { view: "Repos", repo: null, sessionId: null, ...filters };
+    return { view: "Repos", repo: null, sessionId: null, source: undefined, ...filters };
   }
   if (segments[0] === "repo" && segments[1]) {
-    return { view: "Sessions", repo: segments[1], sessionId: null, ...filters };
+    return { view: "Sessions", repo: segments[1], sessionId: null, source: undefined, ...filters };
   }
   if (segments[0] === "session" && segments[1]) {
     const view = (segments[2] && SLUG_TO_VIEW[segments[2]]) || "Timeline";
-    return { view, repo: null, sessionId: segments[1], ...filters };
+    return { view, repo: null, sessionId: segments[1], source: parseSourceId(params.get("sourceId")), ...filters };
   }
-  return { view: "Sessions", repo: null, sessionId: null, ...filters };
+  return { view: "Sessions", repo: null, sessionId: null, source: undefined, ...filters };
 }
 
 /** Serialize a RouteState into a path (+ query string), omitting default values. */
@@ -90,6 +99,12 @@ export function buildPath(state: RouteState): string {
   if (state.view === "Timeline" && state.sessionId) {
     if (state.scope !== DEFAULTS.scope) params.set("scope", state.scope);
     if (state.kind !== DEFAULTS.kind) params.set("kind", state.kind);
+  }
+  // Carry the tool for any session detail view so a Claude Code deep-link reloads
+  // against the right source. Omitted for the default ("codex") — existing Codex
+  // links stay byte-identical.
+  if (isDetailView(state.view) && state.sessionId && state.source && state.source !== "codex") {
+    params.set("sourceId", state.source);
   }
 
   const query = params.toString();

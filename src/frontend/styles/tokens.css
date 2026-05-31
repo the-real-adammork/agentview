@@ -18,6 +18,9 @@
   --cyan: #46d8ff;
   --good: #6cf099;
   --skill: #b388ff;
+  /* Tool-source accents (constant across palettes, like the other signals): Codex
+     reuses --cyan; Claude Code gets its clay/coral so the two are tellable apart. */
+  --cc-accent: #d97757;
   --rule: rgba(255, 107, 26, 0.35);
   --rule-strong: rgba(255, 107, 26, 0.7);
   --rule-soft: rgba(255, 107, 26, 0.16);

@@ -5,6 +5,7 @@ import type {
   LiveSessionsPayload,
   LiveTimelinePayload,
   LiveTokensPayload,
+  SourceId,
 } from "../../shared/contracts";
 
 export interface LiveStreamCallbacks {
@@ -19,6 +20,8 @@ export interface LiveStreamCallbacks {
 export interface OpenLiveStreamOptions {
   baseUrl?: string;
   threadId: string | null;
+  /** Tool the followed session belongs to; routes the live timeline tail. Default "codex". */
+  source?: SourceId;
   fromByte: number | null;
   logCursorId: number | null;
   callbacks: LiveStreamCallbacks;
@@ -37,6 +40,7 @@ const defaultBaseUrl = (import.meta.env.VITE_AGENTVIEW_API_BASE_URL ?? "http://1
 export const openLiveStream = ({
   baseUrl = defaultBaseUrl,
   threadId,
+  source: sessionSource,
   fromByte,
   logCursorId,
   callbacks,
@@ -57,6 +61,8 @@ export const openLiveStream = ({
   const buildUrl = () => {
     const params = new URLSearchParams();
     if (threadId) params.set("threadId", threadId);
+    // Omit the default ("codex") so existing Codex stream URLs stay unchanged.
+    if (sessionSource && sessionSource !== "codex") params.set("sourceId", sessionSource);
     if (currentFromByte !== null) params.set("fromByte", String(currentFromByte));
     if (currentLogCursorId !== null) params.set("logCursorId", String(currentLogCursorId));
     const query = params.toString();

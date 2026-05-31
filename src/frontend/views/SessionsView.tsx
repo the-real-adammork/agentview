@@ -14,11 +14,11 @@ import {
   sessionUpdatedMs,
   toneForDepth,
 } from "./sessionTree";
-import type { ApiError, ArchivedFilter, DiagnosticsSummary, SessionFilter, SessionSummary, ThreadSource } from "../../shared/contracts";
+import type { ApiError, ArchivedFilter, DiagnosticsSummary, SessionFilter, SessionSummary, SourceId, ThreadSource } from "../../shared/contracts";
 
 interface SessionsViewProps {
   activeSessionId: string;
-  onSelectSession: (sessionId: string, view?: "Timeline") => void;
+  onSelectSession: (sessionId: string, view?: "Timeline", source?: SourceId) => void;
   filter: SessionFilter;
   onFilterChange: (filter: SessionFilter) => void;
   repoFilter?: string | null;
@@ -147,6 +147,9 @@ export function SessionsView({
   const tokenTotal = scopedSessions.reduce((total, session) => total + (session.tokensUsed ?? session.tokenTotal), 0);
   const hourlyTokens = tokensByHour(scopedSessions, nowMs);
   const selectSource = (source?: ThreadSource) => updateFilter({ threadSource: source });
+  // Tool source (codex / claude-code) round-trips to the API as ?sourceId= (the
+  // merged-list narrowing), distinct from the thread-source axis above.
+  const selectToolSource = (source?: SourceId) => updateFilter({ source });
   const selectArchive = (archived: ArchivedFilter) => updateFilter({ archived });
 
   // Representative session for the dossier header (prefer a user root).
@@ -208,6 +211,13 @@ export function SessionsView({
         </div>
 
         <form className="filter-grp sessions-filter-matrix" role="search" aria-label="Session filters" onSubmit={(event) => event.preventDefault()}>
+          <div className="lbl">Tool</div>
+          <div className="row" role="group" aria-label="Tool source quick filters">
+            <button className="opt" data-on={!filter.source} onClick={() => selectToolSource()} type="button">All</button>
+            <button className="opt" data-on={filter.source === "codex"} onClick={() => selectToolSource("codex")} type="button">Codex</button>
+            <button className="opt" data-on={filter.source === "claude-code"} onClick={() => selectToolSource("claude-code")} type="button">Claude Code</button>
+          </div>
+
           <div className="lbl">Thread source</div>
           <div className="row" role="group" aria-label="Thread source quick filters">
             <button className="opt" data-on={!filter.threadSource} onClick={() => selectSource()} type="button">All</button>
@@ -314,11 +324,11 @@ export function SessionsView({
                   aria-current={session.id === activeSessionId ? "true" : undefined}
                   className={enteringIds.has(session.id) ? "session-row feed-enter" : "session-row"}
                   key={session.id}
-                  onClick={() => onSelectSession(session.id, "Timeline")}
+                  onClick={() => onSelectSession(session.id, "Timeline", session.source)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
-                      onSelectSession(session.id, "Timeline");
+                      onSelectSession(session.id, "Timeline", session.source);
                     }
                   }}
                   tabIndex={0}
@@ -356,6 +366,12 @@ export function SessionsView({
                     <LiveSessionTokens sessionId={session.id} fallback={tokenValue} live={session.status === "running"} />
                   </td>
                   <td className="badge-cell">
+                    <span
+                      className={`chip tool tool-${session.source === "claude-code" ? "cc" : "codex"}`}
+                      title={session.source === "claude-code" ? "Claude Code" : "Codex"}
+                    >
+                      {session.source === "claude-code" ? "CC" : "CDX"}
+                    </span>
                     <span className={source === "subagent" ? "chip amber" : "chip"}>{source === "subagent" ? `SUB · ${(session.agentRole ?? "worker").charAt(0).toUpperCase()}` : "USER"}</span>
                     {session.parentEdgeSource === "reconstructed" ? (
                       <span className="chip dim" title={`Inferred parent · ${session.parentEdgeVia ?? "heuristic"} · ${session.parentEdgeConfidence ?? ""}`}>
