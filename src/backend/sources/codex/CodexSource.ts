@@ -6,7 +6,14 @@ import { getRolloutFactsWithCache, type RolloutCacheResult } from "../../cache/r
 import { parseRolloutFile } from "../../rollout/jsonlStream";
 import { openStateStore, type AgentGraphRow, type StateStore, type StateStoreHealth } from "../../sqlite/stateStore";
 import { tailRolloutFile, type TailRolloutResult } from "../../tail/liveTail";
-import type { ResolvedSession, SessionSource, SourceHealth, SourceTailResult } from "../SessionSource";
+import type {
+  LiveTailResult,
+  LiveTailSource,
+  ResolvedSession,
+  SessionSource,
+  SourceHealth,
+  SourceTailResult,
+} from "../SessionSource";
 
 /**
  * Path resolution for a Codex rollout, replicated verbatim from the timeline
@@ -191,6 +198,21 @@ export const createCodexSource = ({ codexHome }: { codexHome: string }): CodexSo
       return tailRaw(resolved, fromByte, sourceLine);
     },
 
+    // Source-generic live tail (LiveTailSource): wraps `tailRolloutFile` and maps
+    // its `TailRolloutResult` onto the uniform `LiveTailResult` the live path
+    // consumes for every source. Byte-identical to the direct `tailRolloutFile`
+    // call the live path made before Phase 6 — same events/offset/truncated/warnings.
+    async tailLive(resolved: ResolvedSession, fromByte: number, fromLine: number): Promise<LiveTailResult> {
+      const tail = await tailRaw(resolved, fromByte, fromLine);
+      return {
+        events: tail.payload.events,
+        nextByte: tail.payload.nextByteOffset,
+        nextLine: (tail.truncated ? 1 : fromLine) + tail.linesRead,
+        truncated: tail.truncated,
+        warnings: tail.warnings,
+      };
+    },
+
     async stateDbSchema(): Promise<StateStoreHealth["schema"]> {
       const store = await getStore();
       const health = await store.getHealth();
@@ -205,7 +227,7 @@ export const createCodexSource = ({ codexHome }: { codexHome: string }): CodexSo
  * cross-source registry). Keeping them on a distinct type means the handlers can
  * reach the richer Codex shapes without widening the locked `SessionSource`.
  */
-export interface CodexSource extends SessionSource {
+export interface CodexSource extends SessionSource, LiveTailSource {
   getAgentGraphRows(rootThreadId: string, scanDepth: number): Promise<AgentGraphRow[]>;
   parseWithCache(resolved: ResolvedSession): Promise<RolloutCacheResult>;
   tailRaw(resolved: ResolvedSession, fromByte: number, sourceLine: number): Promise<TailRolloutResult>;

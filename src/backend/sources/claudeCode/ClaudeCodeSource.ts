@@ -8,8 +8,15 @@ import type {
 } from "../../../shared/contracts";
 import { readJsonlLines } from "../../rollout/jsonlStream";
 import type { AgentGraphRow, AgentGraphRowSource } from "../agentGraphRow";
-import type { ResolvedSession, SessionSource, SourceHealth, SourceTailResult } from "../SessionSource";
-import { countLinesBefore, tailClaudeTranscript, type ClaudeTailResult } from "./claudeTail";
+import type {
+  LiveTailResult,
+  LiveTailSource,
+  ResolvedSession,
+  SessionSource,
+  SourceHealth,
+  SourceTailResult,
+} from "../SessionSource";
+import { countLinesBefore, tailClaudeTranscript } from "./claudeTail";
 import { resolveClaudeSessionPath } from "./claudePaths";
 import { deriveClaudeMeta } from "./claudeMeta";
 import { discoverClaudeSessions, type DiscoveredClaudeSession } from "./discovery";
@@ -34,9 +41,7 @@ import {
  * `truncated`/`warnings` fields the live `timeline` frame needs (the public
  * `tail` exposes only the locked `SourceTailResult`). Mirrors `CodexSource.tailRaw`.
  */
-export interface ClaudeCodeSource extends SessionSource, AgentGraphRowSource {
-  tailLive(resolved: ResolvedSession, fromByte: number, fromLine: number): Promise<ClaudeTailResult>;
-}
+export interface ClaudeCodeSource extends SessionSource, AgentGraphRowSource, LiveTailSource {}
 
 /**
  * Thrown by CC `SessionSource` methods that were deferred to later phases. As of
@@ -229,7 +234,7 @@ export const createClaudeCodeSource = ({ projectsDir }: { projectsDir: string })
     // Source-internal live tail: the running `fromLine` is supplied by the caller
     // (the live path computes it via `countLinesBefore`, mirroring Codex) and the
     // richer `truncated`/`warnings` flow into the `timeline` frame's `reset`/`warnings`.
-    async tailLive(resolved: ResolvedSession, fromByte: number, fromLine: number): Promise<ClaudeTailResult> {
+    async tailLive(resolved: ResolvedSession, fromByte: number, fromLine: number): Promise<LiveTailResult> {
       return tailClaudeTranscript({
         path: resolved.rawLogPath,
         sessionId: resolved.sessionId,

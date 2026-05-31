@@ -35,6 +35,32 @@ export interface SourceTailResult {
   nextLine: number;
 }
 
+/**
+ * The richer tail result the LIVE path needs (vs. the locked public `tail`): it
+ * carries the running line continuation (`nextLine`), the `truncated` flag the
+ * `timeline` frame maps to `reset`, and parser `warnings`. The caller supplies the
+ * running `fromLine` so streamed events keep ascending source-line numbers across
+ * tails (the same invariant Codex's `tailRolloutFile`/`sourceLine` preserves).
+ */
+export interface LiveTailResult {
+  events: TimelineEvent[];
+  nextByte: number;
+  nextLine: number;
+  truncated: boolean;
+  warnings: string[];
+}
+
+/**
+ * A source-internal capability (NOT on the locked `SessionSource`) the live path
+ * narrows the dispatched source to, mirroring `AgentGraphRowSource`. Both
+ * `CodexSource` (wrapping `tailRolloutFile`) and `ClaudeCodeSource` (wrapping
+ * `tailClaudeTranscript`) satisfy it, so `liveSources.ts` tails any source with no
+ * `if (codex)` branch.
+ */
+export interface LiveTailSource {
+  tailLive(resolved: ResolvedSession, fromByte: number, fromLine: number): Promise<LiveTailResult>;
+}
+
 export interface SessionSource {
   readonly id: SourceId;
   getHealth(): Promise<SourceHealth>;
