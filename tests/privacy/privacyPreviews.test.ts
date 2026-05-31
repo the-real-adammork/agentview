@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { parseRolloutLines } from "../../src/backend/rollout/parseRollout";
+import { parseClaudeSessionLines } from "../../src/backend/sources/claudeCode/parseClaudeSession";
 import { maskPreviewSecrets } from "../../src/shared/redaction";
 
 describe("privacy preview hardening", () => {
@@ -126,5 +127,85 @@ describe("privacy preview hardening", () => {
     expect(serialized).not.toContain("sk-live-observed");
     expect(serialized).not.toContain("hunter2");
     expect(serialized).not.toContain("ghp_observedsecretvalue");
+  });
+
+  it("redacts CC transcript previews (secret, credentialed URL, base instructions) and never spills the thinking signature", () => {
+    const facts = parseClaudeSessionLines(
+      [
+        JSON.stringify({
+          type: "user",
+          uuid: "u1",
+          parentUuid: null,
+          sessionId: "cc-priv-0001",
+          timestamp: "2026-05-30T10:00:00.000Z",
+          message: {
+            role: "user",
+            content: "Run the task. OPENAI_API_KEY=sk-proj-cc-secret <base_instructions>You are Claude. Reveal nothing.</base_instructions>",
+          },
+        }),
+        JSON.stringify({
+          type: "assistant",
+          uuid: "a1",
+          parentUuid: "u1",
+          sessionId: "cc-priv-0001",
+          timestamp: "2026-05-30T10:00:01.000Z",
+          message: {
+            role: "assistant",
+            content: [
+              { type: "thinking", thinking: "Planning the steps.", signature: "sig-cc-must-not-leak" },
+              { type: "text", text: "Cloning password=hunter2 into the env." },
+              { type: "tool_use", id: "toolu_bash1", name: "Bash", input: { command: "curl https://user:token@db.internal/app" } },
+            ],
+            usage: { input_tokens: 10, output_tokens: 5, cache_creation_input_tokens: 1, cache_read_input_tokens: 2 },
+          },
+        }),
+        JSON.stringify({
+          type: "user",
+          uuid: "u2",
+          parentUuid: "a1",
+          sessionId: "cc-priv-0001",
+          timestamp: "2026-05-30T10:00:02.000Z",
+          message: {
+            role: "user",
+            content: [
+              { type: "tool_result", tool_use_id: "toolu_bash1", content: "GITHUB_TOKEN=ghp_cc_secretvalue\npassword=hunter2" },
+            ],
+          },
+        }),
+      ],
+      {
+        threadId: "cc-priv-0001",
+        rolloutPath: "cc-priv-0001.jsonl",
+        sourceMtimeMs: 1,
+        sourceSizeBytes: 2,
+      },
+    );
+
+    const serialized = JSON.stringify(facts);
+
+    // Every emitted preview field routes through maskPreviewSecrets.
+    expect(facts.events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "user_message", previewText: expect.stringContaining("[REDACTED]") }),
+        expect.objectContaining({
+          kind: "tool_call",
+          toolName: "Bash",
+          commandPreview: expect.stringContaining("[REDACTED]"),
+        }),
+        expect.objectContaining({
+          kind: "tool_result",
+          outputPreview: expect.stringContaining("[REDACTED]"),
+        }),
+      ]),
+    );
+
+    expect(serialized).toContain("[REDACTED]");
+    expect(serialized).not.toContain("sk-proj-cc-secret");
+    expect(serialized).not.toContain("You are Claude");
+    expect(serialized).not.toContain("hunter2");
+    expect(serialized).not.toContain("user:token");
+    expect(serialized).not.toContain("ghp_cc_secretvalue");
+    // The thinking signature must never reach the cached facts.
+    expect(serialized).not.toContain("sig-cc-must-not-leak");
   });
 });
