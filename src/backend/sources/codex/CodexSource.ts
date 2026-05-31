@@ -1,18 +1,29 @@
 import { access } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 
-import type { CachedRolloutFacts, PageOptions, SessionFilter, SessionSummary } from "../../../shared/contracts";
+import type {
+  CachedRolloutFacts,
+  PageOptions,
+  SessionFilter,
+  SessionSummary,
+  TokenSeries,
+} from "../../../shared/contracts";
 import { getRolloutFactsWithCache, type RolloutCacheResult } from "../../cache/rolloutCache";
 import { parseRolloutFile } from "../../rollout/jsonlStream";
+import { deriveTokenSeries } from "../../rollout/tokenSeries";
 import { openStateStore, type AgentGraphRow, type StateStore, type StateStoreHealth } from "../../sqlite/stateStore";
 import { tailRolloutFile, type TailRolloutResult } from "../../tail/liveTail";
 import type {
   LiveTailResult,
   LiveTailSource,
+  LiveTokenSource,
   ResolvedSession,
   SessionSource,
   SourceHealth,
   SourceTailResult,
+  TimelineParse,
+  TimelineSource,
+  TimelineTail,
 } from "../SessionSource";
 
 /**
@@ -218,6 +229,39 @@ export const createCodexSource = ({ codexHome }: { codexHome: string }): CodexSo
       const health = await store.getHealth();
       return health.schema;
     },
+
+    // --- TimelineSource capability: the three primitives the timeline handler
+    // dispatches through uniformly for every source (no `if (source)`, no
+    // `as CodexSource` cast). Each wraps an existing Codex primitive 1:1. ---
+
+    async parseCached(resolved: ResolvedSession): Promise<TimelineParse> {
+      const cached = await parseWithCache(resolved);
+      return { facts: cached.facts, status: cached.status, warnings: cached.warnings };
+    },
+
+    async tailParsed(resolved: ResolvedSession, fromByte: number, fromEventLine: number): Promise<TimelineTail> {
+      const tail = await tailRaw(resolved, fromByte, fromEventLine);
+      return {
+        events: tail.payload.events,
+        nextByteOffset: tail.payload.nextByteOffset,
+        warnings: tail.warnings,
+      };
+    },
+
+    resolveChild(child: SessionSummary): Promise<ResolvedSession> {
+      // Codex children are top-level threads in the same state DB — resolve by id
+      // (validates + absolutizes the rollout path, same as a root request).
+      return resolveSession(child.id);
+    },
+
+    // --- LiveTokenSource capability: the Codex live token series. CC has no Codex
+    // tokens DB, so it does not implement this and the live path skips its token
+    // feed via the capability check (no `if (codex)`). ---
+
+    async liveTokenSeries(resolved: ResolvedSession): Promise<TokenSeries> {
+      const cached = await parseWithCache(resolved);
+      return deriveTokenSeries(cached.facts);
+    },
   };
 };
 
@@ -227,9 +271,18 @@ export const createCodexSource = ({ codexHome }: { codexHome: string }): CodexSo
  * cross-source registry). Keeping them on a distinct type means the handlers can
  * reach the richer Codex shapes without widening the locked `SessionSource`.
  */
-export interface CodexSource extends SessionSource, LiveTailSource {
+export interface CodexSource extends SessionSource, LiveTailSource, TimelineSource, LiveTokenSource {
   getAgentGraphRows(rootThreadId: string, scanDepth: number): Promise<AgentGraphRow[]>;
   parseWithCache(resolved: ResolvedSession): Promise<RolloutCacheResult>;
   tailRaw(resolved: ResolvedSession, fromByte: number, sourceLine: number): Promise<TailRolloutResult>;
   stateDbSchema(): Promise<StateStoreHealth["schema"]>;
 }
+
+/**
+ * Runtime guard narrowing a dispatched source to the concrete `CodexSource` so a
+ * Codex-only consumer (e.g. the health endpoint reporting the Codex state-db
+ * schema) reaches the Codex-internal accessors without an `as CodexSource` cast.
+ */
+export const isCodexSource = (value: unknown): value is CodexSource =>
+  typeof (value as Partial<CodexSource>).stateDbSchema === "function" &&
+  typeof (value as Partial<CodexSource>).parseWithCache === "function";

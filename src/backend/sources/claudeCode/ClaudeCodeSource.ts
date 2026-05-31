@@ -6,6 +6,8 @@ import type {
   SessionFilter,
   SessionSummary,
 } from "../../../shared/contracts";
+import { getRolloutFactsWithCache } from "../../cache/rolloutCache";
+import { resolveCodexHome } from "../../codexPaths";
 import { readJsonlLines } from "../../rollout/jsonlStream";
 import type { AgentGraphRow, AgentGraphRowSource } from "../agentGraphRow";
 import type {
@@ -15,12 +17,15 @@ import type {
   SessionSource,
   SourceHealth,
   SourceTailResult,
+  TimelineParse,
+  TimelineSource,
+  TimelineTail,
 } from "../SessionSource";
 import { countLinesBefore, tailClaudeTranscript } from "./claudeTail";
 import { resolveClaudeSessionPath } from "./claudePaths";
 import { deriveClaudeMeta } from "./claudeMeta";
 import { discoverClaudeSessions, type DiscoveredClaudeSession } from "./discovery";
-import { parseClaudeSessionLines } from "./parseClaudeSession";
+import { CLAUDE_PARSER_VERSION, parseClaudeSessionLines } from "./parseClaudeSession";
 import {
   buildAgentGraphRows,
   enumerateSubagents,
@@ -41,7 +46,7 @@ import {
  * `truncated`/`warnings` fields the live `timeline` frame needs (the public
  * `tail` exposes only the locked `SourceTailResult`). Mirrors `CodexSource.tailRaw`.
  */
-export interface ClaudeCodeSource extends SessionSource, AgentGraphRowSource, LiveTailSource {}
+export interface ClaudeCodeSource extends SessionSource, AgentGraphRowSource, LiveTailSource, TimelineSource {}
 
 /**
  * Thrown by CC `SessionSource` methods that were deferred to later phases. As of
@@ -138,6 +143,38 @@ export const createClaudeCodeSource = ({ projectsDir }: { projectsDir: string })
     return { ...summary, childCount: entries.length, openChildCount: openChildCount(entries) };
   };
 
+  // The raw transcript → facts parse, factored out so both `parse` (locked
+  // SessionSource) and `parseCached` (TimelineSource) share one implementation.
+  const parseSession = async (resolved: ResolvedSession): Promise<CachedRolloutFacts> => {
+    const sourceStat = await stat(resolved.rawLogPath);
+    const { lines } = await readJsonlLines(resolved.rawLogPath);
+    return parseClaudeSessionLines(lines, {
+      threadId: resolved.sessionId,
+      rolloutPath: resolved.rawLogPath,
+      sourceMtimeMs: sourceStat.mtimeMs,
+      sourceSizeBytes: sourceStat.size,
+    });
+  };
+
+  // CC has no Codex state DB; reuse the resolved Codex home only as the on-disk
+  // cache scratch root (under `.observatory`, overridable via AGENTVIEW_CACHE_ROOT),
+  // memoized per source instance. CC cache entries are keyed by CLAUDE_PARSER_VERSION
+  // so they never read a Codex cache entry as fresh (or vice-versa).
+  let cacheRootPromise: Promise<string> | null = null;
+  const getCacheRoot = (): Promise<string> => (cacheRootPromise ??= resolveCodexHome());
+
+  const parseCached = async (resolved: ResolvedSession): Promise<TimelineParse> => {
+    const cacheRoot = await getCacheRoot();
+    const cached = await getRolloutFactsWithCache({
+      codexHome: cacheRoot,
+      threadId: resolved.sessionId,
+      rolloutPath: resolved.rawLogPath,
+      parserVersion: CLAUDE_PARSER_VERSION,
+      parse: () => parseSession(resolved),
+    });
+    return { facts: cached.facts, status: cached.status, warnings: cached.warnings };
+  };
+
   return {
     id: "claude-code",
 
@@ -197,14 +234,37 @@ export const createClaudeCodeSource = ({ projectsDir }: { projectsDir: string })
     },
 
     async parse(resolved: ResolvedSession): Promise<CachedRolloutFacts> {
-      const sourceStat = await stat(resolved.rawLogPath);
-      const { lines } = await readJsonlLines(resolved.rawLogPath);
-      return parseClaudeSessionLines(lines, {
-        threadId: resolved.sessionId,
-        rolloutPath: resolved.rawLogPath,
-        sourceMtimeMs: sourceStat.mtimeMs,
-        sourceSizeBytes: sourceStat.size,
+      return parseSession(resolved);
+    },
+
+    // --- TimelineSource capability: same uniform dispatch as Codex. CC parses
+    // through getRolloutFactsWithCache keyed by CLAUDE_PARSER_VERSION, so the
+    // timeline handler needs no CC-specific branch. CC does NOT implement
+    // LiveTokenSource — live tokens stay Codex-only via the capability check. ---
+
+    parseCached,
+
+    async tailParsed(resolved: ResolvedSession, fromByte: number, fromEventLine: number): Promise<TimelineTail> {
+      const result = await tailClaudeTranscript({
+        path: resolved.rawLogPath,
+        sessionId: resolved.sessionId,
+        fromByte,
+        fromLine: fromEventLine,
       });
+      return { events: result.events, nextByteOffset: result.nextByte, warnings: result.warnings };
+    },
+
+    async resolveChild(child: SessionSummary): Promise<ResolvedSession> {
+      // CC sub-agent transcripts live under the root's `subagents/` dir and are not
+      // top-level discoverable, so `resolveSession(childId)` would 404. `listChildren`
+      // already carries the absolute child transcript path (from our own enumeration,
+      // inside CLAUDE_PROJECTS_DIR), so build the ResolvedSession directly from it.
+      if (!child.rolloutPath) {
+        const error = new Error(`Claude Code child session has no transcript path: ${child.id}`);
+        error.name = "ClaudeSessionNotFoundError";
+        throw error;
+      }
+      return { source: "claude-code", sessionId: child.id, rawLogPath: child.rolloutPath };
     },
 
     async listChildren(rootSessionId: string, scanDepth: number): Promise<SessionSummary[]> {

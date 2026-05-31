@@ -1,12 +1,9 @@
 import { open, stat } from "node:fs/promises";
 
 import type { LiveChannel, PageOptions, RuntimeLog, SessionFilter, SourceId } from "../../shared/contracts";
-import { getRolloutFactsWithCache } from "../cache/rolloutCache";
-import { deriveTokenSeries } from "../api/tokens";
-import { parseRolloutFile } from "../rollout/jsonlStream";
 import { createCodexSource } from "../sources/codex/CodexSource";
 import { createSourceRegistry, type SourceRegistry } from "../sources/registry";
-import type { LiveTailSource, ResolvedSession } from "../sources/SessionSource";
+import type { LiveTailSource, LiveTokenSource, ResolvedSession } from "../sources/SessionSource";
 import { openLogStore, type LogStore } from "../sqlite/logStore";
 import { openStateStore, type StateStore } from "../sqlite/stateStore";
 import type { LiveConnection, LiveHub } from "./liveHub";
@@ -86,6 +83,9 @@ const countLinesBefore = async (path: string, byteOffset: number): Promise<numbe
 const hasLiveTail = (value: unknown): value is LiveTailSource =>
   typeof (value as LiveTailSource | undefined)?.tailLive === "function";
 
+const hasLiveTokens = (value: unknown): value is LiveTokenSource =>
+  typeof (value as LiveTokenSource | undefined)?.liveTokenSeries === "function";
+
 export const createLiveSources = ({
   registry,
   codexHome,
@@ -138,6 +138,9 @@ export const createLiveSources = ({
 
       let resolved: ResolvedSession | null = null;
       let tailSource: LiveTailSource | null = null;
+      // The live token feed is a source capability — only sources that back one
+      // (Codex today) are captured here; others get no token frame, with no `if (codex)`.
+      let tokenFeed: LiveTokenSource | null = null;
       let watchPath: string | null = null;
       let nextByteOffset = 0;
       // Source-line counter the live tail continues from, so streamed events keep
@@ -153,6 +156,7 @@ export const createLiveSources = ({
           if (hasLiveTail(dispatched)) {
             resolved = await dispatched.resolveSession(threadId);
             tailSource = dispatched;
+            if (hasLiveTokens(dispatched)) tokenFeed = dispatched;
             watchPath = resolved.rawLogPath;
             if (request.fromByte !== null) {
               nextByteOffset = request.fromByte;
@@ -196,6 +200,7 @@ export const createLiveSources = ({
         if (!resolved || !tailSource || !threadId) return;
         const activeResolved = resolved;
         const activeTail = tailSource;
+        const activeTokenFeed = tokenFeed;
         try {
           // On truncation the tail restarts at byte 0, so the line counter resets too.
           const startLine = nextSourceLine;
@@ -213,18 +218,13 @@ export const createLiveSources = ({
           nextByteOffset = tail.nextByte;
           nextSourceLine = tail.nextLine;
 
-          // Tokens stay Codex-only this phase (CC has no Codex tokens DB; its cold
-          // facts already carry token snapshots). Skipped for any non-Codex source.
-          if (source === "codex" && codexHome) {
-            const path = activeResolved.rawLogPath;
-            const cached = await getRolloutFactsWithCache({
-              codexHome,
-              threadId,
-              rolloutPath: path,
-              parse: (sourceMtimeMs, sourceSizeBytes) =>
-                parseRolloutFile(path, { threadId, rolloutPath: path, sourceMtimeMs, sourceSizeBytes }),
-            });
-            hub.send(connection, "tokens", { threadId, series: deriveTokenSeries(cached.facts) });
+          // The live token feed is a source capability (LiveTokenSource): only Codex
+          // backs one today (CC has no Codex tokens DB; its cold facts already carry
+          // snapshots). Narrowed to the capability, so a `tokens` frame is pushed with
+          // no `if (codex)` discriminator — a source without it simply gets none.
+          if (activeTokenFeed) {
+            const series = await activeTokenFeed.liveTokenSeries(activeResolved);
+            hub.send(connection, "tokens", { threadId, series });
           }
         } catch {
           // DB-locked / transient: skip this push; the next signal or poll retries.

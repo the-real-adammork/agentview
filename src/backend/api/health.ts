@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { StateStoreError } from "../sqlite/stateStore";
-import type { CodexSource } from "../sources/codex/CodexSource";
+import { isCodexSource } from "../sources/codex/CodexSource";
 import { createDefaultRegistry } from "../sources/defaultRegistry";
 import { parseSourceId } from "../sources/sourceQuery";
 import type { HealthStatus } from "../../shared/contracts";
@@ -66,7 +66,10 @@ export const handleHealthApiRequest = async (request: IncomingMessage, response:
       // `registry.getHealth()` adds a per-source availability array so the body now
       // reports every registered source (Codex + Claude Code) without dropping the
       // Codex `stateDb` shape.
-      const codexSource = registry.get("codex") as CodexSource;
+      const codexSource = registry.get("codex");
+      if (!isCodexSource(codexSource)) {
+        throw new Error("Codex source does not expose a state-db schema.");
+      }
       const schema = await codexSource.stateDbSchema();
       const sources = await registry.getHealth();
       writeJson(

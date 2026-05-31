@@ -2,14 +2,9 @@ import { access } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { isAbsolute, relative, resolve } from "node:path";
 
-import { getRolloutFactsWithCache } from "../cache/rolloutCache";
-import { resolveCodexHome } from "../codexPaths";
-import type { CachedRolloutFacts } from "../../shared/contracts";
-import { CLAUDE_PARSER_VERSION } from "../sources/claudeCode/parseClaudeSession";
 import { StateStoreError } from "../sqlite/stateStore";
-import type { CodexSource } from "../sources/codex/CodexSource";
 import { createDefaultRegistry } from "../sources/defaultRegistry";
-import type { SessionSource } from "../sources/SessionSource";
+import type { SessionSource, TimelineSource } from "../sources/SessionSource";
 import { parseSourceId } from "../sources/sourceQuery";
 import { fail, ok, writeJson } from "./http";
 
@@ -32,6 +27,27 @@ const stateStoreStatus = (error: unknown) =>
   error instanceof StateStoreError && (error.code === "STATE_DB_MISSING" || error.code === "SCHEMA_UNSUPPORTED")
     ? 503
     : 500;
+
+const isTimelineSource = (value: unknown): value is TimelineSource => {
+  const candidate = value as Partial<TimelineSource>;
+  return (
+    typeof candidate.parseCached === "function" &&
+    typeof candidate.tailParsed === "function" &&
+    typeof candidate.resolveChild === "function"
+  );
+};
+
+// Narrow a dispatched source to its `TimelineSource` capability (every registered
+// source implements it). This keeps the handler polymorphic — ONE path for all
+// sources — instead of branching on the source id or casting to a concrete source.
+const asTimelineSource = (source: SessionSource): TimelineSource => {
+  if (!isTimelineSource(source)) {
+    const error = new Error(`Source does not support timeline loading: ${source.id}`);
+    error.name = "TimelineUnsupportedError";
+    throw error;
+  }
+  return source;
+};
 
 export const resolveRolloutPath = async (codexHome: string, rolloutPath: string) => {
   if (!rolloutPath.trim()) {
@@ -126,111 +142,19 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
         return true;
       }
 
-      // Claude Code timeline (Phase 4). CC parses through the cross-source
-      // `SessionSource.parse`, cached by `getRolloutFactsWithCache` keyed by
-      // `CLAUDE_PARSER_VERSION` so it never reads a Codex cache entry as fresh. The
-      // subtree (+SUBS) merge and live tail land in Phases 5/6; this phase returns
-      // the single primary transcript. The Codex branch below is byte-for-byte
-      // unchanged.
-      if (sourceResult.source === "claude-code") {
-        const source: SessionSource = registry.get("claude-code");
-        const thread = await source.getSession(threadId);
-        if (!thread) {
-          writeJson(
-            response,
-            404,
-            fail("state-db", { code: "THREAD_NOT_FOUND", message: `Thread not found: ${threadId}` }),
-            origin,
-          );
-          return true;
-        }
+      // One polymorphic path for every source. The dispatched source is narrowed
+      // to its `TimelineSource` capability (parseCached / tailParsed / resolveChild);
+      // each source keeps its own cache key, tail reader, and child resolution behind
+      // that interface, so there is no `if (source === ...)` branch or concrete cast.
+      const source = registry.get(sourceResult.source);
+      const timeline = asTimelineSource(source);
 
-        const resolved = await source.resolveSession(threadId);
-        // CC has no codexHome; reuse the resolved codexHome only as the cache
-        // scratch root (under `.observatory`, overridable via AGENTVIEW_CACHE_ROOT).
-        const cacheRoot = await resolveCodexHome();
-        const parseCachedCc = (childThreadId: string, rawLogPath: string, parse: () => Promise<CachedRolloutFacts>) =>
-          getRolloutFactsWithCache({
-            codexHome: cacheRoot,
-            threadId: childThreadId,
-            rolloutPath: rawLogPath,
-            parserVersion: CLAUDE_PARSER_VERSION,
-            parse,
-          });
-        const cached = await parseCachedCc(resolved.sessionId, resolved.rawLogPath, () => source.parse(resolved));
-
-        let events = cached.facts.events;
-        const warnings = [...cached.warnings, ...cached.facts.warnings];
-
-        if (subtree) {
-          // Walk the CC sub-agent subtree (children resolved via the SessionSource
-          // interface) and fold each descendant's events into one time-ordered
-          // stream. Best-effort: a descendant whose resolve/parse throws is skipped.
-          const descendants = await source.listChildren(threadId, MAX_SUBTREE_DEPTH);
-          for (const descendant of descendants) {
-            // CC sub-agent transcripts live under the root's `subagents/` dir and are
-            // not top-level discoverable, so `resolveSession(childId)` would 404.
-            // `listChildren` already carries the absolute child transcript path; build
-            // a ResolvedSession from it (path stays inside CLAUDE_PROJECTS_DIR — it was
-            // produced by our own enumeration).
-            if (!descendant.rolloutPath) continue;
-            try {
-              const descendantResolved = {
-                source: "claude-code" as const,
-                sessionId: descendant.id,
-                rawLogPath: descendant.rolloutPath,
-              };
-              const descendantCached = await parseCachedCc(descendant.id, descendant.rolloutPath, () =>
-                source.parse(descendantResolved),
-              );
-              events = events.concat(descendantCached.facts.events);
-              warnings.push(...descendantCached.warnings, ...descendantCached.facts.warnings);
-            } catch {
-              // Skip a descendant whose transcript failed to resolve/parse.
-            }
-          }
-
-          events = [...events].sort((left, right) => {
-            const leftMs = Date.parse(left.timestamp);
-            const rightMs = Date.parse(right.timestamp);
-            if (leftMs !== rightMs) return leftMs - rightMs;
-            if (left.threadId !== right.threadId) return left.threadId < right.threadId ? -1 : 1;
-            return left.sourceLine - right.sourceLine;
-          });
-        }
-
-        writeJson(
-          response,
-          200,
-          ok(
-            "rollout-cache",
-            {
-              threadId,
-              events,
-              facts: cached.facts,
-              nextByteOffset: cached.facts.parsedThroughByte,
-              cacheStatus: cached.status,
-            },
-            warnings,
-          ),
-          origin,
-        );
-        return true;
-      }
-
-      // Timeline cache-status/warnings stay a Codex handler concern this phase
-      // (CC timeline lands Phase 4). The dispatched source is the Codex source,
-      // which exposes the richer cache/tail accessors the handler needs.
-      const source = registry.get(sourceResult.source) as CodexSource;
       const thread = await source.getSession(threadId);
       if (!thread) {
         writeJson(
           response,
           404,
-          fail("state-db", {
-            code: "THREAD_NOT_FOUND",
-            message: `Thread not found: ${threadId}`,
-          }),
+          fail("state-db", { code: "THREAD_NOT_FOUND", message: `Thread not found: ${threadId}` }),
           origin,
         );
         return true;
@@ -240,21 +164,17 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
         writeJson(
           response,
           404,
-          fail("state-db", {
-            code: "ROLLOUT_MISSING",
-            message: `Thread has no rollout path: ${threadId}`,
-          }),
+          fail("state-db", { code: "ROLLOUT_MISSING", message: `Thread has no rollout path: ${threadId}` }),
           origin,
         );
         return true;
       }
 
       const resolved = await source.resolveSession(threadId);
-      const cached = await source.parseWithCache(resolved);
+      const cached = await timeline.parseCached(resolved);
 
       if (fromByte !== undefined) {
-        const tail = await source.tailRaw(resolved, fromByte, cached.facts.events.length + 1);
-        const warnings = [...cached.warnings, ...tail.warnings];
+        const tail = await timeline.tailParsed(resolved, fromByte, cached.facts.events.length + 1);
         writeJson(
           response,
           200,
@@ -262,12 +182,12 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
             "rollout-cache",
             {
               threadId,
-              events: tail.payload.events,
+              events: tail.events,
               facts: cached.facts,
-              nextByteOffset: tail.payload.nextByteOffset,
+              nextByteOffset: tail.nextByteOffset,
               cacheStatus: "tail" as const,
             },
-            warnings,
+            [...cached.warnings, ...tail.warnings],
           ),
           origin,
         );
@@ -278,25 +198,25 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
       const warnings = [...cached.warnings, ...cached.facts.warnings];
 
       if (subtree) {
-        // Walk the spawn subtree and fold each descendant's events into one
-        // time-ordered stream. Descendants are best-effort: a missing/unreadable
-        // rollout is skipped rather than failing the whole request.
+        // Walk the spawn subtree (children resolved through the source) and fold each
+        // descendant's events into one time-ordered stream. Best-effort: a descendant
+        // whose resolve/parse throws is skipped rather than failing the whole request.
         const descendants = await source.listChildren(threadId, MAX_SUBTREE_DEPTH);
 
         for (const descendant of descendants) {
           if (!descendant.rolloutPath) continue;
           let descendantResolved;
           try {
-            descendantResolved = await source.resolveSession(descendant.id);
+            descendantResolved = await timeline.resolveChild(descendant);
           } catch {
             continue;
           }
           try {
-            const descendantCached = await source.parseWithCache(descendantResolved);
+            const descendantCached = await timeline.parseCached(descendantResolved);
             events = events.concat(descendantCached.facts.events);
             warnings.push(...descendantCached.warnings, ...descendantCached.facts.warnings);
           } catch {
-            // Skip a descendant whose rollout failed to parse.
+            // Skip a descendant whose transcript failed to parse.
           }
         }
 
