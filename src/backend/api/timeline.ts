@@ -2,11 +2,9 @@ import { access } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { isAbsolute, relative, resolve } from "node:path";
 
-import { getRolloutFactsWithCache } from "../cache/rolloutCache";
 import { resolveCodexHome } from "../codexPaths";
-import { parseRolloutFile } from "../rollout/jsonlStream";
-import { openStateStore, StateStoreError } from "../sqlite/stateStore";
-import { tailRolloutFile } from "../tail/liveTail";
+import { StateStoreError } from "../sqlite/stateStore";
+import { createCodexSource } from "../sources/codex/CodexSource";
 import { fail, ok, writeJson } from "./http";
 
 // Cap how deep the spawn subtree is walked when merging the unified +SUBS stream.
@@ -100,10 +98,10 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
 
   try {
     const codexHome = await resolveCodexHome();
-    const store = await openStateStore({ codexHome });
+    const source = createCodexSource({ codexHome });
 
     try {
-      const thread = await store.getThread(threadId);
+      const thread = await source.getSession(threadId);
       if (!thread) {
         writeJson(
           response,
@@ -130,27 +128,11 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
         return true;
       }
 
-      const rolloutPath = await resolveRolloutPath(codexHome, thread.rolloutPath);
-      const cached = await getRolloutFactsWithCache({
-        codexHome,
-        threadId,
-        rolloutPath,
-        parse: (sourceMtimeMs, sourceSizeBytes) =>
-          parseRolloutFile(rolloutPath, {
-            threadId,
-            rolloutPath,
-            sourceMtimeMs,
-            sourceSizeBytes,
-          }),
-      });
+      const resolved = await source.resolveSession(threadId);
+      const cached = await source.parseWithCache(resolved);
 
       if (fromByte !== undefined) {
-        const tail = await tailRolloutFile({
-          path: rolloutPath,
-          threadId,
-          fromByte,
-          sourceLine: cached.facts.events.length + 1,
-        });
+        const tail = await source.tailRaw(resolved, fromByte, cached.facts.events.length + 1);
         const warnings = [...cached.warnings, ...tail.warnings];
         writeJson(
           response,
@@ -178,37 +160,18 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
         // Walk the spawn subtree and fold each descendant's events into one
         // time-ordered stream. Descendants are best-effort: a missing/unreadable
         // rollout is skipped rather than failing the whole request.
-        const rows = await store.getAgentGraphRows(threadId, MAX_SUBTREE_DEPTH);
-        const descendantIds = [
-          ...new Set(
-            rows
-              .map((row) => row.childThreadId)
-              .filter((id): id is string => Boolean(id) && id !== threadId),
-          ),
-        ];
+        const descendants = await source.listChildren(threadId, MAX_SUBTREE_DEPTH);
 
-        for (const descendantId of descendantIds) {
-          const descendant = await store.getThread(descendantId);
-          if (!descendant?.rolloutPath) continue;
-          let descendantRollout: string;
+        for (const descendant of descendants) {
+          if (!descendant.rolloutPath) continue;
+          let descendantResolved;
           try {
-            descendantRollout = await resolveRolloutPath(codexHome, descendant.rolloutPath);
+            descendantResolved = await source.resolveSession(descendant.id);
           } catch {
             continue;
           }
           try {
-            const descendantCached = await getRolloutFactsWithCache({
-              codexHome,
-              threadId: descendantId,
-              rolloutPath: descendantRollout,
-              parse: (sourceMtimeMs, sourceSizeBytes) =>
-                parseRolloutFile(descendantRollout, {
-                  threadId: descendantId,
-                  rolloutPath: descendantRollout,
-                  sourceMtimeMs,
-                  sourceSizeBytes,
-                }),
-            });
+            const descendantCached = await source.parseWithCache(descendantResolved);
             events = events.concat(descendantCached.facts.events);
             warnings.push(...descendantCached.warnings, ...descendantCached.facts.warnings);
           } catch {
@@ -243,7 +206,7 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
       );
       return true;
     } finally {
-      await store.close();
+      await source.close();
     }
   } catch (error) {
     const status =

@@ -1,7 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { resolveCodexHome } from "../codexPaths";
-import { openStateStore, StateStoreError, type AgentGraphRow } from "../sqlite/stateStore";
+import { StateStoreError, type AgentGraphRow } from "../sqlite/stateStore";
+import { createCodexSource } from "../sources/codex/CodexSource";
 import type { AgentEdge, AgentEdgeStatus, AgentGraph, AgentNode, EdgeConfidence, EdgeSource, EdgeVia, SessionStatus } from "../../shared/contracts";
 import { fail, ok, writeJson } from "./http";
 
@@ -307,15 +308,15 @@ export const handleAgentGraphApiRequest = async (request: IncomingMessage, respo
 
   try {
     const codexHome = await resolveCodexHome();
-    const store = await openStateStore({ codexHome });
+    const source = createCodexSource({ codexHome });
 
     try {
-      const rows = await store.getAgentGraphRows(rootThreadId, maxDepth.value + 1);
+      const rows = await source.getAgentGraphRows(rootThreadId, maxDepth.value + 1);
       const graph = deriveAgentGraph(rootThreadId, rows, { maxDepth: maxDepth.value });
       writeJson(response, 200, ok("state-db", graph), origin);
       return true;
     } finally {
-      await store.close();
+      await source.close();
     }
   } catch (error) {
     writeGraphError(response, origin, error);

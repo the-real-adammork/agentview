@@ -1,7 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { resolveCodexHome } from "../codexPaths";
-import { openStateStore, StateStoreError } from "../sqlite/stateStore";
+import { StateStoreError } from "../sqlite/stateStore";
+import { createCodexSource } from "../sources/codex/CodexSource";
 import type { HealthStatus } from "../../shared/contracts";
 import { fail, ok, writeJson } from "./http";
 
@@ -36,10 +37,10 @@ export const handleHealthApiRequest = async (request: IncomingMessage, response:
 
   try {
     const codexHome = await resolveCodexHome();
-    const store = await openStateStore({ codexHome });
+    const source = createCodexSource({ codexHome });
 
     try {
-      const health = await store.getHealth();
+      const schema = await source.stateDbSchema();
       writeJson(
         response,
         200,
@@ -47,12 +48,12 @@ export const handleHealthApiRequest = async (request: IncomingMessage, response:
           status: "ok",
           mode: "real",
           checkedAt: new Date().toISOString(),
-          stateDb: health.schema,
+          stateDb: schema,
         } satisfies HealthStatus),
         origin,
       );
     } finally {
-      await store.close();
+      await source.close();
     }
   } catch (error) {
     writeJson(

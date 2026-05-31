@@ -1,7 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import { resolveCodexHome } from "../codexPaths";
-import { openStateStore, StateStoreError } from "../sqlite/stateStore";
+import { StateStoreError } from "../sqlite/stateStore";
+import { createCodexSource } from "../sources/codex/CodexSource";
 import type {
   ArchivedFilter,
   CountStatus,
@@ -210,11 +211,11 @@ export const handleSessionsApiRequest = async (request: IncomingMessage, respons
 
   try {
     const codexHome = await resolveCodexHome();
-    const store = await openStateStore({ codexHome });
+    const source = createCodexSource({ codexHome });
 
     try {
       if (threadId) {
-        const session = await store.getThread(threadId);
+        const session = await source.getSession(threadId);
 
         if (!session) {
           writeJson(
@@ -246,11 +247,11 @@ export const handleSessionsApiRequest = async (request: IncomingMessage, respons
         return true;
       }
 
-      const sessions = await store.listSessions(parsed.filter, parsed.page);
+      const sessions = await source.listSessions(parsed.filter, parsed.page);
       writeJson(response, 200, ok("state-db", sessions), origin);
       return true;
     } finally {
-      await store.close();
+      await source.close();
     }
   } catch (error) {
     writeStateStoreError(response, origin, error);
