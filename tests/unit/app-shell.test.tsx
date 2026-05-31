@@ -160,6 +160,17 @@ describe("fixture-backed app shell", () => {
     expect(diagnosticsTable).toHaveTextContent(diagnosticsLogsFixture[0].bodyPreview);
   });
 
+  it("defaults the timeline scope to +Subs when the session has child-agents", () => {
+    render(<App />);
+
+    // The default fixture session is the root, which has two sub-agents.
+    fireEvent.click(screen.getByRole("button", { name: "Timeline" }));
+
+    const scopeGroup = screen.getByRole("group", { name: /event scope/i });
+    expect(within(scopeGroup).getByRole("button", { name: /\+Subs/i })).toHaveAttribute("aria-pressed", "true");
+    expect(within(scopeGroup).getByRole("button", { name: /^This$/i })).toHaveAttribute("aria-pressed", "false");
+  });
+
   it("opens the Repos index from the header and scopes Sessions to a repo dossier", () => {
     render(<App />);
 

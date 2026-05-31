@@ -364,12 +364,19 @@ export function App() {
     [loadSubtree],
   );
 
-  // Scope resets to single-thread when the session changes; the subtree re-merges
-  // lazily the next time +SUBS is opened for that session.
+  // Entering a thread sets the default scope: +SUBS (merge the spawn subtree) when
+  // the thread has child-agents, otherwise just this thread. This only re-runs on a
+  // session change or when descendants are first discovered, so a manual toggle
+  // afterward sticks. (Deep-linked ?scope is re-defaulted on refresh, as before.)
   useEffect(() => {
-    setTimelineScope("this");
     subtreeSessionRef.current = null;
-  }, [activeSession?.id]);
+    if (activeSession?.id && activeHasDescendants) {
+      setTimelineScope("all");
+      loadSubtree();
+    } else {
+      setTimelineScope("this");
+    }
+  }, [activeSession?.id, activeHasDescendants, loadSubtree]);
 
   const loadAgentGraph = useCallback(() => {
     if (!activeSession?.id) return;
