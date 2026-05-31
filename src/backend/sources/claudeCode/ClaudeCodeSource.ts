@@ -6,10 +6,12 @@ import type {
   SessionFilter,
   SessionSummary,
 } from "../../../shared/contracts";
+import { readJsonlLines } from "../../rollout/jsonlStream";
 import type { ResolvedSession, SessionSource, SourceHealth, SourceTailResult } from "../SessionSource";
 import { resolveClaudeSessionPath } from "./claudePaths";
 import { deriveClaudeMeta } from "./claudeMeta";
 import { discoverClaudeSessions, type DiscoveredClaudeSession } from "./discovery";
+import { parseClaudeSessionLines } from "./parseClaudeSession";
 
 /**
  * Thrown by the CC `SessionSource` methods that are deferred to later phases.
@@ -147,8 +149,15 @@ export const createClaudeCodeSource = ({ projectsDir }: { projectsDir: string })
       };
     },
 
-    async parse(): Promise<CachedRolloutFacts> {
-      throw new ClaudeCodeNotImplementedError("parse", 4);
+    async parse(resolved: ResolvedSession): Promise<CachedRolloutFacts> {
+      const sourceStat = await stat(resolved.rawLogPath);
+      const { lines } = await readJsonlLines(resolved.rawLogPath);
+      return parseClaudeSessionLines(lines, {
+        threadId: resolved.sessionId,
+        rolloutPath: resolved.rawLogPath,
+        sourceMtimeMs: sourceStat.mtimeMs,
+        sourceSizeBytes: sourceStat.size,
+      });
     },
 
     async listChildren(): Promise<SessionSummary[]> {

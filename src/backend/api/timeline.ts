@@ -2,9 +2,13 @@ import { access } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { isAbsolute, relative, resolve } from "node:path";
 
+import { getRolloutFactsWithCache } from "../cache/rolloutCache";
+import { resolveCodexHome } from "../codexPaths";
+import { CLAUDE_PARSER_VERSION } from "../sources/claudeCode/parseClaudeSession";
 import { StateStoreError } from "../sqlite/stateStore";
 import type { CodexSource } from "../sources/codex/CodexSource";
 import { createDefaultRegistry } from "../sources/defaultRegistry";
+import type { SessionSource } from "../sources/SessionSource";
 import { parseSourceId } from "../sources/sourceQuery";
 import { fail, ok, writeJson } from "./http";
 
@@ -116,6 +120,56 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
             code: "UNKNOWN_SOURCE",
             message: `Source is not registered: ${sourceResult.source}`,
           }),
+          origin,
+        );
+        return true;
+      }
+
+      // Claude Code timeline (Phase 4). CC parses through the cross-source
+      // `SessionSource.parse`, cached by `getRolloutFactsWithCache` keyed by
+      // `CLAUDE_PARSER_VERSION` so it never reads a Codex cache entry as fresh. The
+      // subtree (+SUBS) merge and live tail land in Phases 5/6; this phase returns
+      // the single primary transcript. The Codex branch below is byte-for-byte
+      // unchanged.
+      if (sourceResult.source === "claude-code") {
+        const source: SessionSource = registry.get("claude-code");
+        const thread = await source.getSession(threadId);
+        if (!thread) {
+          writeJson(
+            response,
+            404,
+            fail("state-db", { code: "THREAD_NOT_FOUND", message: `Thread not found: ${threadId}` }),
+            origin,
+          );
+          return true;
+        }
+
+        const resolved = await source.resolveSession(threadId);
+        // CC has no codexHome; reuse the resolved codexHome only as the cache
+        // scratch root (under `.observatory`, overridable via AGENTVIEW_CACHE_ROOT).
+        const cacheRoot = await resolveCodexHome();
+        const cached = await getRolloutFactsWithCache({
+          codexHome: cacheRoot,
+          threadId: resolved.sessionId,
+          rolloutPath: resolved.rawLogPath,
+          parserVersion: CLAUDE_PARSER_VERSION,
+          parse: () => source.parse(resolved),
+        });
+
+        writeJson(
+          response,
+          200,
+          ok(
+            "rollout-cache",
+            {
+              threadId,
+              events: cached.facts.events,
+              facts: cached.facts,
+              nextByteOffset: cached.facts.parsedThroughByte,
+              cacheStatus: cached.status,
+            },
+            [...cached.warnings, ...cached.facts.warnings],
+          ),
           origin,
         );
         return true;

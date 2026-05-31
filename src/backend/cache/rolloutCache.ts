@@ -18,8 +18,14 @@ const safeSegment = (value: string) => value.replace(/[^a-zA-Z0-9_.-]+/g, "_").s
 export const rolloutCachePath = (codexHome: string, threadId: string) =>
   join(codexHome, ".observatory", "cache", "v1", "rollouts", `${safeSegment(threadId)}.json`);
 
-const isFresh = (facts: CachedRolloutFacts, rolloutPath: string, sourceMtimeMs: number, sourceSizeBytes: number) =>
-  facts.parserVersion === ROLLOUT_PARSER_VERSION &&
+const isFresh = (
+  facts: CachedRolloutFacts,
+  rolloutPath: string,
+  sourceMtimeMs: number,
+  sourceSizeBytes: number,
+  parserVersion: number,
+) =>
+  facts.parserVersion === parserVersion &&
   facts.rolloutPath === rolloutPath &&
   facts.sourceMtimeMs === sourceMtimeMs &&
   facts.sourceSizeBytes === sourceSizeBytes;
@@ -29,12 +35,13 @@ const readCachedFacts = async (
   rolloutPath: string,
   sourceMtimeMs: number,
   sourceSizeBytes: number,
+  parserVersion: number,
 ) => {
   const body = await readFile(cachePath, "utf8");
   const parsed = JSON.parse(body) as CachedRolloutFacts;
   return {
     facts: parsed,
-    fresh: isFresh(parsed, rolloutPath, sourceMtimeMs, sourceSizeBytes),
+    fresh: isFresh(parsed, rolloutPath, sourceMtimeMs, sourceSizeBytes, parserVersion),
   };
 };
 
@@ -50,11 +57,19 @@ export const getRolloutFactsWithCache = async ({
   threadId,
   rolloutPath,
   parse,
+  parserVersion = ROLLOUT_PARSER_VERSION,
 }: {
   codexHome: string;
   threadId: string;
   rolloutPath: string;
   parse: (sourceMtimeMs: number, sourceSizeBytes: number) => Promise<CachedRolloutFacts>;
+  /**
+   * Cache-key discriminator the cached facts' `parserVersion` must match to count
+   * as fresh. Defaults to `ROLLOUT_PARSER_VERSION` (Codex); the CC timeline path
+   * passes `CLAUDE_PARSER_VERSION` so CC and Codex caches never read each other's
+   * entries as fresh.
+   */
+  parserVersion?: number;
 }): Promise<RolloutCacheResult> => {
   const cacheRoot = process.env.AGENTVIEW_CACHE_ROOT ?? codexHome;
   const cachePath = rolloutCachePath(cacheRoot, threadId);
@@ -64,7 +79,7 @@ export const getRolloutFactsWithCache = async ({
   const warnings: string[] = [];
 
   try {
-    const cached = await readCachedFacts(cachePath, rolloutPath, sourceMtimeMs, sourceSizeBytes);
+    const cached = await readCachedFacts(cachePath, rolloutPath, sourceMtimeMs, sourceSizeBytes, parserVersion);
     if (cached.fresh) {
       return { facts: cached.facts, status: "warm", warnings, cachePath };
     }

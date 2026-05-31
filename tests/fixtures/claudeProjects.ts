@@ -30,7 +30,36 @@ export interface ClaudeSessionFixture {
   updatedAtMs: number;
   assistantUsages?: ClaudeAssistantUsageFixture[];
   subagents?: ClaudeSubagentFixture[];
+  /**
+   * Verbatim transcript lines to write instead of the synthesized
+   * user/ai-title/assistant rows. Use `claudeLine(...)` to build well-formed
+   * records. When set, the transcript is written exactly as given (the timeline
+   * parser tests drive a real multi-tool transcript this way).
+   */
+  rawLines?: Array<Record<string, unknown>>;
 }
+
+/**
+ * Stamp a CC transcript record with the shared envelope keys (`uuid`, `parentUuid`,
+ * `sessionId`, `timestamp`, `cwd`, `gitBranch`, `version`, `isSidechain`,
+ * `userType`) so fixtures stay terse. Any field can be overridden via `record`.
+ */
+export const claudeLine = (
+  record: Record<string, unknown> & { type: string },
+  defaults: { sessionId: string; cwd: string; gitBranch?: string; version?: string; timestamp?: string } = {
+    sessionId: "cc-fixture",
+    cwd: "/repo/cc-app",
+  },
+): Record<string, unknown> => ({
+  sessionId: defaults.sessionId,
+  cwd: defaults.cwd,
+  gitBranch: defaults.gitBranch ?? "main",
+  version: defaults.version ?? "1.2.3",
+  isSidechain: false,
+  userType: "external",
+  ...(defaults.timestamp ? { timestamp: defaults.timestamp } : {}),
+  ...record,
+});
 
 export interface ClaudeProjectsFixture {
   projectsDir: string;
@@ -107,6 +136,16 @@ export const createClaudeProjectsFixture = async ({
     };
 
     const lines: Array<Record<string, unknown>> = [];
+
+    if (session.rawLines) {
+      // Write the supplied transcript verbatim (the timeline-parse tests drive a
+      // real multi-tool transcript). Still derive mtime from updatedAtMs below.
+      const transcriptPath = join(projectDir, `${session.sessionId}.jsonl`);
+      await writeFile(transcriptPath, `${session.rawLines.map((line) => JSON.stringify(line)).join("\n")}\n`);
+      const mtimeSeconds = session.updatedAtMs / 1000;
+      await utimes(transcriptPath, mtimeSeconds, mtimeSeconds);
+      continue;
+    }
 
     lines.push({
       type: "user",

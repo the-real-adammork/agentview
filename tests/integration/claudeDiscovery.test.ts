@@ -128,14 +128,18 @@ describe("createClaudeCodeSource", () => {
     await expect(source.resolveSession("totally-unknown-id")).rejects.toThrow();
   });
 
-  it("parse/listChildren/tail throw the typed ClaudeCodeNotImplementedError with the right phase", async () => {
+  it("parse returns CachedRolloutFacts (Phase 4); listChildren/tail still throw the typed error", async () => {
     const fixture = await makeFixture();
     const source = createClaudeCodeSource({ projectsDir: fixture.projectsDir });
     const resolved = await source.resolveSession(PLAIN_ID);
 
-    await expect(source.parse(resolved)).rejects.toBeInstanceOf(ClaudeCodeNotImplementedError);
-    await expect(source.parse(resolved)).rejects.toMatchObject({ code: "CC_NOT_IMPLEMENTED", method: "parse", phase: 4 });
+    // Phase 4 implements `parse`: it reads the transcript and emits normalized facts.
+    const facts = await source.parse(resolved);
+    expect(facts.threadId).toBe(PLAIN_ID);
+    expect(facts.rolloutPath).toBe(resolved.rawLogPath);
+    expect(Array.isArray(facts.events)).toBe(true);
 
+    // listChildren (Phase 5) and tail (Phase 6) are still deferred stubs.
     await expect(source.listChildren(PLAIN_ID, 10)).rejects.toBeInstanceOf(ClaudeCodeNotImplementedError);
     await expect(source.listChildren(PLAIN_ID, 10)).rejects.toMatchObject({ method: "listChildren", phase: 5 });
 

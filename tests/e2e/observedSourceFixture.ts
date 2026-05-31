@@ -26,6 +26,107 @@ export function e2eCodexHome() {
   return codexHome;
 }
 
+export function e2eClaudeProjectsDir() {
+  const dir = process.env.AGENTVIEW_E2E_CLAUDE_PROJECTS_DIR;
+  if (!dir) {
+    throw new Error("Playwright config must provide AGENTVIEW_E2E_CLAUDE_PROJECTS_DIR.");
+  }
+  return dir;
+}
+
+/** The distinctive title used to isolate the CC session via the Sessions search box. */
+export const CC_E2E_SESSION_TITLE = "CC timeline render arm";
+export const CC_E2E_SESSION_ID = "ccee0001-ccee-4ee0-8ee0-ccee0001ee00";
+const CC_E2E_CWD = "/repo/cc-e2e-app";
+
+const ccLine = (record: Record<string, unknown> & { type: string }) =>
+  JSON.stringify({
+    sessionId: CC_E2E_SESSION_ID,
+    cwd: CC_E2E_CWD,
+    gitBranch: "main",
+    version: "1.2.3",
+    isSidechain: false,
+    userType: "external",
+    ...record,
+  });
+
+const ccTranscriptDir = () => {
+  // Mirror the on-disk CC layout: <projects>/<escaped-cwd>/<sessionId>.jsonl.
+  const escaped = CC_E2E_CWD.replace(/[/.]/g, "-");
+  return join(e2eClaudeProjectsDir(), escaped);
+};
+
+/**
+ * Write one redacted CC transcript into the e2e CLAUDE_PROJECTS_DIR so the CC
+ * session is discoverable and selectable. Carries a planted secret + a thinking
+ * signature to prove redaction, a `Bash` (git status → status render), and an
+ * `Edit` (→ diff render) so the @timeline CC arm draws through the existing
+ * renderers. Removed by `removeClaudeTimelineFixture` so the @sessions exact-count
+ * spec (which assumes an empty CC dir) stays green.
+ */
+export async function writeClaudeTimelineFixture() {
+  const dir = ccTranscriptDir();
+  await mkdir(dir, { recursive: true });
+  // Drop any stale CC cache so a re-run re-parses the fresh transcript.
+  await rm(join(e2eCodexHome(), ".observatory", "cache", "v1", "rollouts"), { recursive: true, force: true });
+
+  const lines = [
+    ccLine({
+      type: "user",
+      uuid: "u1",
+      parentUuid: null,
+      timestamp: "2026-05-30T10:00:00.000Z",
+      message: { role: "user", content: `${CC_E2E_SESSION_TITLE}. Note OPENAI_API_KEY=sk-cc-e2e-secret` },
+    }),
+    ccLine({ type: "ai-title", aiTitle: CC_E2E_SESSION_TITLE }),
+    ccLine({
+      type: "assistant",
+      uuid: "a1",
+      parentUuid: "u1",
+      timestamp: "2026-05-30T10:00:01.000Z",
+      message: {
+        role: "assistant",
+        content: [
+          { type: "thinking", thinking: "Inspect the working tree first.", signature: "sig-cc-e2e-hidden" },
+          { type: "text", text: "Checking the working tree." },
+        ],
+        usage: { input_tokens: 1200, output_tokens: 80, cache_creation_input_tokens: 40, cache_read_input_tokens: 600 },
+      },
+    }),
+    ccLine({
+      type: "assistant",
+      uuid: "a2",
+      parentUuid: "a1",
+      timestamp: "2026-05-30T10:00:02.000Z",
+      message: { role: "assistant", content: [{ type: "tool_use", id: "toolu_bash1", name: "Bash", input: { command: "git status --short" } }] },
+    }),
+    ccLine({
+      type: "user",
+      uuid: "u2",
+      parentUuid: "a2",
+      timestamp: "2026-05-30T10:00:03.000Z",
+      message: { role: "user", content: [{ type: "tool_result", tool_use_id: "toolu_bash1", content: " M src/broken.ts" }] },
+    }),
+    ccLine({
+      type: "assistant",
+      uuid: "a3",
+      parentUuid: "u2",
+      timestamp: "2026-05-30T10:00:04.000Z",
+      message: {
+        role: "assistant",
+        content: [{ type: "tool_use", id: "toolu_edit1", name: "Edit", input: { file_path: "/repo/cc-e2e-app/src/broken.ts", old_string: "import x from './x'", new_string: "import x from './x.js'" } }],
+      },
+    }),
+  ];
+
+  await writeFile(join(dir, `${CC_E2E_SESSION_ID}.jsonl`), `${lines.join("\n")}\n`, "utf8");
+}
+
+/** Remove the CC e2e transcript dir so the empty-CC-dir assumption holds elsewhere. */
+export async function removeClaudeTimelineFixture() {
+  await rm(ccTranscriptDir(), { recursive: true, force: true });
+}
+
 const observedEventMsg = (timestamp: string, turnId: string, payload: Record<string, unknown>) =>
   JSON.stringify({
     type: "event_msg",

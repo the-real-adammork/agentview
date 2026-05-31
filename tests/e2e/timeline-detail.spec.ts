@@ -1,7 +1,13 @@
 import { appendFile } from "node:fs/promises";
 import { expect, test, type TestInfo } from "@playwright/test";
 
-import { writeLegacyE2eRolloutFixtures, writeObservedRolloutFixtures } from "./observedSourceFixture";
+import {
+  CC_E2E_SESSION_TITLE,
+  removeClaudeTimelineFixture,
+  writeClaudeTimelineFixture,
+  writeLegacyE2eRolloutFixtures,
+  writeObservedRolloutFixtures,
+} from "./observedSourceFixture";
 
 function appBaseUrl(testInfo: TestInfo) {
   const configuredBaseUrl = testInfo.project.use.baseURL;
@@ -187,5 +193,58 @@ test.describe("real Timeline detail @timeline", () => {
     await expect
       .soft(page.getByRole("button", { name: /open thread-subagent-implementation in timeline/i }))
       .toBeVisible({ timeout: 1_000 });
+  });
+
+  test("renders a Claude Code session through the existing renderers (sourceId=claude-code)", async ({
+    page,
+  }, testInfo) => {
+    // Seed one CC transcript into the e2e CLAUDE_PROJECTS_DIR; remove it afterward
+    // so the @sessions exact-count spec (empty CC dir) stays green.
+    await writeClaudeTimelineFixture();
+    try {
+      await page.goto(appBaseUrl(testInfo));
+
+      // Isolate the CC row via the Sessions search box so the merged list shows
+      // only the CC session, then select it. The timeline request the UI fires
+      // carries sourceId=claude-code (the row's source field), so it parses
+      // through ClaudeCodeSource.parse and draws through the unchanged renderers.
+      await page.getByRole("searchbox", { name: /search sessions/i }).fill(CC_E2E_SESSION_TITLE);
+      const ccTimelineResponse = page.waitForResponse(
+        (response) =>
+          response.url().includes("/api/timeline") &&
+          response.url().includes("sourceId=claude-code") &&
+          !response.url().includes("fromByte="),
+      );
+      await page
+        .getByRole("table", { name: /sessions/i })
+        .getByRole("row", { name: new RegExp(CC_E2E_SESSION_TITLE, "i") })
+        .click();
+      const ccBody = await (await ccTimelineResponse).json();
+
+      // The CC payload draws through the same renderer types a Codex session would.
+      expect(ccBody).toMatchObject({
+        ok: true,
+        data: {
+          events: expect.arrayContaining([
+            expect.objectContaining({ kind: "user_message" }),
+            expect.objectContaining({ kind: "tool_call", toolName: "Bash", outputRender: expect.objectContaining({ kind: "status" }) }),
+            expect.objectContaining({ kind: "tool_call", toolName: "Edit", outputRender: expect.objectContaining({ kind: "diff" }) }),
+          ]),
+        },
+      });
+
+      await expect(page.getByRole("heading", { name: "Timeline" })).toBeVisible();
+      const timeline = page.getByLabel("Timeline events");
+      // At least one tool_call row draws through the unchanged renderer components.
+      await expect(timeline.locator('[data-kind="tool_call"]')).not.toHaveCount(0);
+
+      // Redaction: the planted secret never reaches the DOM; the signature never leaks.
+      const serialized = JSON.stringify(ccBody);
+      expect(serialized).toContain("[REDACTED]");
+      expect(serialized).not.toContain("sk-cc-e2e-secret");
+      expect(serialized).not.toContain("sig-cc-e2e-hidden");
+    } finally {
+      await removeClaudeTimelineFixture();
+    }
   });
 });
