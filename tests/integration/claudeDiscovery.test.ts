@@ -128,7 +128,7 @@ describe("createClaudeCodeSource", () => {
     await expect(source.resolveSession("totally-unknown-id")).rejects.toThrow();
   });
 
-  it("parse returns CachedRolloutFacts (Phase 4); listChildren/tail still throw the typed error", async () => {
+  it("parse returns CachedRolloutFacts (Phase 4); listChildren works (Phase 5); tail still throws (Phase 6)", async () => {
     const fixture = await makeFixture();
     const source = createClaudeCodeSource({ projectsDir: fixture.projectsDir });
     const resolved = await source.resolveSession(PLAIN_ID);
@@ -139,10 +139,10 @@ describe("createClaudeCodeSource", () => {
     expect(facts.rolloutPath).toBe(resolved.rawLogPath);
     expect(Array.isArray(facts.events)).toBe(true);
 
-    // listChildren (Phase 5) and tail (Phase 6) are still deferred stubs.
-    await expect(source.listChildren(PLAIN_ID, 10)).rejects.toBeInstanceOf(ClaudeCodeNotImplementedError);
-    await expect(source.listChildren(PLAIN_ID, 10)).rejects.toMatchObject({ method: "listChildren", phase: 5 });
+    // listChildren (Phase 5) is implemented: a session without sub-agents returns [].
+    await expect(source.listChildren(PLAIN_ID, 10)).resolves.toEqual([]);
 
+    // tail (Phase 6) is still a deferred stub.
     await expect(source.tail(resolved, 0)).rejects.toBeInstanceOf(ClaudeCodeNotImplementedError);
     await expect(source.tail(resolved, 0)).rejects.toMatchObject({ method: "tail", phase: 6 });
   });

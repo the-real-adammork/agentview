@@ -12,6 +12,7 @@ import { resolveClaudeSessionPath } from "./claudePaths";
 import { deriveClaudeMeta } from "./claudeMeta";
 import { discoverClaudeSessions, type DiscoveredClaudeSession } from "./discovery";
 import { parseClaudeSessionLines } from "./parseClaudeSession";
+import { enumerateSubagents, linkSubagents, openChildCount, subagentsToChildSummaries } from "./subagents";
 
 /**
  * Thrown by the CC `SessionSource` methods that are deferred to later phases.
@@ -94,6 +95,20 @@ export const createClaudeCodeSource = ({ projectsDir }: { projectsDir: string })
     return discovered.find((session) => session.sessionId === sessionId) ?? null;
   };
 
+  /**
+   * Enrich a root `SessionSummary` with `childCount`/`openChildCount` from the same
+   * `subagents/` enumeration `listChildren` uses. Best-effort: an absent/unreadable
+   * `subagents/` dir leaves the derived counts (childCount from discovery, 0 open).
+   */
+  const withChildCounts = async (
+    summary: SessionSummary,
+    discovered: DiscoveredClaudeSession,
+  ): Promise<SessionSummary> => {
+    const entries = await enumerateSubagents(discovered.subagentsDir);
+    if (entries.length === 0) return summary;
+    return { ...summary, childCount: entries.length, openChildCount: openChildCount(entries) };
+  };
+
   return {
     id: "claude-code",
 
@@ -112,7 +127,9 @@ export const createClaudeCodeSource = ({ projectsDir }: { projectsDir: string })
 
     async listSessions(filter?: SessionFilter, page?: PageOptions): Promise<SessionSummary[]> {
       const discovered = await discoverClaudeSessions(projectsDir);
-      const summaries = await Promise.all(discovered.map((session) => deriveClaudeMeta(session)));
+      const summaries = await Promise.all(
+        discovered.map(async (session) => withChildCounts(await deriveClaudeMeta(session), session)),
+      );
 
       const filtered = filter ? summaries.filter((summary) => matchesFilter(summary, filter)) : summaries;
       filtered.sort((left, right) => updatedAtMsOf(right) - updatedAtMsOf(left));
@@ -124,7 +141,8 @@ export const createClaudeCodeSource = ({ projectsDir }: { projectsDir: string })
 
     async getSession(sessionId: string): Promise<SessionSummary | null> {
       const discovered = await findDiscovered(sessionId);
-      return discovered ? deriveClaudeMeta(discovered) : null;
+      if (!discovered) return null;
+      return withChildCounts(await deriveClaudeMeta(discovered), discovered);
     },
 
     async resolveSession(sessionId: string): Promise<ResolvedSession> {
@@ -160,8 +178,13 @@ export const createClaudeCodeSource = ({ projectsDir }: { projectsDir: string })
       });
     },
 
-    async listChildren(): Promise<SessionSummary[]> {
-      throw new ClaudeCodeNotImplementedError("listChildren", 5);
+    async listChildren(rootSessionId: string, scanDepth: number): Promise<SessionSummary[]> {
+      const discovered = await findDiscovered(rootSessionId);
+      if (!discovered) return [];
+      const entries = await enumerateSubagents(discovered.subagentsDir);
+      if (entries.length === 0) return [];
+      const linked = await linkSubagents(rootSessionId, discovered.transcriptPath, entries, scanDepth);
+      return subagentsToChildSummaries(linked);
     },
 
     async tail(): Promise<SourceTailResult> {
