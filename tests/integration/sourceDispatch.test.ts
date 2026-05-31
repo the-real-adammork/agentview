@@ -118,7 +118,13 @@ const requestJson = async (baseUrl: string, path: string): Promise<JsonResponse>
 };
 
 const withApi = async <T>(fixture: CodexHomeFixture, run: (api: RunningApi) => Promise<T>) => {
-  const api = await startApi({ codexHome: fixture.codexHome });
+  // Point CC at an isolated empty temp projects dir so these Codex-only dispatch
+  // assertions never pick up the developer's real ~/.claude/projects. Phase 3
+  // registers a real ClaudeCodeSource, so an unset CLAUDE_PROJECTS_DIR would fall
+  // back to the real home dir and pollute the merged list.
+  const claudeProjectsDir = await mkdtemp(join(tmpdir(), "agentview-dispatch-claude-"));
+  tempRoots.push(claudeProjectsDir);
+  const api = await startApi({ codexHome: fixture.codexHome, env: { CLAUDE_PROJECTS_DIR: claudeProjectsDir } });
 
   try {
     return await run(api);
@@ -191,15 +197,14 @@ describe("source dispatch (sourceId)", () => {
     });
   });
 
-  it("GET /api/sessions?sourceId=claude-code returns a typed 400 for the unregistered source", async () => {
+  it("GET /api/sessions?sourceId=claude-code returns an empty list for the registered CC source with no transcripts", async () => {
+    // Phase 3 registers a real ClaudeCodeSource; with an empty CLAUDE_PROJECTS_DIR
+    // (set by withApi) the CC list is empty rather than an unregistered-source 400.
     const fixture = await dispatchFixture();
     await withApi(fixture, async ({ baseUrl }) => {
       const response = await requestJson(baseUrl, "/api/sessions?sourceId=claude-code");
-      expect(response.status).toBe(400);
-      expect(response.body).toMatchObject({
-        ok: false,
-        error: { code: "UNKNOWN_SOURCE" },
-      });
+      expect(response.status).toBe(200);
+      expect(ids(response.body)).toEqual([]);
     });
   });
 
@@ -215,12 +220,15 @@ describe("source dispatch (sourceId)", () => {
     });
   });
 
-  it("GET /api/sessions/:id?sourceId=claude-code returns a typed 400 (composite key, unknown source)", async () => {
+  it("GET /api/sessions/:id?sourceId=claude-code returns 404 (composite key — Codex id is unknown to CC)", async () => {
+    // The (source, id) composite key means a Codex thread id is not a CC session.
+    // With CC registered, the lookup resolves to the CC source and 404s rather than
+    // a 400 unregistered-source error.
     const fixture = await dispatchFixture();
     await withApi(fixture, async ({ baseUrl }) => {
       const response = await requestJson(baseUrl, "/api/sessions/root-thread?sourceId=claude-code");
-      expect(response.status).toBe(400);
-      expect(response.body).toMatchObject({ ok: false, error: { code: "UNKNOWN_SOURCE" } });
+      expect(response.status).toBe(404);
+      expect(response.body).toMatchObject({ ok: false, error: { code: "THREAD_NOT_FOUND" } });
     });
   });
 
@@ -243,12 +251,15 @@ describe("source dispatch (sourceId)", () => {
     });
   });
 
-  it("GET /api/timeline?sourceId=claude-code returns a typed 400", async () => {
+  it("GET /api/timeline?sourceId=claude-code 404s for a Codex id unknown to the registered CC source", async () => {
+    // CC is registered in Phase 3, so a CC timeline for a Codex thread id resolves to
+    // the CC source and 404s (the id is not a CC session). A real CC timeline parse
+    // is deferred to Phase 4 (ClaudeCodeSource.parse throws until then).
     const fixture = await dispatchFixture();
     await withApi(fixture, async ({ baseUrl }) => {
       const response = await requestJson(baseUrl, "/api/timeline?threadId=root-thread&sourceId=claude-code");
-      expect(response.status).toBe(400);
-      expect(response.body).toMatchObject({ ok: false, error: { code: "UNKNOWN_SOURCE" } });
+      expect(response.status).toBe(404);
+      expect(response.body).toMatchObject({ ok: false, error: { code: "THREAD_NOT_FOUND" } });
     });
   });
 

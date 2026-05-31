@@ -60,11 +60,15 @@ export const handleHealthApiRequest = async (request: IncomingMessage, response:
         return true;
       }
 
-      // The state-db schema body stays a Codex concern this phase; the dispatched
-      // source is the Codex source. `registry.getHealth()` aggregates per-source
-      // availability (one Codex entry now) but the wire body keeps its shape.
-      const source = registry.get(sourceResult.source) as CodexSource;
-      const schema = await source.stateDbSchema();
+      // The state-db schema body stays a Codex concern (the `stateDb` field the
+      // existing health assertions read). The Codex source is always registered,
+      // so the schema comes from it regardless of the dispatched `sourceId`.
+      // `registry.getHealth()` adds a per-source availability array so the body now
+      // reports every registered source (Codex + Claude Code) without dropping the
+      // Codex `stateDb` shape.
+      const codexSource = registry.get("codex") as CodexSource;
+      const schema = await codexSource.stateDbSchema();
+      const sources = await registry.getHealth();
       writeJson(
         response,
         200,
@@ -73,7 +77,8 @@ export const handleHealthApiRequest = async (request: IncomingMessage, response:
           mode: "real",
           checkedAt: new Date().toISOString(),
           stateDb: schema,
-        } satisfies HealthStatus),
+          sources,
+        } satisfies HealthStatus & { sources: typeof sources }),
         origin,
       );
     } finally {

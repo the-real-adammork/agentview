@@ -172,10 +172,35 @@ const createE2eCodexHome = () => {
   return codexHome;
 };
 
+const createE2eClaudeProjects = () => {
+  // An EXISTING but EMPTY temp CLAUDE_PROJECTS_DIR. The Claude Code source is
+  // registered in the e2e API process (so /api/health reports it `available:true`
+  // and the merged session fan-out includes the real CC source), but it discovers
+  // zero transcripts here. This keeps the merged default Sessions view Codex-only,
+  // so the existing @sessions spec — which asserts exact Codex row counts and
+  // tree-grouping — stays byte-identical (the CC merged list is proved by the
+  // integration tests; the CC Sessions UI is a later phase). The important wiring
+  // (CC registered, health reports two sources, fan-out tolerates a present dir)
+  // is exercised; it just yields no rows.
+  const projectsDir = join(tmpdir(), `agentview-e2e-claude-projects-${appPort}-${apiPort}`);
+
+  if (existsSync(projectsDir)) {
+    rmSync(projectsDir, { force: true, recursive: true });
+  }
+  mkdirSync(projectsDir, { recursive: true });
+
+  return projectsDir;
+};
+
 const codexHome = process.env.CODEX_HOME ?? createE2eCodexHome();
 process.env.CODEX_HOME = codexHome;
 process.env.AGENTVIEW_E2E_CODEX_HOME = codexHome;
 const quotedCodexHome = JSON.stringify(codexHome);
+
+const claudeProjectsDir = process.env.CLAUDE_PROJECTS_DIR ?? createE2eClaudeProjects();
+process.env.CLAUDE_PROJECTS_DIR = claudeProjectsDir;
+process.env.AGENTVIEW_E2E_CLAUDE_PROJECTS_DIR = claudeProjectsDir;
+const quotedClaudeProjectsDir = JSON.stringify(claudeProjectsDir);
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -189,7 +214,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: `CODEX_HOME=${quotedCodexHome} AGENTVIEW_API_PORT=${apiPort} npm run api`,
+      command: `CODEX_HOME=${quotedCodexHome} CLAUDE_PROJECTS_DIR=${quotedClaudeProjectsDir} AGENTVIEW_API_PORT=${apiPort} npm run api`,
       url: `${apiBaseUrl}/api/health`,
       reuseExistingServer: false,
       timeout: 30_000,

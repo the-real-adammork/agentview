@@ -25,6 +25,7 @@ interface JsonResponse {
 
 const repoRoot = process.cwd();
 const runningApis: RunningApi[] = [];
+const claudeProjectsDirs: string[] = [];
 
 const getFreePort = () =>
   new Promise<number>((resolve, reject) => {
@@ -64,12 +65,19 @@ const startApi = async ({
 }): Promise<RunningApi> => {
   const port = await getFreePort();
   const output: string[] = [];
+  // Isolate the Claude Code source to an empty temp dir so the merged session
+  // fan-out never reads the developer's real ~/.claude/projects (which would both
+  // pollute these Codex assertions and trip the first-paint JSONL read trap). CC
+  // discovers zero sessions here, so the Codex list/health bodies are byte-identical.
+  const claudeProjectsDir = await mkdtemp(join(tmpdir(), "agentview-sessions-claude-"));
+  claudeProjectsDirs.push(claudeProjectsDir);
   const child = spawn("npm", ["run", "api"], {
     cwd: repoRoot,
     env: {
       ...process.env,
       AGENTVIEW_API_PORT: String(port),
       CODEX_HOME: codexHome,
+      CLAUDE_PROJECTS_DIR: claudeProjectsDir,
       ...env,
     },
     stdio: ["ignore", "pipe", "pipe"],
@@ -210,6 +218,7 @@ const withApi = async <T>(
 
 afterEach(async () => {
   await Promise.all(runningApis.splice(0).map((api) => api.stop()));
+  await Promise.all(claudeProjectsDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
 });
 
 describe("sessions API routes", () => {
