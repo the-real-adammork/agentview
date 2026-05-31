@@ -3,6 +3,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type { LiveConnection } from "../live/liveHub";
 import { getLiveRuntime } from "../live/liveRuntime";
+import { parseSourceId } from "../sources/sourceQuery";
 import { corsHeadersForOrigin } from "./http";
 
 const HEARTBEAT_MS = 20_000;
@@ -31,6 +32,11 @@ export const handleStreamApiRequest = async (
   const threadId = url.searchParams.get("threadId")?.trim() || null;
   const fromByte = parseIntParam(url.searchParams.get("fromByte"));
   const logCursorId = parseIntParam(url.searchParams.get("logCursorId"));
+  // SourceId dispatch discriminator (default "codex"). An unknown value on the SSE
+  // path degrades to the default rather than a JSON 400; with one registered
+  // source this is a no-op but carries the discriminator into the subscribe.
+  const sourceResult = parseSourceId(url);
+  const source = sourceResult.ok ? sourceResult.source : "codex";
 
   response.writeHead(200, {
     ...corsHeadersForOrigin(origin),
@@ -105,6 +111,7 @@ export const handleStreamApiRequest = async (
     threadId,
     filter: { archived: "include" },
     page: { limit: 500, offset: 0 },
+    source,
     fromByte,
     logCursorId,
   });

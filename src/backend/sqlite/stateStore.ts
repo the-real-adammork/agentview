@@ -621,7 +621,14 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
       return row ? normalizeThread(row, overlay) : null;
     },
     async getAgentGraphRows(rootThreadId, scanDepth) {
-      const baseRows = db.prepare(graphRecursiveSql).all({ rootThreadId, scanDepth }) as unknown as AgentGraphRow[];
+      // Edge rows that come straight from thread_spawn_edges are the tool's own
+      // spawn records, so their origin is "native". (The reconstructed overlay
+      // below stamps its synthetic rows "reconstructed".) Root metadata rows have
+      // no childThreadId and carry no edge, so they stay unstamped.
+      const stampNative = (rows: AgentGraphRow[]): AgentGraphRow[] =>
+        rows.map((row) => (row.childThreadId && !row.edgeSource ? { ...row, edgeSource: "native" } : row));
+
+      const baseRows = stampNative(db.prepare(graphRecursiveSql).all({ rootThreadId, scanDepth }) as unknown as AgentGraphRow[]);
 
       const overlay = await getOverlay();
       if (overlay.size === 0) {
@@ -676,8 +683,8 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
             edgeVia: link.via,
           });
 
-          // The orchestrator's own (real) subtree.
-          const subRows = subtreeStmt.all({ rootThreadId: link.childId, scanDepth }) as unknown as AgentGraphRow[];
+          // The orchestrator's own (real) subtree — these edges are tool-native.
+          const subRows = stampNative(subtreeStmt.all({ rootThreadId: link.childId, scanDepth }) as unknown as AgentGraphRow[]);
           for (const sub of subRows) {
             // The recursive query emits a root metadata row (no childThreadId) for the
             // subtree root; skip that duplicate, keep the edge rows.

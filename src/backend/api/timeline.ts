@@ -2,9 +2,10 @@ import { access } from "node:fs/promises";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { isAbsolute, relative, resolve } from "node:path";
 
-import { resolveCodexHome } from "../codexPaths";
 import { StateStoreError } from "../sqlite/stateStore";
-import { createCodexSource } from "../sources/codex/CodexSource";
+import type { CodexSource } from "../sources/codex/CodexSource";
+import { createDefaultRegistry } from "../sources/defaultRegistry";
+import { parseSourceId } from "../sources/sourceQuery";
 import { fail, ok, writeJson } from "./http";
 
 // Cap how deep the spawn subtree is walked when merging the unified +SUBS stream.
@@ -96,11 +97,34 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
   const subtree =
     fromByte === undefined && (url.searchParams.get("subtree") === "1" || url.searchParams.get("subtree") === "true");
 
+  // The SourceId dispatch discriminator travels as `sourceId` (default "codex").
+  const sourceResult = parseSourceId(url);
+  if (!sourceResult.ok) {
+    writeJson(response, 400, fail("rollout-cache", { code: "UNKNOWN_SOURCE", message: sourceResult.message }), origin);
+    return true;
+  }
+
   try {
-    const codexHome = await resolveCodexHome();
-    const source = createCodexSource({ codexHome });
+    const registry = await createDefaultRegistry();
 
     try {
+      if (!registry.has(sourceResult.source)) {
+        writeJson(
+          response,
+          400,
+          fail("rollout-cache", {
+            code: "UNKNOWN_SOURCE",
+            message: `Source is not registered: ${sourceResult.source}`,
+          }),
+          origin,
+        );
+        return true;
+      }
+
+      // Timeline cache-status/warnings stay a Codex handler concern this phase
+      // (CC timeline lands Phase 4). The dispatched source is the Codex source,
+      // which exposes the richer cache/tail accessors the handler needs.
+      const source = registry.get(sourceResult.source) as CodexSource;
       const thread = await source.getSession(threadId);
       if (!thread) {
         writeJson(
@@ -206,7 +230,7 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
       );
       return true;
     } finally {
-      await source.close();
+      await registry.close();
     }
   } catch (error) {
     const status =

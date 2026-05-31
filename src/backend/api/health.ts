@@ -1,8 +1,9 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import { resolveCodexHome } from "../codexPaths";
 import { StateStoreError } from "../sqlite/stateStore";
-import { createCodexSource } from "../sources/codex/CodexSource";
+import type { CodexSource } from "../sources/codex/CodexSource";
+import { createDefaultRegistry } from "../sources/defaultRegistry";
+import { parseSourceId } from "../sources/sourceQuery";
 import type { HealthStatus } from "../../shared/contracts";
 import { fail, ok, writeJson } from "./http";
 
@@ -35,11 +36,34 @@ export const handleHealthApiRequest = async (request: IncomingMessage, response:
     return true;
   }
 
+  // The SourceId dispatch discriminator travels as `sourceId` (default "codex").
+  const sourceResult = parseSourceId(url);
+  if (!sourceResult.ok) {
+    writeJson(response, 400, fail("state-db", { code: "UNKNOWN_SOURCE", message: sourceResult.message }), origin);
+    return true;
+  }
+
   try {
-    const codexHome = await resolveCodexHome();
-    const source = createCodexSource({ codexHome });
+    const registry = await createDefaultRegistry();
 
     try {
+      if (!registry.has(sourceResult.source)) {
+        writeJson(
+          response,
+          400,
+          fail("state-db", {
+            code: "UNKNOWN_SOURCE",
+            message: `Source is not registered: ${sourceResult.source}`,
+          }),
+          origin,
+        );
+        return true;
+      }
+
+      // The state-db schema body stays a Codex concern this phase; the dispatched
+      // source is the Codex source. `registry.getHealth()` aggregates per-source
+      // availability (one Codex entry now) but the wire body keeps its shape.
+      const source = registry.get(sourceResult.source) as CodexSource;
       const schema = await source.stateDbSchema();
       writeJson(
         response,
@@ -53,7 +77,7 @@ export const handleHealthApiRequest = async (request: IncomingMessage, response:
         origin,
       );
     } finally {
-      await source.close();
+      await registry.close();
     }
   } catch (error) {
     writeJson(

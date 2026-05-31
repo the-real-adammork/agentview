@@ -129,7 +129,10 @@ export const buildSessionQuery = (filter: SessionFilter = {}, page: PageOptions 
   appendParam(params, "cwd", filter.cwd);
   appendParam(params, "repo", filter.repo);
   appendParam(params, "archived", filter.archived);
+  // `source` is the thread-source axis (user/subagent); `sourceId` is the
+  // SourceId dispatch discriminator (codex/claude-code). Distinct wire params.
   appendParam(params, "source", filter.threadSource);
+  appendParam(params, "sourceId", filter.source);
   appendParam(params, "role", filter.agentRole);
   appendParam(params, "model", filter.model);
   appendParam(params, "minTokens", filter.minTokens);
@@ -255,8 +258,11 @@ export const realApiClient: ObservatoryApi = {
   listSessions(filter, page) {
     return getJson<SessionSummary[]>(`/api/sessions${buildSessionQuery(filter, page)}`);
   },
-  getThread(threadId) {
-    return getJson<SessionSummary>(`/api/sessions/${encodeURIComponent(threadId)}`);
+  getThread(threadId, options) {
+    const params = new URLSearchParams();
+    appendParam(params, "sourceId", options?.source);
+    const query = params.toString();
+    return getJson<SessionSummary>(`/api/sessions/${encodeURIComponent(threadId)}${query ? `?${query}` : ""}`);
   },
   getTimeline(threadId, options) {
     const params = new URLSearchParams({ threadId });
@@ -266,6 +272,7 @@ export const realApiClient: ObservatoryApi = {
     if (options?.subtree) {
       params.set("subtree", "1");
     }
+    appendParam(params, "sourceId", options?.source);
     return getJson<TimelinePayload>(`/api/timeline?${params.toString()}`);
   },
   getAgentGraph(rootThreadId, options) {
@@ -273,6 +280,7 @@ export const realApiClient: ObservatoryApi = {
     if (options?.maxDepth !== undefined) {
       params.set("maxDepth", String(options.maxDepth));
     }
+    appendParam(params, "sourceId", options?.source);
     return getJson<AgentGraph>(`/api/agent-graph?${params.toString()}`);
   },
   getTokenSeries(threadId) {

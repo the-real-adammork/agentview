@@ -845,9 +845,12 @@ export interface LiveErrorPayload {
 export interface ObservatoryApi {
   getHealth(): Promise<ApiResult<HealthStatus>>;
   listSessions(filter?: SessionFilter, page?: PageOptions): Promise<ApiResult<SessionSummary[]>>;
-  getThread?(threadId: string): Promise<ApiResult<SessionSummary>>;
-  getTimeline(threadId: string, options?: { fromByte?: number; subtree?: boolean }): Promise<ApiResult<TimelinePayload>>;
-  getAgentGraph(rootThreadId: string, options?: { maxDepth?: number }): Promise<ApiResult<AgentGraph>>;
+  getThread?(threadId: string, options?: { source?: SourceId }): Promise<ApiResult<SessionSummary>>;
+  getTimeline(
+    threadId: string,
+    options?: { fromByte?: number; subtree?: boolean; source?: SourceId },
+  ): Promise<ApiResult<TimelinePayload>>;
+  getAgentGraph(rootThreadId: string, options?: { maxDepth?: number; source?: SourceId }): Promise<ApiResult<AgentGraph>>;
   getTokenSeries(threadId: string): Promise<ApiResult<TokenSeries>>;
   queryLogs(query?: RuntimeLogQuery): Promise<ApiResult<RuntimeLogPage>>;
   getDiagnosticsSummary?(options?: {

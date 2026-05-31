@@ -1,8 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import { resolveCodexHome } from "../codexPaths";
 import { StateStoreError } from "../sqlite/stateStore";
-import { createCodexSource } from "../sources/codex/CodexSource";
+import { createDefaultRegistry } from "../sources/defaultRegistry";
+import { parseSourceId } from "../sources/sourceQuery";
 import type {
   ArchivedFilter,
   CountStatus,
@@ -209,13 +209,34 @@ export const handleSessionsApiRequest = async (request: IncomingMessage, respons
     return true;
   }
 
+  // The SourceId dispatch discriminator travels as `sourceId` (NOT `source`,
+  // which already maps to SessionFilter.threadSource). Absent ⇒ default "codex".
+  const sourceResult = parseSourceId(url);
+  if (!sourceResult.ok) {
+    writeJson(response, 400, fail("state-db", { code: "UNKNOWN_SOURCE", message: sourceResult.message }), origin);
+    return true;
+  }
+  const explicitSource = (url.searchParams.get("sourceId") ?? "").trim() !== "";
+
   try {
-    const codexHome = await resolveCodexHome();
-    const source = createCodexSource({ codexHome });
+    const registry = await createDefaultRegistry();
 
     try {
+      if (!registry.has(sourceResult.source)) {
+        writeJson(
+          response,
+          400,
+          fail("state-db", {
+            code: "UNKNOWN_SOURCE",
+            message: `Source is not registered: ${sourceResult.source}`,
+          }),
+          origin,
+        );
+        return true;
+      }
+
       if (threadId) {
-        const session = await source.getSession(threadId);
+        const session = await registry.get(sourceResult.source).getSession(threadId);
 
         if (!session) {
           writeJson(
@@ -247,11 +268,14 @@ export const handleSessionsApiRequest = async (request: IncomingMessage, respons
         return true;
       }
 
-      const sessions = await source.listSessions(parsed.filter, parsed.page);
+      // Explicit `?sourceId=` narrows to that single source; absent ⇒ merged
+      // fan-out across every registered source (one source this phase).
+      const filter: SessionFilter = explicitSource ? { ...parsed.filter, source: sourceResult.source } : parsed.filter;
+      const sessions = await registry.listSessions(filter, parsed.page);
       writeJson(response, 200, ok("state-db", sessions), origin);
       return true;
     } finally {
-      await source.close();
+      await registry.close();
     }
   } catch (error) {
     writeStateStoreError(response, origin, error);

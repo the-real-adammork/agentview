@@ -1,8 +1,9 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import { resolveCodexHome } from "../codexPaths";
 import { StateStoreError, type AgentGraphRow } from "../sqlite/stateStore";
-import { createCodexSource } from "../sources/codex/CodexSource";
+import type { CodexSource } from "../sources/codex/CodexSource";
+import { createDefaultRegistry } from "../sources/defaultRegistry";
+import { parseSourceId } from "../sources/sourceQuery";
 import type { AgentEdge, AgentEdgeStatus, AgentGraph, AgentNode, EdgeConfidence, EdgeSource, EdgeVia, SessionStatus } from "../../shared/contracts";
 import { fail, ok, writeJson } from "./http";
 
@@ -306,17 +307,39 @@ export const handleAgentGraphApiRequest = async (request: IncomingMessage, respo
     return true;
   }
 
+  // The SourceId dispatch discriminator travels as `sourceId` (default "codex").
+  const sourceResult = parseSourceId(url);
+  if (!sourceResult.ok) {
+    writeJson(response, 400, fail("state-db", { code: "UNKNOWN_SOURCE", message: sourceResult.message }), origin);
+    return true;
+  }
+
   try {
-    const codexHome = await resolveCodexHome();
-    const source = createCodexSource({ codexHome });
+    const registry = await createDefaultRegistry();
 
     try {
+      if (!registry.has(sourceResult.source)) {
+        writeJson(
+          response,
+          400,
+          fail("state-db", {
+            code: "UNKNOWN_SOURCE",
+            message: `Source is not registered: ${sourceResult.source}`,
+          }),
+          origin,
+        );
+        return true;
+      }
+
+      // The AgentGraphRow-shaped path stays Codex-internal until Phase 5; the
+      // dispatched source is the Codex source this phase.
+      const source = registry.get(sourceResult.source) as CodexSource;
       const rows = await source.getAgentGraphRows(rootThreadId, maxDepth.value + 1);
       const graph = deriveAgentGraph(rootThreadId, rows, { maxDepth: maxDepth.value });
       writeJson(response, 200, ok("state-db", graph), origin);
       return true;
     } finally {
-      await source.close();
+      await registry.close();
     }
   } catch (error) {
     writeGraphError(response, origin, error);

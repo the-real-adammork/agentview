@@ -1,6 +1,6 @@
 import { open, stat } from "node:fs/promises";
 
-import type { LiveChannel, PageOptions, RuntimeLog, SessionFilter } from "../../shared/contracts";
+import type { LiveChannel, PageOptions, RuntimeLog, SessionFilter, SourceId } from "../../shared/contracts";
 import { getRolloutFactsWithCache } from "../cache/rolloutCache";
 import { resolveRolloutPath } from "../api/timeline";
 import { deriveTokenSeries } from "../api/tokens";
@@ -16,6 +16,12 @@ export interface LiveSubscribeRequest {
   threadId: string | null;
   filter: SessionFilter;
   page: PageOptions;
+  /**
+   * Which tool's session is being streamed. Defaults to "codex" when omitted;
+   * with a single registered source this is a no-op, but it carries the dispatch
+   * discriminator so a later phase can route the live tail by source.
+   */
+  source?: SourceId;
   /** Client's current rollout byte offset (null → baseline to current EOF). */
   fromByte: number | null;
   /** Client's newest seen log id (null → baseline to newest now). */
@@ -99,6 +105,10 @@ export const createLiveSources = ({
   return {
     async subscribe(request) {
       const { connection, threadId, filter, page } = request;
+      // Dispatch discriminator (default "codex"). One registered source this phase,
+      // so this is a no-op today; a later phase routes the live tail by source.
+      const source: SourceId = request.source ?? "codex";
+      void source;
       const unwatchFns: Array<() => void> = [];
 
       let rolloutPath: string | null = null;
