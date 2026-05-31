@@ -9,6 +9,7 @@ import type {
 import { readJsonlLines } from "../../rollout/jsonlStream";
 import type { AgentGraphRow, AgentGraphRowSource } from "../agentGraphRow";
 import type { ResolvedSession, SessionSource, SourceHealth, SourceTailResult } from "../SessionSource";
+import { countLinesBefore, tailClaudeTranscript, type ClaudeTailResult } from "./claudeTail";
 import { resolveClaudeSessionPath } from "./claudePaths";
 import { deriveClaudeMeta } from "./claudeMeta";
 import { discoverClaudeSessions, type DiscoveredClaudeSession } from "./discovery";
@@ -27,14 +28,21 @@ import {
  * `/api/agent-graph` + `+SUBS` timeline handlers dispatch through generically. Per
  * Planning decision #3, `getAgentGraphRows` is NOT widened onto the locked
  * `SessionSource` interface — it stays a source capability, mirroring `CodexSource`.
+ *
+ * `tailLive` is the source-internal tail variant the live path (`liveSources.ts`)
+ * uses: it carries the running `fromLine` counter and exposes the richer
+ * `truncated`/`warnings` fields the live `timeline` frame needs (the public
+ * `tail` exposes only the locked `SourceTailResult`). Mirrors `CodexSource.tailRaw`.
  */
-export interface ClaudeCodeSource extends SessionSource, AgentGraphRowSource {}
+export interface ClaudeCodeSource extends SessionSource, AgentGraphRowSource {
+  tailLive(resolved: ResolvedSession, fromByte: number, fromLine: number): Promise<ClaudeTailResult>;
+}
 
 /**
- * Thrown by the CC `SessionSource` methods that are deferred to later phases.
- * `parse` → Phase 4 (timeline), `listChildren` → Phase 5 (agent graph),
- * `tail` → Phase 6 (live tail). The timeline handler's existing error mapping
- * surfaces this as a typed failure until the owning phase lands.
+ * Thrown by CC `SessionSource` methods that were deferred to later phases. As of
+ * Phase 6 every method (`parse`/`listChildren`/`tail`) is implemented, so this is
+ * retained only for the typed-error contract the timeline handler's error mapping
+ * expects (and any source method a future phase chooses to defer behind it).
  */
 export class ClaudeCodeNotImplementedError extends Error {
   code = "CC_NOT_IMPLEMENTED" as const;
@@ -99,10 +107,10 @@ const matchesFilter = (session: SessionSummary, filter: SessionFilter): boolean 
 };
 
 /**
- * A `SessionSource` backed by Claude Code transcripts on disk. Discovery + metadata
- * are real this phase (`getHealth`/`listSessions`/`getSession`/`resolveSession`);
- * `parse`/`listChildren`/`tail` throw the typed `ClaudeCodeNotImplementedError`
- * until their owning phase lands. Discovery is stateless filesystem reads, so the
+ * A `SessionSource` backed by Claude Code transcripts on disk. As of Phase 6 every
+ * method is real: `getHealth`/`listSessions`/`getSession`/`resolveSession` (Phase 3),
+ * `parse` (Phase 4), `listChildren`/`getAgentGraphRows` (Phase 5), and
+ * `tail`/`tailLive` (Phase 6). Discovery is stateless filesystem reads, so the
  * source holds no resources and `close()` is a no-op.
  */
 export const createClaudeCodeSource = ({ projectsDir }: { projectsDir: string }): ClaudeCodeSource => {
@@ -218,8 +226,30 @@ export const createClaudeCodeSource = ({ projectsDir }: { projectsDir: string })
       return buildAgentGraphRows(root, discovered.transcriptPath, discovered.subagentsDir, scanDepth);
     },
 
-    async tail(): Promise<SourceTailResult> {
-      throw new ClaudeCodeNotImplementedError("tail", 6);
+    // Source-internal live tail: the running `fromLine` is supplied by the caller
+    // (the live path computes it via `countLinesBefore`, mirroring Codex) and the
+    // richer `truncated`/`warnings` flow into the `timeline` frame's `reset`/`warnings`.
+    async tailLive(resolved: ResolvedSession, fromByte: number, fromLine: number): Promise<ClaudeTailResult> {
+      return tailClaudeTranscript({
+        path: resolved.rawLogPath,
+        sessionId: resolved.sessionId,
+        fromByte,
+        fromLine,
+      });
+    },
+
+    async tail(resolved: ResolvedSession, fromByte: number): Promise<SourceTailResult> {
+      // A bare public call self-derives `fromLine` so it is consistent without the
+      // live path's running counter: 1 + the count of complete lines before fromByte.
+      const fromLine = 1 + (await countLinesBefore(resolved.rawLogPath, fromByte));
+      const result = await tailClaudeTranscript({
+        path: resolved.rawLogPath,
+        sessionId: resolved.sessionId,
+        fromByte,
+        fromLine,
+      });
+      // The public shape is exactly the locked three fields — drop truncated/warnings.
+      return { events: result.events, nextByte: result.nextByte, nextLine: result.nextLine };
     },
 
     async close(): Promise<void> {

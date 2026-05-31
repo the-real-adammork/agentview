@@ -3,10 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import {
-  ClaudeCodeNotImplementedError,
-  createClaudeCodeSource,
-} from "../../src/backend/sources/claudeCode/ClaudeCodeSource";
+import { createClaudeCodeSource } from "../../src/backend/sources/claudeCode/ClaudeCodeSource";
 import {
   createClaudeProjectsFixture,
   defaultClaudeSessions,
@@ -128,7 +125,7 @@ describe("createClaudeCodeSource", () => {
     await expect(source.resolveSession("totally-unknown-id")).rejects.toThrow();
   });
 
-  it("parse returns CachedRolloutFacts (Phase 4); listChildren works (Phase 5); tail still throws (Phase 6)", async () => {
+  it("parse returns CachedRolloutFacts (Phase 4); listChildren works (Phase 5); tail returns a SourceTailResult (Phase 6)", async () => {
     const fixture = await makeFixture();
     const source = createClaudeCodeSource({ projectsDir: fixture.projectsDir });
     const resolved = await source.resolveSession(PLAIN_ID);
@@ -142,9 +139,12 @@ describe("createClaudeCodeSource", () => {
     // listChildren (Phase 5) is implemented: a session without sub-agents returns [].
     await expect(source.listChildren(PLAIN_ID, 10)).resolves.toEqual([]);
 
-    // tail (Phase 6) is still a deferred stub.
-    await expect(source.tail(resolved, 0)).rejects.toBeInstanceOf(ClaudeCodeNotImplementedError);
-    await expect(source.tail(resolved, 0)).rejects.toMatchObject({ method: "tail", phase: 6 });
+    // tail (Phase 6) is implemented: a cold call returns the locked SourceTailResult
+    // with every event the cold parse produces and offsets advanced to EOF.
+    const tail = await source.tail(resolved, 0);
+    expect(Object.keys(tail).sort()).toEqual(["events", "nextByte", "nextLine"]);
+    expect(tail.events).toEqual(facts.events);
+    expect(tail.nextByte).toBeGreaterThan(0);
   });
 
   it("close resolves without error", async () => {
