@@ -137,3 +137,79 @@ describe("deriveAgentGraph", () => {
     expect(graph.statusSummary).toEqual({ open: 2, closed: 1, failed: 1 });
   });
 });
+
+describe("deriveAgentGraph over claude-code native rows", () => {
+  const ccRows = [
+    {
+      id: "cc-root",
+      title: "CC root",
+      firstUserMessage: "Coordinate the work",
+      preview: "Root preview",
+      tokensUsed: 150,
+      createdAtMs: 1_000,
+      updatedAtMs: 9_000,
+      agentNickname: null,
+      agentRole: null,
+      parentThreadId: null,
+      childThreadId: null,
+      edgeStatus: null,
+    },
+    {
+      id: "agent-reviewer",
+      title: "Review the diff for correctness",
+      firstUserMessage: "Review the diff",
+      preview: "Reviewed: looks correct",
+      tokensUsed: 308,
+      createdAtMs: 1_100,
+      updatedAtMs: 2_200,
+      agentNickname: "Review the diff for correctness",
+      agentRole: "code-reviewer",
+      parentThreadId: "cc-root",
+      childThreadId: "agent-reviewer",
+      edgeStatus: "closed",
+      edgeOrder: 0,
+      edgeSource: "native",
+      edgeConfidence: "certain",
+    },
+    {
+      id: "agent-writer",
+      title: "Write tests for the change",
+      firstUserMessage: "Write tests",
+      preview: "Wrote 3 tests",
+      tokensUsed: 52,
+      createdAtMs: 1_300,
+      updatedAtMs: 2_400,
+      agentNickname: "Write tests for the change",
+      agentRole: "test-writer",
+      parentThreadId: "cc-root",
+      childThreadId: "agent-writer",
+      edgeStatus: "open",
+      edgeOrder: 1,
+      edgeSource: "native",
+      edgeConfidence: "certain",
+    },
+  ] satisfies AgentGraphRow[];
+
+  it("surfaces native CC edges and populates role/nickname/finalReportPreview on nodes", () => {
+    const graph = deriveAgentGraph("cc-root", ccRows, { maxDepth: 2 });
+
+    expect(graph.edges).toEqual([
+      { parentId: "cc-root", childId: "agent-reviewer", status: "closed", source: "native", confidence: "certain" },
+      { parentId: "cc-root", childId: "agent-writer", status: "open", source: "native", confidence: "certain" },
+    ]);
+
+    const reviewer = graph.nodes.find((node) => node.id === "agent-reviewer");
+    expect(reviewer).toMatchObject({
+      role: "code-reviewer",
+      nickname: "Review the diff for correctness",
+      finalReportPreview: "Reviewed: looks correct",
+      status: "complete",
+    });
+
+    const writer = graph.nodes.find((node) => node.id === "agent-writer");
+    expect(writer).toMatchObject({ role: "test-writer", status: "running" });
+
+    expect(graph.statusSummary).toEqual({ open: 1, closed: 1, failed: 0 });
+    expect(graph.openCount).toBe(1);
+  });
+});

@@ -3,16 +3,13 @@ import { isAbsolute, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
 import type {
-  AgentEdgeStatus,
-  EdgeConfidence,
-  EdgeSource,
-  EdgeVia,
   PageOptions,
   SessionFilter,
   SessionSummary,
   ThreadSource,
 } from "../../shared/contracts";
 import { deriveRepoName } from "../../shared/repoName";
+import type { AgentGraphRow } from "../sources/agentGraphRow";
 import { deriveSessionTitle } from "./threadTitle";
 import { reconstructEdges, type ReconstructThread, type ReconstructedLink } from "../relationships/reconstruct";
 import { upgradeViaTranscript } from "../relationships/transcriptRunId";
@@ -48,25 +45,11 @@ export interface StateStore {
   close(): Promise<void>;
 }
 
-export interface AgentGraphRow {
-  id: string | null;
-  title: string | null;
-  firstUserMessage: string | null;
-  preview: string | null;
-  tokensUsed: number | null;
-  createdAtMs?: number | null;
-  updatedAtMs?: number | null;
-  agentNickname: string | null;
-  agentRole: string | null;
-  parentThreadId: string | null;
-  childThreadId: string | null;
-  edgeStatus: AgentEdgeStatus | null;
-  edgeOrder?: number | bigint | null;
-  /** Set on synthetic rows produced from the reconstructed overlay. */
-  edgeSource?: EdgeSource;
-  edgeConfidence?: EdgeConfidence;
-  edgeVia?: EdgeVia;
-}
+// `AgentGraphRow` was relocated to `../sources/agentGraphRow` (Phase 5) so both the
+// Codex `StateStore` and the Claude Code row builder import it without a cross-source
+// dependency. Re-exported here so every existing import keeps resolving. The shape is
+// byte-identical (verbatim move) — Codex `deriveAgentGraph` output is unchanged.
+export type { AgentGraphRow };
 
 interface ThreadRow {
   id: string;

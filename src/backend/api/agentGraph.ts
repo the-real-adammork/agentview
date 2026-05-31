@@ -1,8 +1,9 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import { StateStoreError, type AgentGraphRow } from "../sqlite/stateStore";
-import type { CodexSource } from "../sources/codex/CodexSource";
+import type { AgentGraphRow, AgentGraphRowSource } from "../sources/agentGraphRow";
+import { StateStoreError } from "../sqlite/stateStore";
 import { createDefaultRegistry } from "../sources/defaultRegistry";
+import type { SessionSource } from "../sources/SessionSource";
 import { parseSourceId } from "../sources/sourceQuery";
 import type { AgentEdge, AgentEdgeStatus, AgentGraph, AgentNode, EdgeConfidence, EdgeSource, EdgeVia, SessionStatus } from "../../shared/contracts";
 import { fail, ok, writeJson } from "./http";
@@ -25,6 +26,23 @@ export class AgentGraphError extends Error {
 
 const defaultMaxDepth = 2;
 const maxAllowedDepth = 10;
+
+/**
+ * Narrow a dispatched `SessionSource` to the `AgentGraphRowSource` capability without
+ * a source literal. Both `CodexSource` (via its wrapped `StateStore`) and
+ * `ClaudeCodeSource` (via `subagents.ts`) satisfy it structurally — the handler stays
+ * source-generic (no `if (codex)`).
+ */
+const asAgentGraphRowSource = (source: SessionSource): AgentGraphRowSource => {
+  if (typeof (source as Partial<AgentGraphRowSource>).getAgentGraphRows !== "function") {
+    throw new AgentGraphError(
+      "AGENT_GRAPH_UNSUPPORTED",
+      `Source does not support agent-graph rows: ${source.id}`,
+      400,
+    );
+  }
+  return source as unknown as AgentGraphRowSource;
+};
 
 const edgeStatusToSessionStatus = (status: AgentEdgeStatus | null): SessionStatus => {
   if (status === "open") return "running";
@@ -331,9 +349,10 @@ export const handleAgentGraphApiRequest = async (request: IncomingMessage, respo
         return true;
       }
 
-      // The AgentGraphRow-shaped path stays Codex-internal until Phase 5; the
-      // dispatched source is the Codex source this phase.
-      const source = registry.get(sourceResult.source) as CodexSource;
+      // Dispatch by sourceId, then narrow to the AgentGraphRowSource capability.
+      // Codex rows come from its wrapped StateStore SQL; CC rows from subagents/*.meta.json
+      // joined to the parent Task tool_use. Both feed the unchanged deriveAgentGraph.
+      const source = asAgentGraphRowSource(registry.get(sourceResult.source));
       const rows = await source.getAgentGraphRows(rootThreadId, maxDepth.value + 1);
       const graph = deriveAgentGraph(rootThreadId, rows, { maxDepth: maxDepth.value });
       writeJson(response, 200, ok("state-db", graph), origin);

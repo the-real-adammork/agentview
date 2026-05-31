@@ -7,12 +7,28 @@ import type {
   SessionSummary,
 } from "../../../shared/contracts";
 import { readJsonlLines } from "../../rollout/jsonlStream";
+import type { AgentGraphRow, AgentGraphRowSource } from "../agentGraphRow";
 import type { ResolvedSession, SessionSource, SourceHealth, SourceTailResult } from "../SessionSource";
 import { resolveClaudeSessionPath } from "./claudePaths";
 import { deriveClaudeMeta } from "./claudeMeta";
 import { discoverClaudeSessions, type DiscoveredClaudeSession } from "./discovery";
 import { parseClaudeSessionLines } from "./parseClaudeSession";
-import { enumerateSubagents, linkSubagents, openChildCount, subagentsToChildSummaries } from "./subagents";
+import {
+  buildAgentGraphRows,
+  enumerateSubagents,
+  linkSubagents,
+  openChildCount,
+  subagentsToChildSummaries,
+} from "./subagents";
+
+/**
+ * The concrete `ClaudeCodeSource` is the cross-source `SessionSource` plus the
+ * source-internal `AgentGraphRowSource` capability (`getAgentGraphRows`) the
+ * `/api/agent-graph` + `+SUBS` timeline handlers dispatch through generically. Per
+ * Planning decision #3, `getAgentGraphRows` is NOT widened onto the locked
+ * `SessionSource` interface — it stays a source capability, mirroring `CodexSource`.
+ */
+export interface ClaudeCodeSource extends SessionSource, AgentGraphRowSource {}
 
 /**
  * Thrown by the CC `SessionSource` methods that are deferred to later phases.
@@ -89,7 +105,7 @@ const matchesFilter = (session: SessionSummary, filter: SessionFilter): boolean 
  * until their owning phase lands. Discovery is stateless filesystem reads, so the
  * source holds no resources and `close()` is a no-op.
  */
-export const createClaudeCodeSource = ({ projectsDir }: { projectsDir: string }): SessionSource => {
+export const createClaudeCodeSource = ({ projectsDir }: { projectsDir: string }): ClaudeCodeSource => {
   const findDiscovered = async (sessionId: string): Promise<DiscoveredClaudeSession | null> => {
     const discovered = await discoverClaudeSessions(projectsDir);
     return discovered.find((session) => session.sessionId === sessionId) ?? null;
@@ -185,6 +201,21 @@ export const createClaudeCodeSource = ({ projectsDir }: { projectsDir: string })
       if (entries.length === 0) return [];
       const linked = await linkSubagents(rootSessionId, discovered.transcriptPath, entries, scanDepth);
       return subagentsToChildSummaries(linked);
+    },
+
+    // Source-internal capability (AgentGraphRowSource), NOT on the cross-source
+    // SessionSource interface. The /api/agent-graph + +SUBS timeline handlers narrow
+    // the dispatched source to AgentGraphRowSource and call this generically. CC
+    // derives rows from subagents/*.meta.json + the parent Task tool_use join.
+    async getAgentGraphRows(rootSessionId: string, scanDepth: number): Promise<AgentGraphRow[]> {
+      const discovered = await findDiscovered(rootSessionId);
+      if (!discovered) {
+        const error = new Error(`Claude Code session not found: ${rootSessionId}`);
+        error.name = "ClaudeSessionNotFoundError";
+        throw error;
+      }
+      const root = await withChildCounts(await deriveClaudeMeta(discovered), discovered);
+      return buildAgentGraphRows(root, discovered.transcriptPath, discovered.subagentsDir, scanDepth);
     },
 
     async tail(): Promise<SourceTailResult> {

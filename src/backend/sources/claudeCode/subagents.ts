@@ -4,6 +4,7 @@ import { join } from "node:path";
 
 import type { AgentEdgeStatus, SessionStatus, SessionSummary } from "../../../shared/contracts";
 import { maskPreviewSecrets } from "../../../shared/redaction";
+import type { AgentGraphRow } from "../agentGraphRow";
 import { readJsonlLines } from "../../rollout/jsonlStream";
 import { inferStatus, STALE_WINDOW_MS, sumUsageTokens, type ClaudeUsageDelta } from "./claudeMeta";
 
@@ -429,3 +430,72 @@ export const subagentsToChildSummaries = (linked: LinkedSubagent[]): SessionSumm
       failedToolCountStatus: "not_requested",
     } satisfies SessionSummary;
   });
+
+/**
+ * Build a root metadata `AgentGraphRow` from the root `SessionSummary` (node fields
+ * only; null edge fields). `deriveAgentGraph` indexes this by `id` for the root node.
+ */
+export const rootMetadataRow = (root: SessionSummary): AgentGraphRow => ({
+  id: root.id,
+  title: root.title,
+  firstUserMessage: root.firstUserMessagePreview ?? null,
+  preview: root.preview ?? null,
+  tokensUsed: root.tokenTotal,
+  createdAtMs: root.createdAtMs ?? null,
+  updatedAtMs: root.updatedAtMs ?? null,
+  agentNickname: root.agentNickname ?? null,
+  agentRole: root.agentRole ?? null,
+  parentThreadId: null,
+  childThreadId: null,
+  edgeStatus: null,
+});
+
+/**
+ * Map linked sub-agents to native edge `AgentGraphRow[]`. Each row carries the
+ * child's node fields (so `deriveAgentGraph` needs no second lookup) plus the
+ * certain native edge: `edgeSource: "native"`, `edgeConfidence: "certain"`,
+ * `edgeVia` omitted. `parentThreadId` is the enclosing transcript (root or the
+ * enclosing sub-agent), `edgeOrder` the matching `Task` block ordinal. Ordered by
+ * depth then `createdAtMs` then edge ordinal, mirroring the Codex recursive query.
+ */
+export const subagentsToAgentGraphRows = (linked: LinkedSubagent[]): AgentGraphRow[] =>
+  [...linked]
+    .sort(
+      (left, right) =>
+        left.depth - right.depth ||
+        (left.entry.createdAtMs ?? 0) - (right.entry.createdAtMs ?? 0) ||
+        left.edgeOrder - right.edgeOrder,
+    )
+    .map(({ entry, parentId, parentTask, edgeOrder }) => ({
+      id: entry.id,
+      title: entry.description || entry.firstUserMessagePreview || entry.id,
+      firstUserMessage: entry.firstUserMessagePreview,
+      preview: entry.finalReportPreview,
+      tokensUsed: entry.tokenTotal,
+      createdAtMs: entry.createdAtMs,
+      updatedAtMs: entry.updatedAtMs,
+      agentNickname: entry.description || null,
+      agentRole: entry.agentType,
+      parentThreadId: parentId,
+      childThreadId: entry.id,
+      edgeStatus: childEdgeStatus(entry, parentTask),
+      edgeOrder,
+      edgeSource: "native",
+      edgeConfidence: "certain",
+    }));
+
+/**
+ * Build the full `AgentGraphRow[]` for a CC root: the root metadata row first, then
+ * a native edge row per discovered sub-agent (depth-ordered, capped at `scanDepth`,
+ * cycle-guarded via `linkSubagents`).
+ */
+export const buildAgentGraphRows = async (
+  root: SessionSummary,
+  rootTranscriptPath: string,
+  subagentsDir: string,
+  scanDepth: number,
+): Promise<AgentGraphRow[]> => {
+  const entries = await enumerateSubagents(subagentsDir);
+  const linked = await linkSubagents(root.id, rootTranscriptPath, entries, scanDepth);
+  return [rootMetadataRow(root), ...subagentsToAgentGraphRows(linked)];
+};
