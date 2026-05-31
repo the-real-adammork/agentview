@@ -10,7 +10,7 @@ import { maskPreviewSecrets } from "../../shared/redaction";
 import { classifyExecOutput, classifyPatch } from "./classifyExecOutput";
 import { classifyCall, fillCallCounts, fillToolSearch } from "./classifyCall";
 
-export const ROLLOUT_PARSER_VERSION = 22;
+export const ROLLOUT_PARSER_VERSION = 23;
 export const LARGE_OUTPUT_COLLAPSE_BYTES = 4 * 1024;
 /** How much (redacted) output we keep around to classify into `outputRender`. */
 const CLASSIFY_OUTPUT_CAP = 128 * 1024;
@@ -444,6 +444,59 @@ const tokenSnapshotFromRecord = (record: JsonRecord, timestamp: string): TokenSn
   };
 };
 
+// ── skill-invocation detection ──────────────────────────────────────────────
+// Codex has no dedicated skill-call event. Two real signals identify one:
+//   1. NATIVE: a `role: user` message whose text is a `<skill><name>…</name>…`
+//      activation block injected by the harness.
+//   2. SUPERPOWERS-STYLE: an exec_command that *reads* `…/skills/<name>/SKILL.md`
+//      (the agent loading a plugin skill). Reference-file reads and non-read verbs
+//      (rg/ls/git/test) are noise, not invocations.
+// (A third, `invoke_skill`-style tool name, is kept as a defensive fallback.)
+const NATIVE_SKILL_RE = /^\s*<skill>\s*<name>([^<]+)<\/name>/;
+const SKILL_READ_VERBS = /^(?:sed|cat|nl|head|bat|less|more)$/;
+
+const skillMessageText = (record: JsonRecord): string | undefined => {
+  const payload = nestedPayload(record);
+  const message = nestedMessage(record);
+  return (
+    textFromContentItems(message?.content) ??
+    textFromContentItems(payload.content) ??
+    textFromContentItems(record.content) ??
+    stringValue(payload.text, record.text, message?.text)
+  );
+};
+
+/** Skill name if this record is a native `<skill>` activation injection (else undefined). */
+const skillActivationName = (record: JsonRecord): string | undefined => {
+  const role = stringValue(record.role, nestedMessage(record)?.role, nestedPayload(record).role)?.toLowerCase();
+  if (role !== "user") return undefined;
+  const text = skillMessageText(record);
+  const match = text ? NATIVE_SKILL_RE.exec(text) : null;
+  return match ? match[1].trim() : undefined;
+};
+
+const execCommandRaw = (record: JsonRecord): string | undefined => {
+  const args = argsObjectFromRecord(record);
+  const cmd = args?.cmd ?? args?.command ?? args?.shell_command;
+  if (typeof cmd === "string") return cmd;
+  if (Array.isArray(cmd)) return cmd.filter((part): part is string => typeof part === "string").join(" ");
+  return undefined;
+};
+
+/** Skill name if a command *reads* a `…/skills/<name>/SKILL.md` entry file (else undefined). */
+const skillReadName = (cmd: string): string | undefined => {
+  if (!/\/skills\/[^/\s'"]+\/SKILL\.md\b/.test(cmd)) return undefined;
+  // Only count a focused read (sed/cat/nl/…) of SKILL.md — not rg/ls/git/test, and
+  // not reference files. Check the pipeline stage that actually touches the path.
+  for (const stage of cmd.split(/[;&|]+/)) {
+    const match = /\/skills\/([^/\s'"]+)\/SKILL\.md\b/.exec(stage);
+    if (!match) continue;
+    const head = (stage.trim().replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=\S+\s+)+/, "").split(/\s+/)[0] ?? "").replace(/.*\//, "");
+    if (SKILL_READ_VERBS.test(head)) return match[1];
+  }
+  return undefined;
+};
+
 const classify = (record: JsonRecord): { kind: TimelineEventKind; severity: EventSeverity } => {
   const type = eventType(record);
   const payload = nestedPayload(record);
@@ -487,10 +540,16 @@ const classify = (record: JsonRecord): { kind: TimelineEventKind; severity: Even
     // Skills tab isolates them. (Skill Invocation Events handoff.)
     const toolName = toolNameFromRecord(record);
     if (toolName && SKILL_TOOL_NAMES.test(toolName)) return { kind: "skill_invoke", severity: "info" };
+    // Superpowers-style: an exec_command reading a `…/skills/<name>/SKILL.md`.
+    const execCmd = execCommandRaw(record);
+    if (execCmd && skillReadName(execCmd)) return { kind: "skill_invoke", severity: "info" };
     return { kind: "tool_call", severity: "info" };
   }
   if (type.includes("agent_launch") || type.includes("spawn")) return { kind: "agent_launch", severity: "info" };
   if (type.includes("agent_wait") || type.includes("wait")) return { kind: "agent_wait", severity: "info" };
+  // Native `<skill>` activation injections arrive as role:user messages — promote
+  // them to skill_invoke before they're read as plain user messages.
+  if (skillActivationName(record)) return { kind: "skill_invoke", severity: "info" };
   if (role === "user") return { kind: "user_message", severity: "info" };
   if (role === "assistant") return { kind: "assistant_message", severity: "info" };
   if (role === "agent") return { kind: "agent_message", severity: "info" };
@@ -598,11 +657,23 @@ const makeEvent = (record: JsonRecord, options: ParseRolloutOptions, sourceLine:
     const directText = stringValue(record.text, payload.text);
     previewText = redactedPreview(summaryText ?? directText ?? "") || "(reasoning summary withheld)";
   } else if (kind === "skill_invoke") {
-    const args = argsObjectFromRecord(record);
-    skillName = stringValue(args?.skill, args?.name, args?.skill_name, toolName);
-    previewText =
-      redactedPreview(stringValue(args?.summary, args?.description, args?.task, args?.input)) ||
-      `${skillName ?? "skill"} invoked`;
+    const native = skillActivationName(record);
+    const execCmd = execCommandRaw(record);
+    const read = execCmd ? skillReadName(execCmd) : undefined;
+    if (native) {
+      // Never spill the injected SKILL.md frontmatter/body into the row.
+      skillName = native;
+      previewText = `${native} skill activated`;
+    } else if (read) {
+      skillName = read;
+      previewText = `${read} skill`;
+    } else {
+      const args = argsObjectFromRecord(record);
+      skillName = stringValue(args?.skill, args?.name, args?.skill_name, toolName);
+      previewText =
+        redactedPreview(stringValue(args?.summary, args?.description, args?.task, args?.input)) ||
+        `${skillName ?? "skill"} invoked`;
+    }
   } else if ((kind === "tool_call" || kind === "agent_launch") && toolName) {
     // Prefer a search query (web_search / tool_search) over the raw args blob.
     const query = searchQueryFromRecord(record);

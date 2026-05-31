@@ -931,4 +931,92 @@ describe("parseRolloutFile", () => {
     expect(facts.toolCalls.find((call) => call.callId === "call-skill-1")).toBeUndefined();
     expect(facts.summary.toolCallCount).toBe(0);
   });
+
+  it("detects a native Codex <skill> activation injection without leaking the SKILL.md body", async () => {
+    const rolloutPath = await createTempRollout([
+      {
+        timestamp: "2026-05-29T11:05:00.000Z",
+        type: "response_item",
+        payload: {
+          type: "message",
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text:
+                "<skill>\n<name>implementation-plans</name>\n" +
+                "<path>/Users/adam/.codex/skills/implementation-plans/SKILL.md</path>\n---\n" +
+                'name: implementation-plans\ndescription: "PRIVATE_BODY_MARKER do not leak"\n# Implementation Plans\nstep one...',
+            },
+          ],
+        },
+      },
+    ]);
+
+    const facts = await parseFixture("thread-native-skill", rolloutPath);
+    const skill = facts.events.find((event) => event.kind === "skill_invoke");
+    expect(skill).toMatchObject({ kind: "skill_invoke", skillName: "implementation-plans" });
+    expect(skill?.previewText).toContain("implementation-plans");
+    // The injected SKILL.md frontmatter/body must never leak into the stream.
+    expect(JSON.stringify(facts.events)).not.toContain("PRIVATE_BODY_MARKER");
+    expect(JSON.stringify(facts.events)).not.toContain("# Implementation Plans");
+    // It is not a user message and not counted as a tool call.
+    expect(facts.events.some((event) => event.kind === "user_message")).toBe(false);
+  });
+
+  it("detects a superpowers-style SKILL.md read (sed) as a skill invocation", async () => {
+    const rolloutPath = await createTempRollout([
+      {
+        timestamp: "2026-05-29T11:06:00.000Z",
+        type: "response_item",
+        payload: {
+          type: "function_call",
+          name: "exec_command",
+          call_id: "call-sk-read",
+          arguments: JSON.stringify({
+            cmd: "sed -n '1,220p' /Users/adam/dotfiles/codex/.codex/skills/test-driven-development/SKILL.md",
+          }),
+        },
+      },
+      {
+        timestamp: "2026-05-29T11:06:01.000Z",
+        type: "response_item",
+        payload: { type: "function_call_output", call_id: "call-sk-read", output: "# TDD\nwrite the test first", exit_code: 0 },
+      },
+    ]);
+
+    const facts = await parseFixture("thread-read-skill", rolloutPath);
+    const skill = facts.events.find((event) => event.kind === "skill_invoke");
+    expect(skill).toMatchObject({ kind: "skill_invoke", skillName: "test-driven-development", skillStatus: "ok" });
+    expect(facts.toolCalls.find((call) => call.callId === "call-sk-read")).toBeUndefined();
+  });
+
+  it("does not treat searching/listing a SKILL.md or reading a reference file as a skill invocation", async () => {
+    const rolloutPath = await createTempRollout([
+      {
+        timestamp: "2026-05-29T11:07:00.000Z",
+        type: "response_item",
+        payload: {
+          type: "function_call",
+          name: "exec_command",
+          call_id: "call-rg",
+          arguments: JSON.stringify({ cmd: "rg -n 'panel' /repo/codex/.codex/skills/secrets/SKILL.md" }),
+        },
+      },
+      {
+        timestamp: "2026-05-29T11:07:02.000Z",
+        type: "response_item",
+        payload: {
+          type: "function_call",
+          name: "exec_command",
+          call_id: "call-ref",
+          arguments: JSON.stringify({ cmd: "sed -n '1,80p' /repo/skills/implementation-execution/references/branch-worktree.md" }),
+        },
+      },
+    ]);
+
+    const facts = await parseFixture("thread-skill-noise", rolloutPath);
+    expect(facts.events.some((event) => event.kind === "skill_invoke")).toBe(false);
+    expect(facts.events.filter((event) => event.kind === "tool_call")).toHaveLength(2);
+  });
 });
