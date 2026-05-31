@@ -15,7 +15,7 @@ const primaryEvent: TimelineEvent = {
   threadId: root.id,
   timestamp: "2026-05-27T10:00:00.000Z",
   sourceLine: 1,
-  kind: "assistant_message",
+  kind: "user_message",
   severity: "info",
   previewText: "Root says hello.",
 };
@@ -25,7 +25,7 @@ const subEvent: TimelineEvent = {
   threadId: archimedes.id,
   timestamp: "2026-05-27T10:00:05.000Z",
   sourceLine: 1,
-  kind: "assistant_message",
+  kind: "user_message",
   severity: "info",
   previewText: "Sub-agent reporting.",
 };
@@ -83,7 +83,7 @@ describe("TimelineView · +SUBS scope", () => {
       threadId: root.id,
       timestamp: new Date(Date.UTC(2026, 4, 27, 0, 0, index)).toISOString(),
       sourceLine: index + 1,
-      kind: "assistant_message",
+      kind: "user_message",
       severity: "info",
       previewText: `event ${index}`,
     }));
@@ -117,7 +117,7 @@ describe("TimelineView · feed-enter on live insert", () => {
     threadId: root.id,
     timestamp: new Date(Date.UTC(2026, 4, 27, 10, 0, seconds)).toISOString(),
     sourceLine: seconds + 1,
-    kind: "assistant_message",
+    kind: "user_message",
     severity: "info",
     previewText: `event ${id}`,
   });

@@ -252,6 +252,7 @@ describe("event-type filter", () => {
     expect(EVENT_TYPES.map((type) => type.key)).toEqual([
       "user_message",
       "assistant_message",
+      "skill_invoke",
       "reasoning",
       "turn_context",
       "task_started",
@@ -261,6 +262,7 @@ describe("event-type filter", () => {
     ]);
     expect(EVENT_TYPES.find((type) => type.key === "agent_message")?.label).toBe("Agent Report");
     expect(EVENT_TYPES.find((type) => type.key === "assistant_message")?.label).toBe("Assistant");
+    expect(EVENT_TYPES.find((type) => type.key === "skill_invoke")?.label).toBe("Skills");
   });
 
   describe("eventTypeKey", () => {

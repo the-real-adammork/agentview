@@ -66,7 +66,7 @@ describe("App live updates", () => {
       threadId,
       timestamp: "2026-05-27T10:00:00.000Z",
       sourceLine: 1,
-      kind: "assistant_message",
+      kind: "user_message",
       severity: "info",
       previewText: "initial event",
     };

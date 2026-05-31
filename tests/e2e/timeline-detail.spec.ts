@@ -79,6 +79,9 @@ test.describe("real Timeline detail @timeline", () => {
     await appendFile(rolloutPath, tailLine, "utf8");
 
     await page.getByRole("button", { name: /^All Events/ }).click();
+    // Assistant rows are muted by default (they duplicate content shown elsewhere),
+    // so reveal them before asserting the appended assistant row renders.
+    await page.locator('button.tl-tt[title="Show Assistant rows"]').click();
     await page.getByRole("button", { name: "Tail" }).click();
     // The appended row arrives via the manual Tail fetch and/or the live SSE stream;
     // assert the user-visible outcome (the row renders) rather than racing a specific
@@ -159,6 +162,8 @@ test.describe("real Timeline detail @timeline", () => {
     // Token snapshot rows are hidden by default; reveal them so the all-kinds and
     // token-composition assertions below can see them.
     await page.getByRole("group", { name: "Token rows" }).getByRole("button").click();
+    // Assistant rows are muted by default; reveal them for the all-kinds assertion.
+    await page.locator('button.tl-tt[title="Show Assistant rows"]').click();
     // Every design event kind is present (tool results are inlined on their call).
     await expect(timeline.locator('[data-kind="task_started"]')).not.toHaveCount(0);
     await expect(timeline.locator('[data-kind="turn_context"]')).not.toHaveCount(0);

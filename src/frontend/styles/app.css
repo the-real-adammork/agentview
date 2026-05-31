@@ -1128,17 +1128,31 @@ tbody tr[aria-current="true"] {
 .tl-tt[data-on="true"] .tl-tt-cnt {
   color: var(--primary);
 }
+.tl-tt-acts {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.tl-tt-sep {
+  color: var(--ink-dim);
+  font-size: 10px;
+  opacity: 0.5;
+}
 .tl-tt-reset {
   border: 0;
   background: transparent;
   cursor: pointer;
-  color: var(--primary);
+  color: var(--ink-dim);
   font-family: var(--display);
   font-size: 10px;
   letter-spacing: 0.2em;
   text-transform: uppercase;
 }
+.tl-tt-reset[data-active="true"] {
+  color: var(--primary);
+}
 .tl-tt-reset:hover {
+  color: var(--ink);
   text-decoration: underline;
 }
 
@@ -5209,8 +5223,10 @@ tbody tr[aria-current="true"] {
   100% { background-position: -120% 0; }
 }
 
-/* scrubber loading: indeterminate scan sweep */
-.tl-scrubber-wrap { position: relative; }
+/* scrubber loading: indeterminate scan sweep — clip to the wrap so the absolutely
+   positioned line (and its glow) sweeps in/out within bounds instead of spilling
+   left into the sidebar and right off-screen. */
+.tl-scrubber-wrap { position: relative; overflow: hidden; }
 .tl-scan {
   position: absolute;
   left: 0; bottom: 0;

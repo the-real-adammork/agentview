@@ -182,6 +182,7 @@ export type EventTypeKey = Extract<
   TimelineEventKind,
   | "user_message"
   | "assistant_message"
+  | "skill_invoke"
   | "reasoning"
   | "turn_context"
   | "task_started"
@@ -198,6 +199,7 @@ export interface EventTypeOption {
 export const EVENT_TYPES: EventTypeOption[] = [
   { key: "user_message", label: "User" },
   { key: "assistant_message", label: "Assistant" },
+  { key: "skill_invoke", label: "Skills" },
   { key: "reasoning", label: "Reasoning" },
   { key: "turn_context", label: "Turn Context" },
   { key: "task_started", label: "Task Started" },

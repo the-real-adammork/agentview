@@ -207,6 +207,7 @@ export function TimelineView({
   // All on by default — composes with the group tabs as a mute layer over tool rows.
   const [toolTypes, setToolTypes] = useState<Set<string>>(() => new Set(TOOL_TYPES.map((type) => type.key)));
   const allToolTypesOn = toolTypes.size === TOOL_TYPES.length;
+  const noToolTypesOn = toolTypes.size === 0;
   // Stable string of the enabled set, for the re-frame effect deps + feed-enter reset key.
   const toolTypesKey = TOOL_TYPES.map((type) => (toolTypes.has(type.key) ? "1" : "0")).join("");
   const toggleToolType = (key: string) =>
@@ -217,9 +218,15 @@ export function TimelineView({
       return next;
     });
   const resetToolTypes = () => setToolTypes(new Set(TOOL_TYPES.map((type) => type.key)));
+  const clearToolTypes = () => setToolTypes(new Set());
   // Second mute layer for the noisy non-tool event kinds (reasoning, turn_context, …).
-  const [eventTypes, setEventTypes] = useState<Set<string>>(() => new Set(EVENT_TYPES.map((type) => type.key)));
+  // "Assistant" rows duplicate content already shown on every timeline, so they
+  // start muted; toggle the chip (or "all") to bring them back.
+  const [eventTypes, setEventTypes] = useState<Set<string>>(
+    () => new Set(EVENT_TYPES.map((type) => type.key).filter((key) => key !== "assistant_message")),
+  );
   const allEventTypesOn = eventTypes.size === EVENT_TYPES.length;
+  const noEventTypesOn = eventTypes.size === 0;
   const eventTypesKey = EVENT_TYPES.map((type) => (eventTypes.has(type.key) ? "1" : "0")).join("");
   const toggleEventType = (key: string) =>
     setEventTypes((current) => {
@@ -229,6 +236,7 @@ export function TimelineView({
       return next;
     });
   const resetEventTypes = () => setEventTypes(new Set(EVENT_TYPES.map((type) => type.key)));
+  const clearEventTypes = () => setEventTypes(new Set());
   // +SUBS scope merges descendant agents' events into the stream; each event keeps
   // its own threadId so its origin (depth + agent name) can be derived per row.
   const sessionIndex = indexSessions(sessions);
@@ -435,13 +443,27 @@ export function TimelineView({
             <span className="dot" />
             <span>Tool Types</span>
             <span className="spacer" />
-            {allToolTypesOn ? (
-              <span className="meta">all</span>
-            ) : (
-              <button className="tl-tt-reset" type="button" onClick={resetToolTypes}>
-                reset
+            <span className="tl-tt-acts">
+              <button
+                className="tl-tt-reset"
+                data-active={allToolTypesOn ? "true" : undefined}
+                type="button"
+                onClick={resetToolTypes}
+                title="Show all tool types"
+              >
+                all
               </button>
-            )}
+              <span className="tl-tt-sep" aria-hidden="true">/</span>
+              <button
+                className="tl-tt-reset"
+                data-active={noToolTypesOn ? "true" : undefined}
+                type="button"
+                onClick={clearToolTypes}
+                title="Hide all tool types"
+              >
+                none
+              </button>
+            </span>
           </div>
           <div className="tl-tooltypes" role="group" aria-label="Filter timeline by tool type">
             {TOOL_TYPES.map((type) => {
@@ -471,13 +493,27 @@ export function TimelineView({
             <span className="dot" />
             <span>Event Types</span>
             <span className="spacer" />
-            {allEventTypesOn ? (
-              <span className="meta">all</span>
-            ) : (
-              <button className="tl-tt-reset" type="button" onClick={resetEventTypes}>
-                reset
+            <span className="tl-tt-acts">
+              <button
+                className="tl-tt-reset"
+                data-active={allEventTypesOn ? "true" : undefined}
+                type="button"
+                onClick={resetEventTypes}
+                title="Show all event types"
+              >
+                all
               </button>
-            )}
+              <span className="tl-tt-sep" aria-hidden="true">/</span>
+              <button
+                className="tl-tt-reset"
+                data-active={noEventTypesOn ? "true" : undefined}
+                type="button"
+                onClick={clearEventTypes}
+                title="Hide all event types"
+              >
+                none
+              </button>
+            </span>
           </div>
           <div className="tl-tooltypes" role="group" aria-label="Filter timeline by event type">
             {EVENT_TYPES.map((type) => {
