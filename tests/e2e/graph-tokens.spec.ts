@@ -1,6 +1,11 @@
 import { expect, test, type TestInfo } from "@playwright/test";
 
-import { writeObservedRolloutFixtures } from "./observedSourceFixture";
+import {
+  CC_E2E_GRAPH_SESSION_ID,
+  removeClaudeAgentGraphFixture,
+  writeClaudeAgentGraphFixture,
+  writeObservedRolloutFixtures,
+} from "./observedSourceFixture";
 
 function appBaseUrl(testInfo: TestInfo) {
   const configuredBaseUrl = testInfo.project.use.baseURL;
@@ -112,5 +117,39 @@ test.describe("real Graph and Tokens views @graph-tokens", () => {
     // Budget bars list each session as a stacked composition row; clicking drills into the timeline.
     await page.getByRole("button", { name: /parent real sessions work/i }).first().click();
     await expect(page.getByRole("heading", { name: "Timeline" })).toBeVisible();
+  });
+
+  // Phase 5: the Claude Code agent graph renders with native edges and a node per
+  // sub-agent. Asserted at the API level (registered claude-code source) so the
+  // Codex UI flow stays untouched and the @sessions exact-count spec (empty CC dir)
+  // stays green — the CC fixture is written then removed within this test.
+  test("renders the claude-code agent graph with native edges", async ({ page }) => {
+    test.setTimeout(60_000);
+    const apiBaseUrl = process.env.AGENTVIEW_API_BASE_URL;
+    expect(apiBaseUrl, "Playwright config must provide AGENTVIEW_API_BASE_URL").toBeTruthy();
+    await writeClaudeAgentGraphFixture();
+    try {
+      const response = await page.request.get(
+        `${apiBaseUrl}/api/agent-graph?sourceId=claude-code&rootThreadId=${CC_E2E_GRAPH_SESSION_ID}&maxDepth=2`,
+      );
+      expect(response.status()).toBe(200);
+      const body = await response.json();
+      expect(body).toMatchObject({
+        ok: true,
+        data: {
+          root: { id: CC_E2E_GRAPH_SESSION_ID },
+          nodes: expect.arrayContaining([
+            expect.objectContaining({ id: "agent-reviewer", role: "code-reviewer" }),
+            expect.objectContaining({ id: "agent-writer", role: "test-writer" }),
+          ]),
+          edges: expect.arrayContaining([
+            expect.objectContaining({ parentId: CC_E2E_GRAPH_SESSION_ID, childId: "agent-reviewer", source: "native" }),
+            expect.objectContaining({ parentId: CC_E2E_GRAPH_SESSION_ID, childId: "agent-writer", source: "native" }),
+          ]),
+        },
+      });
+    } finally {
+      await removeClaudeAgentGraphFixture();
+    }
   });
 });

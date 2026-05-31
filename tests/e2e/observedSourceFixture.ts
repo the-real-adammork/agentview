@@ -127,6 +127,96 @@ export async function removeClaudeTimelineFixture() {
   await rm(ccTranscriptDir(), { recursive: true, force: true });
 }
 
+// --- CC agent-graph e2e fixture (Phase 5) ---
+// A CC root with two sub-agents (subagents/agent-<id>.{jsonl,meta.json}) and a
+// parent `Task` tool_use per sub-agent (id === meta.toolUseId). Written into the e2e
+// CLAUDE_PROJECTS_DIR only for the @graph-tokens CC arm and removed afterward so the
+// @sessions exact-count spec (empty CC dir) stays green.
+export const CC_E2E_GRAPH_SESSION_ID = "ccgraph01-cc01-4c01-8c01-ccgraph01cc01";
+const CC_E2E_GRAPH_CWD = "/repo/cc-e2e-graph-app";
+const CC_E2E_GRAPH_SUBAGENTS = [
+  { agentId: "reviewer", agentType: "code-reviewer", description: "Review the diff", toolUseId: "toolu_g_review", report: "Reviewed" },
+  { agentId: "writer", agentType: "test-writer", description: "Write tests", toolUseId: "toolu_g_write", report: "Wrote tests" },
+];
+
+const ccGraphLine = (record: Record<string, unknown> & { type: string }, extra: Record<string, unknown> = {}) =>
+  JSON.stringify({
+    sessionId: CC_E2E_GRAPH_SESSION_ID,
+    cwd: CC_E2E_GRAPH_CWD,
+    gitBranch: "main",
+    version: "1.2.3",
+    isSidechain: false,
+    userType: "external",
+    ...record,
+    ...extra,
+  });
+
+const ccGraphRootDir = () => join(e2eClaudeProjectsDir(), CC_E2E_GRAPH_CWD.replace(/[/.]/g, "-"));
+
+/** Write the CC agent-graph fixture (root transcript + two sub-agents + meta sidecars). */
+export async function writeClaudeAgentGraphFixture() {
+  const rootDir = ccGraphRootDir();
+  await mkdir(rootDir, { recursive: true });
+  await rm(join(e2eCodexHome(), ".observatory", "cache", "v1", "rollouts"), { recursive: true, force: true });
+
+  const rootLines = [
+    ccGraphLine({
+      type: "user",
+      uuid: "g-u1",
+      parentUuid: null,
+      timestamp: "2026-05-30T10:00:00.000Z",
+      message: { role: "user", content: "Coordinate the CC graph work" },
+    }),
+    ccGraphLine({ type: "ai-title", aiTitle: "CC graph e2e root" }),
+    ...CC_E2E_GRAPH_SUBAGENTS.map((sub, index) =>
+      ccGraphLine({
+        type: "assistant",
+        uuid: `g-task-${sub.agentId}`,
+        parentUuid: "g-u1",
+        timestamp: `2026-05-30T10:00:0${index + 1}.000Z`,
+        message: {
+          role: "assistant",
+          content: [{ type: "tool_use", id: sub.toolUseId, name: "Task", input: { subagent_type: sub.agentType, description: sub.description } }],
+        },
+      }),
+    ),
+  ];
+  await writeFile(join(rootDir, `${CC_E2E_GRAPH_SESSION_ID}.jsonl`), `${rootLines.join("\n")}\n`, "utf8");
+
+  const subagentsDir = join(rootDir, CC_E2E_GRAPH_SESSION_ID, "subagents");
+  await mkdir(subagentsDir, { recursive: true });
+  for (const sub of CC_E2E_GRAPH_SUBAGENTS) {
+    const childId = `agent-${sub.agentId}`;
+    const childLines = [
+      ccGraphLine(
+        { type: "user", uuid: `${childId}-u`, parentUuid: null, timestamp: "2026-05-30T10:01:00.000Z", message: { role: "user", content: sub.description } },
+        { isSidechain: true, agentId: childId },
+      ),
+      ccGraphLine(
+        {
+          type: "assistant",
+          uuid: `${childId}-a`,
+          parentUuid: `${childId}-u`,
+          timestamp: "2026-05-30T10:02:00.000Z",
+          message: { role: "assistant", content: [{ type: "text", text: sub.report }], usage: { input_tokens: 50, output_tokens: 20, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } },
+        },
+        { isSidechain: true, agentId: childId },
+      ),
+    ];
+    await writeFile(join(subagentsDir, `${childId}.jsonl`), `${childLines.join("\n")}\n`, "utf8");
+    await writeFile(
+      join(subagentsDir, `${childId}.meta.json`),
+      `${JSON.stringify({ agentType: sub.agentType, description: sub.description, toolUseId: sub.toolUseId })}\n`,
+      "utf8",
+    );
+  }
+}
+
+/** Remove the CC agent-graph fixture so the empty-CC-dir assumption holds elsewhere. */
+export async function removeClaudeAgentGraphFixture() {
+  await rm(ccGraphRootDir(), { recursive: true, force: true });
+}
+
 const observedEventMsg = (timestamp: string, turnId: string, payload: Record<string, unknown>) =>
   JSON.stringify({
     type: "event_msg",
