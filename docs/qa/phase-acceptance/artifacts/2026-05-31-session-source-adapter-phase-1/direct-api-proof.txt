@@ -1,0 +1,23 @@
+# Direct API proof: timeline served through CodexSource returns ok:true (byte-identical output)
+
+## GET /api/health
+{"ok":true,"data":{"status":"ok","mode":"real","checkedAt":"2026-05-31T17:56:39.016Z","stateDb":{"readOnly":true,"supported":true,"tables":["threads","thread_spawn_edges"]}},"source":"state-db","warnings":[]}
+
+## GET /api/timeline?threadId=thread-parent-real  (ok flag + cacheStatus)
+{
+  "ok": true,
+  "source": "rollout-cache",
+  "cacheStatus": "warm",
+  "eventKinds": [
+    "task_started",
+    "tool_call",
+    "tool_result"
+  ],
+  "toolCalls": [
+    {
+      "callId": "call-observed-shell",
+      "exitCode": 7,
+      "durationMs": 1234
+    }
+  ]
+}

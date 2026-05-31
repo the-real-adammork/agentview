@@ -1,0 +1,19 @@
+
+> agentview@0.1.0 privacy:check
+> npm run test -- --run tests/privacy/privacyPreviews.test.ts && node scripts/check-privacy.mjs
+
+
+> agentview@0.1.0 test
+> vitest --run tests/privacy/privacyPreviews.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview
+
+ ✓ tests/privacy/privacyPreviews.test.ts (3 tests) 4ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  12:56:10
+   Duration  395ms (transform 53ms, setup 8ms, collect 48ms, tests 4ms, environment 149ms, prepare 58ms)
+
+privacy check passed

@@ -1,0 +1,17 @@
+
+> agentview@0.1.0 test
+> vitest --run tests/unit/sessionSourceContract.test.ts tests/integration/codexSource.test.ts
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview
+
+ ✓ tests/unit/sessionSourceContract.test.ts (1 test) 1ms
+(node:62097) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/integration/codexSource.test.ts (12 tests) 39ms
+
+ Test Files  2 passed (2)
+      Tests  13 passed (13)
+   Start at  12:56:05
+   Duration  382ms (transform 75ms, setup 12ms, collect 92ms, tests 40ms, environment 242ms, prepare 61ms)
+

@@ -1,0 +1,30 @@
+    [32m-     },[39m
+    [32m-   },[39m
+    [32m-   "ok": true,[39m
+    [31m+   "ok": false,[39m
+    [2m  }[22m
+
+      101 |     const timelineBody = await (await timelineResponsePromise).json();
+      102 |
+    > 103 |     expect(timelineBody).toMatchObject({
+          |                          ^
+      104 |       ok: true,
+      105 |       data: {
+      106 |         facts: {
+        at /Users/adam/Projects/agentview/tests/e2e/timeline-detail.spec.ts:103:26
+
+    Error Context: test-results/timeline-detail-real-Timel-1d906-nt-groups-and-spawn-actions/error-context.md
+
+    attachment #2: trace (application/zip) ─────────────────────────────────────────────────────────
+    test-results/timeline-detail-real-Timel-1d906-nt-groups-and-spawn-actions/trace.zip
+    Usage:
+
+        npx playwright show-trace test-results/timeline-detail-real-Timel-1d906-nt-groups-and-spawn-actions/trace.zip
+
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+  3 failed
+    tests/e2e/graph-tokens.spec.ts:12:3 › real Graph and Tokens views @graph-tokens › renders graph and token service wiring with Timeline navigation 
+    tests/e2e/timeline-detail.spec.ts:13:3 › real Timeline detail @timeline › renders parsed rollout rows, redacted previews, collapsed output, scrubber dots, grouped filters, and tail updates 
+    tests/e2e/timeline-detail.spec.ts:92:3 › real Timeline detail @timeline › surfaces enriched observed rollout facts in event groups and spawn actions 
+  7 passed (10.4s)

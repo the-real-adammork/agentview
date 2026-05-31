@@ -1,0 +1,149 @@
+
+> agentview@0.1.0 test
+> vitest --run
+
+
+ RUN  v3.2.4 /Users/adam/Projects/agentview
+
+(node:62153) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:62155) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:62150) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:62149) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:62146) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:62148) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:62147) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:62151) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/integration/rawTuiLog.test.ts (1 test) 519ms
+   ✓ raw TUI log diagnostics API > tails the allowlisted codex-tui.log with redacted previews and a resumable next offset  518ms
+ ✓ tests/unit/app-live.test.tsx (2 tests) 259ms
+ ✓ tests/perf/fullDashboard.test.ts (2 tests) 842ms
+   ✓ full dashboard performance guards > keeps diagnostics paging bounded for large log fixtures  839ms
+ ✓ tests/integration/sourceErrors.test.ts (3 tests) 920ms
+   ✓ source safety and partial error envelopes > returns typed partial errors for missing or unsupported local sources  407ms
+   ✓ source safety and partial error envelopes > does not expose export, editor launch, command execution, or telemetry endpoints  507ms
+ ✓ tests/unit/app-shell.test.tsx (6 tests) 715ms
+(node:62619) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/app-live-enter.test.tsx (2 tests) 337ms
+ ✓ tests/integration/streamApi.test.ts (2 tests) 1500ms
+   ✓ stream API > streams ready then a timeline delta when the rollout grows  1026ms
+   ✓ stream API > returns 404 when AGENTVIEW_LIVE=0  473ms
+ ✓ tests/unit/timelineView.test.tsx (10 tests) 1229ms
+   ✓ TimelineView · +SUBS scope > renders only the most recent 1000 events and reveals older ones on demand  987ms
+ ✓ tests/unit/parseRollout.test.ts (24 tests) 204ms
+ ✓ tests/integration/liveSources.test.ts (3 tests) 199ms
+ ✓ tests/unit/graphTokenComponents.test.tsx (2 tests) 554ms
+ ✓ tests/integration/rolloutCache.test.ts (5 tests) 150ms
+ ✓ tests/unit/codexPaths.test.ts (3 tests) 14ms
+(node:62900) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/liveTokenUpdates.test.tsx (1 test) 73ms
+ ✓ tests/unit/reconstructedEdgeRender.test.tsx (1 test) 66ms
+ ✓ tests/integration/logStore.test.ts (8 tests) 136ms
+(node:62964) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/timelineEventRow.test.tsx (5 tests) 105ms
+ ✓ tests/unit/tokenSeries.test.ts (3 tests) 54ms
+ ✓ tests/integration/graphTokensApi.test.ts (5 tests) 2407ms
+   ✓ graph/tokens API routes > serves a depth-limited graph from real temp SQLite edges and thread metadata  411ms
+   ✓ graph/tokens API routes > returns a typed 404 when the graph root thread is absent  490ms
+   ✓ graph/tokens API routes > reports missing state_5.sqlite as source unavailable for graph requests  488ms
+   ✓ graph/tokens API routes > serves selected-session token series from Phase 3 rollout cache facts  515ms
+   ✓ graph/tokens API routes > returns token empty-state reasons from real rollout cache facts when token data is absent  503ms
+ ✓ tests/unit/sessionsViewEnter.test.tsx (3 tests) 106ms
+ ✓ tests/perf/rolloutParse.test.ts (1 test) 95ms
+(node:63084) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/redaction.test.ts (4 tests) 2ms
+(node:63085) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:63087) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/integration/timelineApi.test.ts (5 tests) 2701ms
+   ✓ timeline API > serves selected-session timeline payloads from the rollout parser and derived cache  438ms
+   ✓ timeline API > serves observed envelope events with joined tool, token, turn, and agent facts  645ms
+   ✓ timeline API > merges the spawn subtree into one server-side stream when subtree=1 is requested  505ms
+   ✓ timeline API > returns a typed missing-rollout error when the selected thread has no readable rollout file  604ms
+   ✓ timeline API > rejects traversal rollout paths before reading files outside CODEX_HOME  508ms
+ ✓ tests/integration/stateStore.test.ts (5 tests) 76ms
+ ✓ tests/integration/reconstructedEdges.test.ts (5 tests) 57ms
+ ✓ tests/unit/liveTokenStore.test.tsx (6 tests) 87ms
+ ✓ tests/integration/codexSource.test.ts (12 tests) 186ms
+ ✓ tests/unit/reposViewEnter.test.tsx (2 tests) 22ms
+ ✓ tests/unit/useEnteringIds.test.tsx (7 tests) 25ms
+(node:63183) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/contracts.test.ts (10 tests) 12ms
+ ✓ tests/integration/liveTail.test.ts (5 tests) 98ms
+ ✓ tests/unit/liveStream.test.ts (2 tests) 4ms
+ ✓ tests/unit/classifyExecOutput.test.ts (65 tests) 13ms
+ ✓ tests/unit/timelineFilters.test.ts (38 tests) 4ms
+stderr | tests/unit/watchManager.test.ts > watchManager > survives an fs.watch that throws and still polls
+watchManager: fs.watch failed for /tmp/state_5.sqlite, relying on poll Error: ENOSPC watchers exhausted
+    at watch [90m(/Users/adam/Projects/agentview/[39mtests/unit/watchManager.test.ts:93:15[90m)[39m
+    at Object.watch [90m(/Users/adam/Projects/agentview/[39msrc/backend/live/watchManager.ts:86:29[90m)[39m
+    at [90m/Users/adam/Projects/agentview/[39mtests/unit/watchManager.test.ts:101:26
+    at Proxy.assertThrows [90m(file:///Users/adam/Projects/agentview/[39mnode_modules/[4mchai[24m/index.js:2767:5[90m)[39m
+    at Proxy.methodWrapper [90m(file:///Users/adam/Projects/agentview/[39mnode_modules/[4mchai[24m/index.js:1686:25[90m)[39m
+    at Proxy.<anonymous> [90m(file:///Users/adam/Projects/agentview/[39mnode_modules/[4m@vitest/expect[24m/dist/index.js:1088:12[90m)[39m
+    at Proxy.overwritingMethodWrapper [90m(file:///Users/adam/Projects/agentview/[39mnode_modules/[4mchai[24m/index.js:1735:33[90m)[39m
+    at Proxy.<anonymous> [90m(file:///Users/adam/Projects/agentview/[39mnode_modules/[4m@vitest/expect[24m/dist/index.js:1420:16[90m)[39m
+    at Proxy.<anonymous> [90m(file:///Users/adam/Projects/agentview/[39mnode_modules/[4m@vitest/expect[24m/dist/index.js:1029:14[90m)[39m
+    at Proxy.methodWrapper [90m(file:///Users/adam/Projects/agentview/[39mnode_modules/[4mchai[24m/index.js:1686:25[90m)[39m
+
+ ✓ tests/unit/watchManager.test.ts (4 tests) 12ms
+ ✓ tests/unit/routing.test.ts (25 tests) 3ms
+ ✓ tests/privacy/privacyPreviews.test.ts (3 tests) 7ms
+ ✓ tests/integration/diagnosticsApi.test.ts (7 tests) 3428ms
+   ✓ diagnostics API routes > serves filtered log rows from logs_2.sqlite with cursor pagination  414ms
+   ✓ diagnostics API routes > serves observed-schema log rows with redacted previews and nanosecond cursor pagination  515ms
+   ✓ diagnostics API routes > returns typed unsupported-schema errors for malformed logs_2.sqlite files  468ms
+   ✓ diagnostics API routes > returns warning counts, loudest targets, failed commands, and warning badge summaries  498ms
+   ✓ diagnostics API routes > accepts the thread list via POST body so large session sets avoid an over-length URL  499ms
+   ✓ diagnostics API routes > combines observed-schema warning summaries with rollout-cache failed-command facts  526ms
+   ✓ diagnostics API routes > falls back to cached rollout failed-tool facts when logs_2.sqlite is unavailable  507ms
+ ✓ tests/unit/selectRawLines.test.ts (5 tests) 2ms
+(node:63270) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/classifyCall.test.ts (15 tests) 3ms
+ ✓ tests/unit/scrubberGeometry.test.ts (7 tests) 4ms
+ ✓ tests/unit/sessionTree.test.ts (7 tests) 3ms
+ ✓ tests/unit/sessionFilter.test.ts (3 tests) 2ms
+ ✓ tests/unit/liveSources.test.ts (1 test) 1ms
+ ✓ tests/unit/reconstructEdges.test.ts (13 tests) 19ms
+ ✓ tests/unit/relationshipMarkers.test.ts (6 tests) 6ms
+ ✓ tests/unit/sessionStats.test.ts (12 tests) 2ms
+(node:63308) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/unit/threadTitle.test.ts (6 tests) 1ms
+ ✓ tests/unit/agentGraph.test.ts (2 tests) 2ms
+ ✓ tests/unit/demoInserts.test.ts (4 tests) 2ms
+ ✓ tests/unit/formatTokens.test.ts (2 tests) 1ms
+ ✓ tests/unit/repoName.test.ts (10 tests) 2ms
+ ✓ tests/unit/liveHub.test.ts (6 tests) 2ms
+ ✓ tests/unit/tokenBar.test.ts (5 tests) 1ms
+ ✓ tests/integration/sessionsApi.test.ts (8 tests) 3986ms
+   ✓ sessions API routes > reports real state-db health and schema availability through an ApiResult envelope  521ms
+   ✓ sessions API routes > lists sessions from state_5.sqlite sorted by updated_at_ms without reading rollout JSONL on first paint  518ms
+   ✓ sessions API routes > composes list filters for search, cwd, source, role, model, archive state, token floor, and badge status  486ms
+   ✓ sessions API routes > returns one session by thread id and 404 for unknown thread ids  490ms
+   ✓ sessions API routes > rejects unsupported state_5.sqlite schemas with a typed error envelope  502ms
+   ✓ sessions API routes > reports missing state_5.sqlite as source unavailable instead of falling back to fixture sessions  496ms
+   ✓ sessions API routes > rejects invalid list filters before querying the state store  495ms
+   ✓ sessions API routes > keeps API access local-only through loopback CORS allowlisting  478ms
+ ✓ tests/unit/execRenderers.test.ts (3 tests) 1ms
+ ✓ tests/unit/sessionSourceContract.test.ts (1 test) 1ms
+
+ Test Files  57 passed (57)
+      Tests  413 passed (413)
+   Start at  12:56:06
+   Duration  4.55s (transform 1.07s, setup 184ms, collect 4.38s, tests 21.26s, environment 13.04s, prepare 2.30s)
+
