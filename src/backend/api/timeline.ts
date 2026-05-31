@@ -4,6 +4,7 @@ import { isAbsolute, relative, resolve } from "node:path";
 
 import { getRolloutFactsWithCache } from "../cache/rolloutCache";
 import { resolveCodexHome } from "../codexPaths";
+import type { CachedRolloutFacts } from "../../shared/contracts";
 import { CLAUDE_PARSER_VERSION } from "../sources/claudeCode/parseClaudeSession";
 import { StateStoreError } from "../sqlite/stateStore";
 import type { CodexSource } from "../sources/codex/CodexSource";
@@ -148,13 +149,55 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
         // CC has no codexHome; reuse the resolved codexHome only as the cache
         // scratch root (under `.observatory`, overridable via AGENTVIEW_CACHE_ROOT).
         const cacheRoot = await resolveCodexHome();
-        const cached = await getRolloutFactsWithCache({
-          codexHome: cacheRoot,
-          threadId: resolved.sessionId,
-          rolloutPath: resolved.rawLogPath,
-          parserVersion: CLAUDE_PARSER_VERSION,
-          parse: () => source.parse(resolved),
-        });
+        const parseCachedCc = (childThreadId: string, rawLogPath: string, parse: () => Promise<CachedRolloutFacts>) =>
+          getRolloutFactsWithCache({
+            codexHome: cacheRoot,
+            threadId: childThreadId,
+            rolloutPath: rawLogPath,
+            parserVersion: CLAUDE_PARSER_VERSION,
+            parse,
+          });
+        const cached = await parseCachedCc(resolved.sessionId, resolved.rawLogPath, () => source.parse(resolved));
+
+        let events = cached.facts.events;
+        const warnings = [...cached.warnings, ...cached.facts.warnings];
+
+        if (subtree) {
+          // Walk the CC sub-agent subtree (children resolved via the SessionSource
+          // interface) and fold each descendant's events into one time-ordered
+          // stream. Best-effort: a descendant whose resolve/parse throws is skipped.
+          const descendants = await source.listChildren(threadId, MAX_SUBTREE_DEPTH);
+          for (const descendant of descendants) {
+            // CC sub-agent transcripts live under the root's `subagents/` dir and are
+            // not top-level discoverable, so `resolveSession(childId)` would 404.
+            // `listChildren` already carries the absolute child transcript path; build
+            // a ResolvedSession from it (path stays inside CLAUDE_PROJECTS_DIR — it was
+            // produced by our own enumeration).
+            if (!descendant.rolloutPath) continue;
+            try {
+              const descendantResolved = {
+                source: "claude-code" as const,
+                sessionId: descendant.id,
+                rawLogPath: descendant.rolloutPath,
+              };
+              const descendantCached = await parseCachedCc(descendant.id, descendant.rolloutPath, () =>
+                source.parse(descendantResolved),
+              );
+              events = events.concat(descendantCached.facts.events);
+              warnings.push(...descendantCached.warnings, ...descendantCached.facts.warnings);
+            } catch {
+              // Skip a descendant whose transcript failed to resolve/parse.
+            }
+          }
+
+          events = [...events].sort((left, right) => {
+            const leftMs = Date.parse(left.timestamp);
+            const rightMs = Date.parse(right.timestamp);
+            if (leftMs !== rightMs) return leftMs - rightMs;
+            if (left.threadId !== right.threadId) return left.threadId < right.threadId ? -1 : 1;
+            return left.sourceLine - right.sourceLine;
+          });
+        }
 
         writeJson(
           response,
@@ -163,12 +206,12 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
             "rollout-cache",
             {
               threadId,
-              events: cached.facts.events,
+              events,
               facts: cached.facts,
               nextByteOffset: cached.facts.parsedThroughByte,
               cacheStatus: cached.status,
             },
-            [...cached.warnings, ...cached.facts.warnings],
+            warnings,
           ),
           origin,
         );
