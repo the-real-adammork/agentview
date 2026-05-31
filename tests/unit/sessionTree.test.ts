@@ -11,6 +11,7 @@ import {
 } from "../../src/frontend/views/sessionTree";
 
 const session = (overrides: Partial<SessionSummary> & Pick<SessionSummary, "id">): SessionSummary => ({
+  source: "codex",
   title: overrides.id,
   status: "complete",
   updatedAt: "2026-05-26T18:00:00.000Z",

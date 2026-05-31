@@ -13,6 +13,7 @@ const NOW = Date.UTC(2026, 4, 27, 12, 0, 0);
 
 const session = (overrides: Partial<SessionSummary>): SessionSummary => ({
   id: "thread-x",
+  source: "codex",
   title: "Session",
   status: "complete",
   updatedAt: new Date(NOW).toISOString(),

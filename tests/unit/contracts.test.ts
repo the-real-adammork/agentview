@@ -9,11 +9,15 @@ import {
   tokenSeriesFixture,
 } from "../../src/fixtures/observatoryFixtures";
 import type {
+  AgentEdge,
   AgentGraph,
   ApiResult,
+  EdgeSource,
   ObservatoryApi,
   RuntimeLog,
+  SessionFilter,
   SessionSummary,
+  SourceId,
   TimelineEvent,
   TokenSeries,
 } from "../../src/shared/contracts";
@@ -355,6 +359,67 @@ describe("observatory Task 2 contract fixtures", () => {
     expect(api.getAgentGraph).toBeTypeOf("function");
     expect(api.getTokenSeries).toBeTypeOf("function");
     expect(api.queryLogs).toBeTypeOf("function");
+  });
+});
+
+describe("source adapter contracts", () => {
+  it("declares SourceId as the codex|claude-code union and carries it on SessionSummary", () => {
+    const codex: SourceId = "codex";
+    const claudeCode: SourceId = "claude-code";
+    expect([codex, claudeCode]).toEqual(["codex", "claude-code"]);
+
+    const summary: SessionSummary = {
+      id: "thread-1",
+      source: "codex",
+      title: "t",
+      status: "complete",
+      updatedAt: new Date(0).toISOString(),
+      branch: "",
+      cwd: "/repo",
+      model: "",
+      lastMessage: "",
+      childCount: 0,
+      openChildCount: 0,
+      tokenTotal: 0,
+    };
+    expect(summary.source).toBe("codex");
+  });
+
+  it("narrows the merged session list with SessionFilter.source", () => {
+    const filter: SessionFilter = { source: "codex" };
+    expect(filter.source).toBe("codex");
+  });
+
+  it("defines EdgeSource as native|reconstructed and stamps native on a tool-native edge", () => {
+    const nativeEdge: EdgeSource = "native";
+    const reconstructed: EdgeSource = "reconstructed";
+    expect([nativeEdge, reconstructed]).toEqual(["native", "reconstructed"]);
+
+    const edge: AgentEdge = {
+      parentId: "p",
+      childId: "c",
+      status: "closed",
+      source: "native",
+    };
+    expect(edge.source).toBe("native");
+
+    const summary: SessionSummary = {
+      id: "child",
+      source: "codex",
+      title: "t",
+      status: "complete",
+      updatedAt: new Date(0).toISOString(),
+      branch: "",
+      cwd: "/repo",
+      model: "",
+      lastMessage: "",
+      childCount: 0,
+      openChildCount: 0,
+      tokenTotal: 0,
+      parentId: "parent",
+      parentEdgeSource: "native",
+    };
+    expect(summary.parentEdgeSource).toBe("native");
   });
 });
 

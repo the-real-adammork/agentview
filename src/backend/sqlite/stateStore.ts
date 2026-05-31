@@ -151,6 +151,7 @@ const normalizeThread = (row: ThreadRow, overlay?: Map<string, ReconstructedLink
 
   return {
     id: row.id,
+    source: "codex",
     title: titlePreview,
     status: "complete",
     updatedAt: new Date(updatedAtMs).toISOString(),
@@ -161,7 +162,7 @@ const normalizeThread = (row: ThreadRow, overlay?: Map<string, ReconstructedLink
     childCount: toNumber(row.child_count),
     openChildCount: toNumber(row.open_child_count),
     parentId: realParentId ?? reconstructed?.parentId ?? null,
-    parentEdgeSource: realParentId ? "codex" : reconstructed ? "reconstructed" : undefined,
+    parentEdgeSource: realParentId ? "native" : reconstructed ? "reconstructed" : undefined,
     parentEdgeConfidence: reconstructed?.confidence,
     parentEdgeVia: reconstructed?.via,
     tokenTotal,

@@ -66,7 +66,7 @@ describe("reconstructed supervisor->orchestrator edges", () => {
       try {
         const child = await store.getThread("c");
         expect(child?.parentId).toBe("p");
-        expect(child?.parentEdgeSource).toBe("codex");
+        expect(child?.parentEdgeSource).toBe("native");
       } finally {
         await store.close();
       }
@@ -96,7 +96,7 @@ describe("reconstructed edges in the agent graph", () => {
         expect(ids).toEqual(["orchestrator", "supervisor", "worker"]);
         const recon = graph.edges.find((e) => e.parentId === "supervisor" && e.childId === "orchestrator");
         expect(recon?.source).toBe("reconstructed");
-        expect(graph.edges.find((e) => e.parentId === "orchestrator" && e.childId === "worker")?.source ?? "codex").toBe("codex");
+        expect(graph.edges.find((e) => e.parentId === "orchestrator" && e.childId === "worker")?.source ?? "native").toBe("native");
       } finally {
         await store.close();
       }

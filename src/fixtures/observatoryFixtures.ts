@@ -15,6 +15,7 @@ const grandchildId = "019e67b3-3027-7733-905d-00005bee6d11";
 export const sessionSummariesFixture: SessionSummary[] = [
   {
     id: rootThreadId,
+    source: "codex",
     title: "Build observatory dashboard for ~/.codex with agent graph",
     status: "running",
     updatedAt: "2026-05-26T18:04:00.000Z",
@@ -30,6 +31,7 @@ export const sessionSummariesFixture: SessionSummary[] = [
   },
   {
     id: childResearcherId,
+    source: "codex",
     title: "Audit logs_2 noisy targets",
     status: "complete",
     updatedAt: "2026-05-26T18:02:20.000Z",
@@ -47,6 +49,7 @@ export const sessionSummariesFixture: SessionSummary[] = [
   },
   {
     id: childWorkerId,
+    source: "codex",
     title: "Draft the session timeline view",
     status: "running",
     updatedAt: "2026-05-26T18:03:10.000Z",

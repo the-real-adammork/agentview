@@ -3,15 +3,16 @@ import type {
   PageOptions,
   SessionFilter,
   SessionSummary,
+  SourceId,
   TimelineEvent,
 } from "../../shared/contracts";
 
 /**
- * Discriminates which tool produced a session. Declared here in Phase 1 because
- * `src/shared/contracts.ts` does not yet carry it; Phase 2 relocates this exact
- * union into contracts and has this module import it (no rename).
+ * `SourceId` is declared in `src/shared/contracts.ts` (relocated there in Phase 2
+ * from this module — same exact union, no rename). Re-exported here so existing
+ * imports of `SourceId` from `SessionSource` keep resolving.
  */
-export type SourceId = "codex" | "claude-code";
+export type { SourceId };
 
 export interface SourceHealth {
   source: SourceId;

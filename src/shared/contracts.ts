@@ -33,18 +33,26 @@ export interface HealthStatus {
   };
 }
 
+/** Discriminates which tool produced a session. The `(SourceId, id)` pair is the composite key. */
+export type SourceId = "codex" | "claude-code";
+
 export type ThreadSource = "user" | "subagent";
 /** How confident we are in a reconstructed (non-codex) parent edge. */
 export type EdgeConfidence = "certain" | "high" | "medium" | "low";
 /** Which signal produced a reconstructed parent edge. */
 export type EdgeVia = "marker" | "run-id" | "cwd-time";
-/** Origin of a parent edge: codex's own spawn record vs. agentview's reconstruction. */
-export type EdgeSource = "codex" | "reconstructed";
+/**
+ * Origin of a parent edge: the tool's own spawn record ("native") vs. agentview's
+ * reconstruction ("reconstructed"). `SessionSummary.source` says which tool.
+ */
+export type EdgeSource = "native" | "reconstructed";
 export type CountStatus = "not_requested" | "loading" | "ready" | "unavailable";
 export type FailedToolCountStatus = CountStatus | "unknown";
 export type ArchivedFilter = "include" | "exclude" | "only";
 
 export interface SessionFilter {
+  /** Narrows the merged session list to one tool; omit to fan out across all sources. */
+  source?: SourceId;
   search?: string;
   cwd?: string;
   repo?: string;
@@ -69,6 +77,8 @@ export interface PageOptions {
 
 export interface SessionSummary {
   id: string;
+  /** Which tool produced this session. Absent on legacy rows ⇒ treated as "codex". */
+  source: SourceId;
   title: string;
   status: SessionStatus;
   updatedAt: string;
@@ -80,11 +90,11 @@ export interface SessionSummary {
   openChildCount: number;
   /** Parent thread id when this thread was spawned as a sub-agent; null/undefined for user roots. */
   parentId?: string | null;
-  /** "codex" when parentId came from thread_spawn_edges; "reconstructed" when inferred. */
+  /** "native" when parentId came from the tool's own spawn record; "reconstructed" when inferred. */
   parentEdgeSource?: EdgeSource;
-  /** Confidence of a reconstructed parent edge (absent for codex edges). */
+  /** Confidence of a reconstructed parent edge (absent for native edges). */
   parentEdgeConfidence?: EdgeConfidence;
-  /** Signal that produced a reconstructed parent edge (absent for codex edges). */
+  /** Signal that produced a reconstructed parent edge (absent for native edges). */
   parentEdgeVia?: EdgeVia;
   tokenTotal: number;
   rolloutPath?: string;

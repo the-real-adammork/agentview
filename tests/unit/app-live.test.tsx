@@ -38,6 +38,7 @@ describe("App live updates", () => {
         sessions: [
           {
             id: "live-thread",
+            source: "codex",
             title: "Live pushed session",
             status: "complete",
             updatedAt: "2026-05-27T10:00:00.000Z",
@@ -72,6 +73,7 @@ describe("App live updates", () => {
     };
     const session = {
       id: threadId,
+      source: "codex" as const,
       title: "Live session",
       status: "running" as const,
       updatedAt: "2026-05-27T10:00:00.000Z",
