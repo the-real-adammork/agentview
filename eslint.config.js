@@ -10,6 +10,7 @@ const browserGlobals = {
 };
 
 const nodeGlobals = {
+  __dirname: "readonly",
   clearTimeout: "readonly",
   console: "readonly",
   document: "readonly",
@@ -25,6 +26,7 @@ export default tseslint.config(
       ".worktrees/**",
       "coverage/**",
       "dist/**",
+      "dist-electron/**",
       "docs/design/**",
       "docs/implementation-runs/**",
       "docs/qa/artifacts/**",
@@ -47,6 +49,7 @@ export default tseslint.config(
       "eslint.config.js",
       "scripts/**/*.{js,mjs,cjs}",
       "src/backend/**/*.ts",
+      "src/electron/**/*.ts",
       "tests/e2e/**/*.ts",
     ],
     languageOptions: {

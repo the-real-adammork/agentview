@@ -35,6 +35,7 @@ const noopCallbacks = () => ({
 
 afterEach(() => {
   FakeEventSource.instances = [];
+  Reflect.deleteProperty(window, "agentview");
 });
 
 describe("openLiveStream", () => {
@@ -91,5 +92,24 @@ describe("openLiveStream", () => {
 
     handle.close();
     vi.useRealTimers();
+  });
+
+  it("uses the Electron runtime API URL when no explicit base URL is provided", async () => {
+    vi.resetModules();
+    Object.defineProperty(window, "agentview", {
+      configurable: true,
+      value: { apiBaseUrl: "http://127.0.0.1:61234/" },
+    });
+
+    const { openLiveStream: openRuntimeLiveStream } = await import("../../src/frontend/api/liveStream");
+    openRuntimeLiveStream({
+      threadId: "t1",
+      fromByte: null,
+      logCursorId: null,
+      callbacks: noopCallbacks(),
+      EventSourceImpl: FakeEventSource as unknown as typeof EventSource,
+    });
+
+    expect(FakeEventSource.instances[0].url).toBe("http://127.0.0.1:61234/api/stream?threadId=t1");
   });
 });

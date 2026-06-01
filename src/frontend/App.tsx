@@ -28,8 +28,6 @@ import type {
   TokenSeries,
 } from "../shared/contracts";
 
-const stylesheetHref = new URL("./styles/app.css", import.meta.url).href;
-
 // Primary tab set (renumbered 00–03). "Sessions" merged into the header session
 // square; "Repos" is reachable from the header REPOS button. Neither is a tab.
 const navViews = ["Timeline", "Agent Graph", "Tokens", "Diagnostics"] as const;
@@ -548,7 +546,6 @@ export function App() {
 
   return (
     <LiveTokenStoreContext.Provider value={liveTokenStore}>
-      <link rel="stylesheet" href={stylesheetHref} />
       <Chrome
         activeView={activeView}
         health={health}

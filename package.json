@@ -2,11 +2,19 @@
   "name": "agentview",
   "version": "0.1.0",
   "private": true,
+  "description": "AgentView desktop observability app",
+  "main": "dist-electron/main.cjs",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "api": "tsx src/backend/server.ts",
     "dev:all": "concurrently -k -n api,web -c cyan,magenta \"npm run api\" \"npm run dev\"",
+    "electron:dev": "npm run build:electron && concurrently -k -n web,electron -c magenta,cyan \"npm run dev\" \"wait-on tcp:127.0.0.1:5173 && AGENTVIEW_ELECTRON_DEV=1 AGENTVIEW_RENDERER_URL=http://127.0.0.1:5173 electron .\"",
+    "build": "npm run build:renderer && npm run build:electron",
+    "build:renderer": "vite build",
+    "build:electron": "vite build --config vite.electron.config.ts",
+    "electron:package": "npm run build && electron-builder --dir",
+    "electron:dist": "npm run build && electron-builder",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
     "test": "vitest",
     "lint": "eslint . --max-warnings=0",
@@ -17,6 +25,25 @@
     "perf:all": "npm run perf:sessions && npm run perf:rollout && npm run test -- --run tests/perf/fullDashboard.test.ts",
     "perf:sessions": "node scripts/perf/sessions-first-paint.mjs",
     "perf:rollout": "tsx scripts/perf/rollout-parse.mjs"
+  },
+  "build": {
+    "appId": "dev.agentview.app",
+    "productName": "AgentView",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "identity": null,
+      "target": [
+        "dir"
+      ]
+    }
   },
   "dependencies": {
     "@fontsource/big-shoulders-display": "5.2.5",
@@ -39,10 +66,13 @@
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
     "@vitest/browser": "^3.2.4",
+    "electron": "42.3.0",
+    "electron-builder": "26.8.1",
     "eslint": "^9.34.0",
     "jsdom": "^26.1.0",
     "typescript": "^5.9.2",
     "typescript-eslint": "^8.41.0",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "wait-on": "9.0.10"
   }
 }

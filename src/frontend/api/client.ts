@@ -21,6 +21,7 @@ import type {
   TimelinePayload,
   TokenSeries,
 } from "../../shared/contracts";
+import { resolveApiBaseUrl } from "./baseUrl";
 
 const checkedAt = "2026-05-26T18:05:00.000Z";
 
@@ -108,7 +109,7 @@ export const fixtureApiClient: ObservatoryApi = {
   },
 };
 
-const apiBaseUrl = (import.meta.env.VITE_AGENTVIEW_API_BASE_URL ?? "http://127.0.0.1:4317").replace(/\/$/, "");
+const apiBaseUrl = resolveApiBaseUrl();
 
 const appendParam = (params: URLSearchParams, name: string, value: string | number | undefined) => {
   if (value === undefined) {

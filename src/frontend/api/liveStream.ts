@@ -7,6 +7,7 @@ import type {
   LiveTokensPayload,
   SourceId,
 } from "../../shared/contracts";
+import { resolveApiBaseUrl } from "./baseUrl";
 
 export interface LiveStreamCallbacks {
   onSessions(payload: LiveSessionsPayload): void;
@@ -35,7 +36,7 @@ export interface LiveStreamHandle {
   close(): void;
 }
 
-const defaultBaseUrl = (import.meta.env.VITE_AGENTVIEW_API_BASE_URL ?? "http://127.0.0.1:4317").replace(/\/$/, "");
+const defaultBaseUrl = resolveApiBaseUrl();
 
 export const openLiveStream = ({
   baseUrl = defaultBaseUrl,

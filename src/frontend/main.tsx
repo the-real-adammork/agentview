@@ -14,6 +14,8 @@ import "@fontsource/jetbrains-mono/latin-700.css";
 import "@fontsource/shippori-mincho/japanese-500.css";
 import "@fontsource/shippori-mincho/japanese-700.css";
 
+import "./styles/app.css";
+
 import { App } from "./App";
 
 const rootElement = document.getElementById("root");
