@@ -1,10 +1,10 @@
 import { app, BrowserWindow, dialog } from "electron";
 import { join } from "node:path";
 
-import { startAgentViewApi, type RunningAgentViewApi } from "../backend/server";
+import { startAgentViewApiProcess, type RunningAgentViewApiProcess } from "./apiProcess";
 
 let mainWindow: BrowserWindow | null = null;
-let api: RunningAgentViewApi | null = null;
+let api: RunningAgentViewApiProcess | null = null;
 
 const isDevelopment = () => process.env.AGENTVIEW_ELECTRON_DEV === "1" || !app.isPackaged;
 
@@ -17,6 +17,8 @@ const createMainWindow = async (apiBaseUrl: string) => {
     minWidth: 1024,
     minHeight: 720,
     title: "AgentView",
+    titleBarStyle: "hiddenInset",
+    trafficLightPosition: { x: 16, y: 13 },
     webPreferences: {
       additionalArguments: [`--agentview-api-base-url=${encodeURIComponent(apiBaseUrl)}`],
       contextIsolation: true,
@@ -41,14 +43,12 @@ const createMainWindow = async (apiBaseUrl: string) => {
 const shutdownApi = () => {
   const runningApi = api;
   api = null;
-  void runningApi?.close().catch((error) => {
-    console.error("Failed to close AgentView API during Electron shutdown.", error);
-  });
+  runningApi?.close();
 };
 
 const boot = async () => {
   try {
-    api = await startAgentViewApi({ port: 0 });
+    api = await startAgentViewApiProcess();
     await createMainWindow(api.baseUrl);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown startup error.";

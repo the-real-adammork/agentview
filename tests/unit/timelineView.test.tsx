@@ -77,7 +77,7 @@ describe("TimelineView · +SUBS scope", () => {
     expect(rail.textContent).toMatch(/archimedes/i);
   });
 
-  it("renders only the most recent 1000 events and reveals older ones on demand", () => {
+  it("renders only the most recent 250 events and reveals older ones on demand", () => {
     const many: TimelineEvent[] = Array.from({ length: 1100 }, (_, index) => ({
       id: `e${index}`,
       threadId: root.id,
@@ -90,16 +90,16 @@ describe("TimelineView · +SUBS scope", () => {
     renderTimeline({ activeSession: root, events: many, scope: "this" });
 
     const stream = screen.getByRole("list", { name: /timeline events/i });
-    expect(stream.querySelectorAll("li.ev")).toHaveLength(1000);
+    expect(stream.querySelectorAll("li.ev")).toHaveLength(250);
     // Newest-first: the most recent event renders, the oldest is withheld.
     expect(screen.getByText("event 1099")).toBeVisible();
     expect(screen.queryByText("event 0")).toBeNull();
 
     const loadOlder = screen.getByRole("button", { name: /load older events/i });
-    expect(loadOlder).toHaveTextContent(/100 more/);
+    expect(loadOlder).toHaveTextContent(/850 more/);
     fireEvent.click(loadOlder);
-    expect(stream.querySelectorAll("li.ev")).toHaveLength(1100);
-    expect(screen.getByText("event 0")).toBeVisible();
+    expect(stream.querySelectorAll("li.ev")).toHaveLength(500);
+    expect(screen.getByText("event 600")).toBeVisible();
   });
 
   it("marks each event with the agent's depth when viewing a sub-agent thread (THIS scope)", () => {

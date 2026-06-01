@@ -55,8 +55,8 @@ const compactFormatter = new Intl.NumberFormat("en-US", {
 // Render only the most recent slice by default — a busy +SUBS subtree can be
 // thousands of rows, and mounting them all locks the main thread. Older events
 // stay in memory and reveal in chunks on demand.
-const DEFAULT_RENDER_LIMIT = 1000;
-const RENDER_LIMIT_STEP = 1000;
+const DEFAULT_RENDER_LIMIT = 250;
+const RENDER_LIMIT_STEP = 250;
 const sessionTokens = (session: SessionSummary) => session.tokensUsed ?? session.tokenTotal;
 
 const STATUS_TONE: Record<AgentEdgeStatus, "good" | "warn"> = {

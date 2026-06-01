@@ -123,9 +123,12 @@ button {
   display: flex;
   height: 38px;
   align-items: center;
+  padding-left: 86px;
   overflow: hidden;
   border-bottom: var(--border-width) solid var(--rule);
   background: var(--bg-1);
+  -webkit-app-region: drag;
+  app-region: drag;
 }
 
 .top-hazard .center {
@@ -140,6 +143,8 @@ button {
   letter-spacing: 0.36em;
   text-shadow: 0 0 8px var(--primary);
   white-space: nowrap;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
 .top-hazard .jp,
@@ -175,6 +180,20 @@ button {
   align-items: center;
   border-bottom: var(--border-width) solid var(--rule);
   background: var(--bg-1);
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+.header button,
+.header a,
+.header input,
+.header select,
+.header textarea,
+.header [role="button"],
+.palette-switch,
+.palette-switch button {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
 .header .brand {

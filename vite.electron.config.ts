@@ -11,6 +11,7 @@ export default defineConfig({
     rollupOptions: {
       external: ["electron"],
       input: {
+        apiChild: "src/electron/api-child.ts",
         main: "src/electron/main.ts",
         preload: "src/electron/preload.ts",
       },
