@@ -301,7 +301,7 @@ describe("graph/tokens API routes", () => {
     };
 
     await withApi(fixture, async ({ baseUrl }) => {
-      const response = await requestJson(baseUrl, "/api/agent-graph?rootThreadId=root-thread");
+      const response = await requestJson(baseUrl, "/api/agent-graph?sourceId=codex&rootThreadId=root-thread");
 
       expect(response.status).toBe(503);
       expect(response.body).toMatchObject({

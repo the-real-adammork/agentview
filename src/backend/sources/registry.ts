@@ -50,15 +50,27 @@ export const createSourceRegistry = (sources: SessionSource[]): SourceRegistry =
     all,
     async findSession(sessionId: string, preferredSource?: SourceId): Promise<ResolvedSessionSource | null> {
       const candidates = preferredSource ? [get(preferredSource)] : all();
+      const errors: unknown[] = [];
+      const checkedSources: SessionSource[] = [];
       for (const source of candidates) {
         try {
           const session = await source.getSession(sessionId);
           if (session) return { source, session };
-        } catch {
+          checkedSources.push(source);
+        } catch (error) {
           // A source can be temporarily unavailable (for example, an absent Codex
           // state DB in a Claude Code-only test run). Keep probing the other
           // registered sources so source-less ids still resolve when possible.
+          errors.push(error);
         }
+      }
+      for (const source of checkedSources) {
+        if ((await source.getHealth()).available) {
+          return null;
+        }
+      }
+      if (errors.length > 0) {
+        throw errors[0];
       }
       return null;
     },

@@ -172,8 +172,15 @@ describe("merged sessions (codex + claude-code)", () => {
       const sorted = [...updatedAtMs].sort((left, right) => right - left);
       expect(updatedAtMs).toEqual(sorted);
 
-      // The exact interleave by updatedAtMs (codex-newest > CC subagent > CC plain > codex-older).
-      expect(data.map((row) => row.id)).toEqual(["codex-newest", SUBAGENT_ID, PLAIN_ID, "codex-older"]);
+      // The exact interleave by updatedAtMs includes CC child sessions as first-class rows.
+      expect(data.map((row) => row.id)).toEqual([
+        "codex-newest",
+        SUBAGENT_ID,
+        "agent-aaaa",
+        "agent-bbbb",
+        PLAIN_ID,
+        "codex-older",
+      ]);
     });
   });
 
@@ -182,9 +189,9 @@ describe("merged sessions (codex + claude-code)", () => {
       const response = await requestJson(baseUrl, "/api/sessions?sourceId=claude-code&limit=25");
       expect(response.status).toBe(200);
       const data = rows(response.body);
-      expect(data.length).toBe(2);
+      expect(data.length).toBe(4);
       expect(data.every((row) => row.source === "claude-code")).toBe(true);
-      expect(data.map((row) => row.id).sort()).toEqual([PLAIN_ID, SUBAGENT_ID].sort());
+      expect(data.map((row) => row.id).sort()).toEqual([PLAIN_ID, SUBAGENT_ID, "agent-aaaa", "agent-bbbb"].sort());
     });
   });
 
