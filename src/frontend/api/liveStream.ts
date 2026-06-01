@@ -20,7 +20,7 @@ export interface LiveStreamCallbacks {
 export interface OpenLiveStreamOptions {
   baseUrl?: string;
   threadId: string | null;
-  /** Tool the followed session belongs to; routes the live timeline tail. Default "codex". */
+  /** Optional source hint for legacy callers; live timeline routing resolves by session id when omitted. */
   source?: SourceId;
   fromByte: number | null;
   logCursorId: number | null;
@@ -61,8 +61,7 @@ export const openLiveStream = ({
   const buildUrl = () => {
     const params = new URLSearchParams();
     if (threadId) params.set("threadId", threadId);
-    // Omit the default ("codex") so existing Codex stream URLs stay unchanged.
-    if (sessionSource && sessionSource !== "codex") params.set("sourceId", sessionSource);
+    void sessionSource;
     if (currentFromByte !== null) params.set("fromByte", String(currentFromByte));
     if (currentLogCursorId !== null) params.set("logCursorId", String(currentLogCursorId));
     const query = params.toString();

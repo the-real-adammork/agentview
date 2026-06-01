@@ -325,9 +325,9 @@ export const handleAgentGraphApiRequest = async (request: IncomingMessage, respo
     return true;
   }
 
-  // The SourceId dispatch discriminator travels as `sourceId` (default "codex").
-  const sourceResult = parseSourceId(url);
-  if (!sourceResult.ok) {
+  const explicitSource = (url.searchParams.get("sourceId") ?? "").trim() !== "";
+  const sourceResult = explicitSource ? parseSourceId(url) : null;
+  if (sourceResult && !sourceResult.ok) {
     writeJson(response, 400, fail("state-db", { code: "UNKNOWN_SOURCE", message: sourceResult.message }), origin);
     return true;
   }
@@ -336,7 +336,7 @@ export const handleAgentGraphApiRequest = async (request: IncomingMessage, respo
     const registry = await createDefaultRegistry();
 
     try {
-      if (!registry.has(sourceResult.source)) {
+      if (sourceResult && !registry.has(sourceResult.source)) {
         writeJson(
           response,
           400,
@@ -349,10 +349,15 @@ export const handleAgentGraphApiRequest = async (request: IncomingMessage, respo
         return true;
       }
 
-      // Dispatch by sourceId, then narrow to the AgentGraphRowSource capability.
+      const matched = await registry.findSession(rootThreadId, sourceResult?.source);
+      if (!matched) {
+        throw new AgentGraphError("THREAD_NOT_FOUND", `Thread not found: ${rootThreadId}`, 404);
+      }
+
+      // Resolve by id (or sourceId hint), then narrow to the AgentGraphRowSource capability.
       // Codex rows come from its wrapped StateStore SQL; CC rows from subagents/*.meta.json
       // joined to the parent Task tool_use. Both feed the unchanged deriveAgentGraph.
-      const source = asAgentGraphRowSource(registry.get(sourceResult.source));
+      const source = asAgentGraphRowSource(matched.source);
       const rows = await source.getAgentGraphRows(rootThreadId, maxDepth.value + 1);
       const graph = deriveAgentGraph(rootThreadId, rows, { maxDepth: maxDepth.value });
       writeJson(response, 200, ok("state-db", graph), origin);

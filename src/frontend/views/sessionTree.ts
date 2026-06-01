@@ -63,6 +63,7 @@ export const sessionDepth = (session: SessionSummary, index: SessionIndex): numb
   while (current.parentId) {
     const parent = index.get(current.parentId);
     if (!parent || seen.has(parent.id)) {
+      depth += 1;
       break;
     }
     depth += 1;
@@ -202,7 +203,7 @@ export const flattenAgentTree = (current: SessionSummary, sessions: SessionSumma
       walk(child, depth + 1);
     }
   };
-  walk(root, 0);
+  walk(root, sessionDepth(root, index));
   return rows;
 };
 
@@ -264,7 +265,7 @@ export const buildSessionRows = (
     children.forEach((child, childIndex) => walk(child, depth + 1, childIndex === children.length - 1));
   };
   for (const root of roots) {
-    walk(root, 0, false);
+    walk(root, sessionDepth(root, index), false);
   }
 
   return rows;

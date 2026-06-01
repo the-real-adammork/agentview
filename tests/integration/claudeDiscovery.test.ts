@@ -46,19 +46,23 @@ describe("createClaudeCodeSource", () => {
     expect(typeof health.detail).toBe("string");
   });
 
-  it("listSessions returns both fixture sessions with source:claude-code and derived metadata", async () => {
+  it("listSessions returns roots plus sub-agent rows with native parentage", async () => {
     const fixture = await makeFixture();
     const source = createClaudeCodeSource({ projectsDir: fixture.projectsDir });
 
     const sessions = await source.listSessions();
-    expect(sessions).toHaveLength(2);
+    expect(sessions).toHaveLength(4);
     expect(sessions.every((session) => session.source === "claude-code")).toBe(true);
 
     const subagent = sessions.find((session) => session.id === SUBAGENT_ID);
     expect(subagent).toMatchObject({ title: "Subagent CC session title", cwd: "/repo/subagent-app", childCount: 2 });
+    const children = sessions.filter((session) => session.parentId === SUBAGENT_ID);
+    expect(children.map((session) => session.id).sort()).toEqual(["agent-aaaa", "agent-bbbb"]);
+    expect(children.every((session) => session.threadSource === "subagent")).toBe(true);
+    expect(children.every((session) => session.cwd === "/repo/subagent-app")).toBe(true);
 
     // Sorted by updatedAtMs desc.
-    expect(sessions.map((session) => session.id)).toEqual([SUBAGENT_ID, PLAIN_ID]);
+    expect(sessions.map((session) => session.id)).toEqual([SUBAGENT_ID, "agent-aaaa", "agent-bbbb", PLAIN_ID]);
   });
 
   it("applies the SessionFilter axes that make sense for CC", async () => {
@@ -72,16 +76,16 @@ describe("createClaudeCodeSource", () => {
     expect(byCwd.map((session) => session.id)).toEqual([PLAIN_ID]);
 
     const byUpdatedAfter = await source.listSessions({ updatedAfterMs: 1_700_000_250_000 });
-    expect(byUpdatedAfter.map((session) => session.id)).toEqual([SUBAGENT_ID]);
+    expect(byUpdatedAfter.map((session) => session.id)).toEqual([SUBAGENT_ID, "agent-aaaa", "agent-bbbb"]);
 
     const byMinTokens = await source.listSessions({ minTokens: 200 });
     expect(byMinTokens.map((session) => session.id)).toEqual([SUBAGENT_ID]);
 
     const byModel = await source.listSessions({ model: "claude-opus-4" });
-    expect(byModel).toHaveLength(2);
+    expect(byModel).toHaveLength(4);
 
     const bySubagentThreadSource = await source.listSessions({ threadSource: "subagent" });
-    expect(bySubagentThreadSource).toHaveLength(0);
+    expect(bySubagentThreadSource.map((session) => session.id).sort()).toEqual(["agent-aaaa", "agent-bbbb"]);
   });
 
   it("paginates by limit and offset", async () => {
@@ -92,7 +96,7 @@ describe("createClaudeCodeSource", () => {
     expect(firstPage.map((session) => session.id)).toEqual([SUBAGENT_ID]);
 
     const secondPage = await source.listSessions(undefined, { limit: 1, offset: 1 });
-    expect(secondPage.map((session) => session.id)).toEqual([PLAIN_ID]);
+    expect(secondPage.map((session) => session.id)).toEqual(["agent-aaaa"]);
   });
 
   it("getSession returns the matching row and null for an unknown id", async () => {
@@ -104,6 +108,24 @@ describe("createClaudeCodeSource", () => {
 
     const missing = await source.getSession("does-not-exist");
     expect(missing).toBeNull();
+  });
+
+  it("getSession and resolveSession can address a sub-agent transcript", async () => {
+    const fixture = await makeFixture();
+    const source = createClaudeCodeSource({ projectsDir: fixture.projectsDir });
+
+    const found = await source.getSession("agent-aaaa");
+    expect(found).toMatchObject({
+      id: "agent-aaaa",
+      source: "claude-code",
+      parentId: SUBAGENT_ID,
+      threadSource: "subagent",
+    });
+
+    const resolved = await source.resolveSession("agent-aaaa");
+    expect(resolved.source).toBe("claude-code");
+    expect(resolved.sessionId).toBe("agent-aaaa");
+    expect(resolved.rawLogPath.endsWith("agent-aaaa.jsonl")).toBe(true);
   });
 
   it("resolveSession returns the absolute transcript path and conventional subagentsDir", async () => {

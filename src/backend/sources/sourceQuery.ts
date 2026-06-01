@@ -11,9 +11,8 @@ const sourceIdValues = new Set<SourceId>(["codex", "claude-code"]);
 
 export type ParseSourceIdResult = { ok: true; source: SourceId } | { ok: false; message: string };
 
-export const parseSourceId = (url: URL): ParseSourceIdResult => {
-  const raw = url.searchParams.get("sourceId");
-  if (raw === null || raw.trim() === "") {
+export const parseSourceIdValue = (raw: string | null | undefined): ParseSourceIdResult => {
+  if (raw === null || raw === undefined || raw.trim() === "") {
     return { ok: true, source: "codex" };
   }
 
@@ -22,4 +21,8 @@ export const parseSourceId = (url: URL): ParseSourceIdResult => {
   }
 
   return { ok: true, source: raw as SourceId };
+};
+
+export const parseSourceId = (url: URL): ParseSourceIdResult => {
+  return parseSourceIdValue(url.searchParams.get("sourceId"));
 };

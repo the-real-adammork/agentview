@@ -100,6 +100,18 @@ const requestJson = async (baseUrl: string, path: string): Promise<JsonResponse>
   return { status: response.status, body: await response.json() };
 };
 
+const postRawTimeline = async (
+  baseUrl: string,
+  payload: { threadId: string; sourceLines: number[]; sourceId?: string },
+): Promise<{ status: number; body: string }> => {
+  const response = await fetch(`${baseUrl}/api/timeline/raw`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return { status: response.status, body: await response.text() };
+};
+
 const CC_SESSION_ID = "cc11cc11-cc11-4c11-8c11-cc11cc11cc11";
 const CC_CWD = "/repo/cc-timeline-app";
 
@@ -227,6 +239,86 @@ describe("claude-code timeline dispatch", () => {
       const warm = await requestJson(api.baseUrl, `/api/timeline?threadId=${CC_SESSION_ID}&sourceId=claude-code`);
       expect(warm.status).toBe(200);
       expect((warm.body as { data: { cacheStatus: string } }).data.cacheStatus).toBe("warm");
+
+      const sourceLess = await requestJson(api.baseUrl, `/api/timeline?threadId=${CC_SESSION_ID}`);
+      expect(sourceLess.status).toBe(200);
+      expect(sourceLess.body).toMatchObject({
+        ok: true,
+        data: { threadId: CC_SESSION_ID },
+      });
+    } finally {
+      await api.stop();
+      await fixture.cleanup();
+    }
+  });
+
+  it("POST /api/timeline/raw exports Claude Code source lines through sourceId dispatch", async () => {
+    const fixture = await createClaudeProjectsFixture({
+      sessions: [
+        {
+          sessionId: CC_SESSION_ID,
+          cwd: CC_CWD,
+          createdAtMs: 1_700_000_000_000,
+          updatedAtMs: 1_700_000_100_000,
+          rawLines: transcript(),
+        },
+      ],
+    });
+    fixtures.push(fixture);
+    const api = await startApi({ CLAUDE_PROJECTS_DIR: fixture.projectsDir });
+    try {
+      const response = await postRawTimeline(api.baseUrl, {
+        threadId: CC_SESSION_ID,
+        sourceId: "claude-code",
+        sourceLines: [1, 4],
+      });
+
+      expect(response.status).toBe(200);
+      const exported = response.body.trim().split("\n").map((line) => JSON.parse(line) as Record<string, unknown>);
+      expect(exported).toHaveLength(2);
+      expect(exported[0]).toMatchObject({ type: "user", sessionId: CC_SESSION_ID });
+      expect(exported[1]).toMatchObject({ type: "assistant", sessionId: CC_SESSION_ID });
+    } finally {
+      await api.stop();
+      await fixture.cleanup();
+    }
+  });
+
+  it("POST /api/timeline/raw exports Claude Code +SUBS child source lines", async () => {
+    const fixture = await createClaudeProjectsFixture({
+      sessions: [
+        {
+          sessionId: CC_SESSION_ID,
+          cwd: CC_CWD,
+          aiTitle: "Export parent",
+          createdAtMs: 1_700_000_000_000,
+          updatedAtMs: 1_700_000_100_000,
+          assistantUsages: [],
+          subagents: [
+            {
+              agentId: "exporter",
+              agentType: "worker",
+              description: "Export child",
+              toolUseId: "toolu_exporter",
+              firstUserMessage: "CHILD_EXPORT_LINE",
+              finalReport: "child done",
+              createdAtMs: 1_700_000_010_000,
+              updatedAtMs: 1_700_000_020_000,
+            },
+          ],
+        },
+      ],
+    });
+    fixtures.push(fixture);
+    const api = await startApi({ CLAUDE_PROJECTS_DIR: fixture.projectsDir });
+    try {
+      const response = await postRawTimeline(api.baseUrl, {
+        threadId: "agent-exporter",
+        sourceLines: [1],
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.body).toContain("CHILD_EXPORT_LINE");
     } finally {
       await api.stop();
       await fixture.cleanup();

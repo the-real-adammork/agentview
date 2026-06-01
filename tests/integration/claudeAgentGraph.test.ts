@@ -194,13 +194,15 @@ describe("claude-code agent graph", () => {
         expect(edge.source).toBe("native");
       }
 
-      // Codex regression: the default-source graph still dispatches through the
-      // unchanged Codex path. The throwaway codexHome has no state DB, so it reports
-      // STATE_DB_MISSING (503) exactly as the Codex graph did before this phase —
-      // proving the generalized handler did not alter Codex dispatch/error mapping.
+      const sourceLess = await requestJson(api.baseUrl, `/api/agent-graph?rootThreadId=${ROOT_ID}&maxDepth=2`);
+      expect(sourceLess.status).toBe(200);
+      expect((sourceLess.body as { data: { root: { id: string } } }).data.root.id).toBe(ROOT_ID);
+
+      // Unknown ids now resolve across sources and report a normal not-found when
+      // no registered source owns the session id.
       const codex = await requestJson(api.baseUrl, "/api/agent-graph?rootThreadId=missing-codex-root");
-      expect(codex.status).toBe(503);
-      expect(codex.body).toMatchObject({ ok: false, error: { code: "STATE_DB_MISSING" } });
+      expect(codex.status).toBe(404);
+      expect(codex.body).toMatchObject({ ok: false, error: { code: "THREAD_NOT_FOUND" } });
     } finally {
       await api.stop();
       await fixture.cleanup();

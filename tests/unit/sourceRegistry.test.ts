@@ -117,6 +117,20 @@ describe("createSourceRegistry", () => {
     expect(cc.listSpy).not.toHaveBeenCalled();
   });
 
+  it("findSession resolves by id across sources and honors a preferred source", async () => {
+    const codex = createFakeSource({ id: "codex", sessions: [summary("shared", "codex", 1_000)] });
+    const cc = createFakeSource({
+      id: "claude-code",
+      sessions: [summary("cc-only", "claude-code", 2_000), summary("shared", "claude-code", 3_000)],
+    });
+    const registry = createSourceRegistry([codex.source, cc.source]);
+
+    expect((await registry.findSession("cc-only"))?.source.id).toBe("claude-code");
+    expect((await registry.findSession("shared"))?.source.id).toBe("codex");
+    expect((await registry.findSession("shared", "claude-code"))?.session.source).toBe("claude-code");
+    expect(await registry.findSession("missing")).toBeNull();
+  });
+
   it("getHealth aggregates one entry per source", async () => {
     const codex = createFakeSource({ id: "codex", sessions: [], health: { source: "codex", available: true } });
     const cc = createFakeSource({

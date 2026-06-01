@@ -13,11 +13,7 @@ export interface RouteState {
   repo: string | null;
   /** Open session for the detail views (Timeline/Agent Graph/Tokens/Diagnostics). */
   sessionId: string | null;
-  /**
-   * Tool the open session belongs to, so a deep-linked Claude Code session
-   * dispatches correctly on reload. Omitted from the URL for the default ("codex"),
-   * keeping existing Codex links unchanged; undefined when no session is open.
-   */
+  /** Legacy source hint accepted from older links; new URLs resolve detail views by session id. */
   source: SourceId | undefined;
   /** Sessions-list search query ("" = none). */
   search: string;
@@ -100,13 +96,6 @@ export function buildPath(state: RouteState): string {
     if (state.scope !== DEFAULTS.scope) params.set("scope", state.scope);
     if (state.kind !== DEFAULTS.kind) params.set("kind", state.kind);
   }
-  // Carry the tool for any session detail view so a Claude Code deep-link reloads
-  // against the right source. Omitted for the default ("codex") — existing Codex
-  // links stay byte-identical.
-  if (isDetailView(state.view) && state.sessionId && state.source && state.source !== "codex") {
-    params.set("sourceId", state.source);
-  }
-
   const query = params.toString();
   return query ? `${pathname}?${query}` : pathname;
 }

@@ -32,11 +32,9 @@ export const handleStreamApiRequest = async (
   const threadId = url.searchParams.get("threadId")?.trim() || null;
   const fromByte = parseIntParam(url.searchParams.get("fromByte"));
   const logCursorId = parseIntParam(url.searchParams.get("logCursorId"));
-  // SourceId dispatch discriminator (default "codex"). An unknown value on the SSE
-  // path degrades to the default rather than a JSON 400; with one registered
-  // source this is a no-op but carries the discriminator into the subscribe.
+  // Optional SourceId hint. Absent means the live source resolves by thread id.
   const sourceResult = parseSourceId(url);
-  const source = sourceResult.ok ? sourceResult.source : "codex";
+  const source = sourceResult.ok && url.searchParams.has("sourceId") ? sourceResult.source : undefined;
 
   response.writeHead(200, {
     ...corsHeadersForOrigin(origin),

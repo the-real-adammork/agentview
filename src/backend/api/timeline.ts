@@ -118,9 +118,9 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
   const subtree =
     fromByte === undefined && (url.searchParams.get("subtree") === "1" || url.searchParams.get("subtree") === "true");
 
-  // The SourceId dispatch discriminator travels as `sourceId` (default "codex").
-  const sourceResult = parseSourceId(url);
-  if (!sourceResult.ok) {
+  const explicitSource = (url.searchParams.get("sourceId") ?? "").trim() !== "";
+  const sourceResult = explicitSource ? parseSourceId(url) : null;
+  if (sourceResult && !sourceResult.ok) {
     writeJson(response, 400, fail("rollout-cache", { code: "UNKNOWN_SOURCE", message: sourceResult.message }), origin);
     return true;
   }
@@ -129,7 +129,7 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
     const registry = await createDefaultRegistry();
 
     try {
-      if (!registry.has(sourceResult.source)) {
+      if (sourceResult && !registry.has(sourceResult.source)) {
         writeJson(
           response,
           400,
@@ -142,15 +142,8 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
         return true;
       }
 
-      // One polymorphic path for every source. The dispatched source is narrowed
-      // to its `TimelineSource` capability (parseCached / tailParsed / resolveChild);
-      // each source keeps its own cache key, tail reader, and child resolution behind
-      // that interface, so there is no `if (source === ...)` branch or concrete cast.
-      const source = registry.get(sourceResult.source);
-      const timeline = asTimelineSource(source);
-
-      const thread = await source.getSession(threadId);
-      if (!thread) {
+      const matched = await registry.findSession(threadId, sourceResult?.source);
+      if (!matched) {
         writeJson(
           response,
           404,
@@ -159,6 +152,14 @@ export const handleTimelineApiRequest = async (request: IncomingMessage, respons
         );
         return true;
       }
+
+      // One polymorphic path for every source. The resolved source is narrowed
+      // to its `TimelineSource` capability (parseCached / tailParsed / resolveChild);
+      // each source keeps its own cache key, tail reader, and child resolution behind
+      // that interface, so there is no `if (source === ...)` branch or concrete cast.
+      const source = matched.source;
+      const timeline = asTimelineSource(source);
+      const thread = matched.session;
 
       if (!thread.rolloutPath) {
         writeJson(

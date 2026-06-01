@@ -73,6 +73,8 @@ const updatedAtMsOf = (session: SessionSummary): number =>
 const createdAtMsOf = (session: SessionSummary): number =>
   typeof session.createdAtMs === "number" && Number.isFinite(session.createdAtMs) ? session.createdAtMs : 0;
 
+const LIST_CHILD_SCAN_DEPTH = 10;
+
 /**
  * Pure filter predicate mirroring the Codex `StateStore.listSessions` semantics so
  * CC filtering matches Codex filtering behavior: archived (CC rows are always
@@ -127,6 +129,29 @@ export const createClaudeCodeSource = ({ projectsDir }: { projectsDir: string })
   const findDiscovered = async (sessionId: string): Promise<DiscoveredClaudeSession | null> => {
     const discovered = await discoverClaudeSessions(projectsDir);
     return discovered.find((session) => session.sessionId === sessionId) ?? null;
+  };
+
+  const rootAndChildren = async (discovered: DiscoveredClaudeSession): Promise<{ root: SessionSummary; children: SessionSummary[] }> => {
+    const rootSummary = await deriveClaudeMeta(discovered);
+    const entries = await enumerateSubagents(discovered.subagentsDir);
+    const root =
+      entries.length === 0
+        ? rootSummary
+        : { ...rootSummary, childCount: entries.length, openChildCount: openChildCount(entries) };
+    const linked = entries.length
+      ? await linkSubagents(discovered.sessionId, discovered.transcriptPath, entries, LIST_CHILD_SCAN_DEPTH)
+      : [];
+    return { root, children: subagentsToChildSummaries(linked, root) };
+  };
+
+  const findChild = async (sessionId: string): Promise<SessionSummary | null> => {
+    const discovered = await discoverClaudeSessions(projectsDir);
+    for (const root of discovered) {
+      const { children } = await rootAndChildren(root);
+      const child = children.find((candidate) => candidate.id === sessionId);
+      if (child) return child;
+    }
+    return null;
   };
 
   /**
@@ -193,9 +218,10 @@ export const createClaudeCodeSource = ({ projectsDir }: { projectsDir: string })
 
     async listSessions(filter?: SessionFilter, page?: PageOptions): Promise<SessionSummary[]> {
       const discovered = await discoverClaudeSessions(projectsDir);
-      const summaries = await Promise.all(
-        discovered.map(async (session) => withChildCounts(await deriveClaudeMeta(session), session)),
-      );
+      const summaries = (await Promise.all(discovered.map(rootAndChildren))).flatMap(({ root, children }) => [
+        root,
+        ...children,
+      ]);
 
       const filtered = filter ? summaries.filter((summary) => matchesFilter(summary, filter)) : summaries;
       filtered.sort((left, right) => updatedAtMsOf(right) - updatedAtMsOf(left));
@@ -207,16 +233,24 @@ export const createClaudeCodeSource = ({ projectsDir }: { projectsDir: string })
 
     async getSession(sessionId: string): Promise<SessionSummary | null> {
       const discovered = await findDiscovered(sessionId);
-      if (!discovered) return null;
-      return withChildCounts(await deriveClaudeMeta(discovered), discovered);
+      if (discovered) return withChildCounts(await deriveClaudeMeta(discovered), discovered);
+      return findChild(sessionId);
     },
 
     async resolveSession(sessionId: string): Promise<ResolvedSession> {
       const discovered = await findDiscovered(sessionId);
       if (!discovered) {
-        const error = new Error(`Claude Code session not found: ${sessionId}`);
-        error.name = "ClaudeSessionNotFoundError";
-        throw error;
+        const child = await findChild(sessionId);
+        if (!child?.rolloutPath) {
+          const error = new Error(`Claude Code session not found: ${sessionId}`);
+          error.name = "ClaudeSessionNotFoundError";
+          throw error;
+        }
+        const relPath = child.rolloutPath.startsWith(`${projectsDir}/`)
+          ? child.rolloutPath.slice(projectsDir.length + 1)
+          : child.rolloutPath;
+        await resolveClaudeSessionPath(projectsDir, relPath);
+        return { source: "claude-code", sessionId, rawLogPath: child.rolloutPath };
       }
 
       // Validate the transcript path stays inside the projects root (traversal guard).
@@ -273,7 +307,8 @@ export const createClaudeCodeSource = ({ projectsDir }: { projectsDir: string })
       const entries = await enumerateSubagents(discovered.subagentsDir);
       if (entries.length === 0) return [];
       const linked = await linkSubagents(rootSessionId, discovered.transcriptPath, entries, scanDepth);
-      return subagentsToChildSummaries(linked);
+      const root = await withChildCounts(await deriveClaudeMeta(discovered), discovered);
+      return subagentsToChildSummaries(linked, root);
     },
 
     // Source-internal capability (AgentGraphRowSource), NOT on the cross-source

@@ -1,10 +1,16 @@
 import type { PageOptions, SessionFilter, SessionSummary, SourceId } from "../../shared/contracts";
 import type { SessionSource, SourceHealth } from "./SessionSource";
 
+export interface ResolvedSessionSource {
+  source: SessionSource;
+  session: SessionSummary;
+}
+
 export interface SourceRegistry {
   get(source: SourceId): SessionSource; // throws on unknown source
   has(source: SourceId): boolean;
   all(): SessionSource[];
+  findSession(sessionId: string, preferredSource?: SourceId): Promise<ResolvedSessionSource | null>;
   listSessions(filter?: SessionFilter, page?: PageOptions): Promise<SessionSummary[]>; // fan-out + merge by updatedAtMs desc
   getHealth(): Promise<SourceHealth[]>;
   close(): Promise<void>;
@@ -42,6 +48,20 @@ export const createSourceRegistry = (sources: SessionSource[]): SourceRegistry =
       return byId.has(source);
     },
     all,
+    async findSession(sessionId: string, preferredSource?: SourceId): Promise<ResolvedSessionSource | null> {
+      const candidates = preferredSource ? [get(preferredSource)] : all();
+      for (const source of candidates) {
+        try {
+          const session = await source.getSession(sessionId);
+          if (session) return { source, session };
+        } catch {
+          // A source can be temporarily unavailable (for example, an absent Codex
+          // state DB in a Claude Code-only test run). Keep probing the other
+          // registered sources so source-less ids still resolve when possible.
+        }
+      }
+      return null;
+    },
     async listSessions(filter?: SessionFilter, page?: PageOptions): Promise<SessionSummary[]> {
       if (filter?.source) {
         return get(filter.source).listSessions(filter, page);

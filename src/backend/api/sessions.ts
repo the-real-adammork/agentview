@@ -210,7 +210,8 @@ export const handleSessionsApiRequest = async (request: IncomingMessage, respons
   }
 
   // The SourceId dispatch discriminator travels as `sourceId` (NOT `source`,
-  // which already maps to SessionFilter.threadSource). Absent ⇒ default "codex".
+  // which already maps to SessionFilter.threadSource). For a specific session id
+  // it is only a hint; absent means resolve by id across registered sources.
   const sourceResult = parseSourceId(url);
   if (!sourceResult.ok) {
     writeJson(response, 400, fail("state-db", { code: "UNKNOWN_SOURCE", message: sourceResult.message }), origin);
@@ -236,7 +237,8 @@ export const handleSessionsApiRequest = async (request: IncomingMessage, respons
       }
 
       if (threadId) {
-        const session = await registry.get(sourceResult.source).getSession(threadId);
+        const matched = await registry.findSession(threadId, explicitSource ? sourceResult.source : undefined);
+        const session = matched?.session ?? null;
 
         if (!session) {
           writeJson(

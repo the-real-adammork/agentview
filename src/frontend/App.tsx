@@ -50,12 +50,8 @@ export function App() {
   const [repoFilter, setRepoFilter] = useState<string | null>(() => parseLocation(window.location).repo);
   const [sessionsLoading, setSessionsLoading] = useState(false);
   const [sessionsError, setSessionsError] = useState<ApiError | null>(null);
+  const [sessionsReady, setSessionsReady] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState(() => parseLocation(window.location).sessionId ?? fixture.sessions[0]?.id ?? "");
-  // Tool the active session belongs to, so every per-session fetch (timeline,
-  // graph, thread, live tail) dispatches to the right source. Seeded from the URL
-  // (so a Claude Code deep-link resolves on reload) and kept in sync with the
-  // resolved session by the effect below.
-  const [activeSourceId, setActiveSourceId] = useState<SourceId | undefined>(() => parseLocation(window.location).source);
   // A deep-linked session may not be in the (filtered/paginated) list; fetch it on
   // its own so the header/metadata resolve even when it's absent from `sessions`.
   const [overrideSession, setOverrideSession] = useState<SessionSummary | undefined>();
@@ -147,6 +143,7 @@ export function App() {
 
         if (result.ok) {
           setSessions(result.data);
+          setSessionsReady(true);
           liveTokenStore.setSessions(result.data);
           setActiveSessionId((current) => {
           if (result.data.find((session) => session.id === current)) return current;
@@ -206,11 +203,8 @@ export function App() {
   }, [repoFilter, activeSession, sessions]);
 
   const selectSession = useCallback((sessionId: string, view?: ObservatoryView, source?: SourceId) => {
+    void source;
     setActiveSessionId(sessionId);
-    // Set the source eagerly when the caller knows it (a list row carries it), so
-    // the first fetch dispatches correctly without a wrong-source round-trip. When
-    // omitted, the sync effect below corrects it once the session resolves.
-    if (source !== undefined) setActiveSourceId(source);
     if (view) {
       setActiveView(view);
     }
@@ -251,7 +245,7 @@ export function App() {
     // huge live orchestrator. +SUBS lazily pulls the server-merged subtree (still
     // ONE server call — the merge is server-side, not a client fan-out).
     realApiClient
-      .getTimeline(activeSessionId, { source: activeSourceId, ...(fromByte === undefined ? {} : { fromByte }) })
+      .getTimeline(activeSessionId, { ...(fromByte === undefined ? {} : { fromByte }) })
       .then((result) => {
         if (result.ok) {
           setTimelinePayload((current) =>
@@ -280,7 +274,7 @@ export function App() {
         });
       })
       .finally(() => setTimelineLoading(false));
-  }, [activeSessionId, activeSourceId]);
+  }, [activeSessionId]);
 
   useEffect(() => {
     if (activeView !== "Timeline") return;
@@ -295,7 +289,7 @@ export function App() {
       view: activeView,
       repo: repoFilter,
       sessionId: activeSessionId || null,
-      source: activeSourceId,
+      source: undefined,
       search: sessionFilter.search ?? "",
       archived: sessionFilter.archived,
       scope: timelineScope,
@@ -305,7 +299,7 @@ export function App() {
     if (url === current) return;
     const pathnameChanged = url.split("?")[0] !== window.location.pathname;
     window.history[pathnameChanged ? "pushState" : "replaceState"](null, "", url);
-  }, [activeView, repoFilter, activeSessionId, activeSourceId, sessionFilter.search, sessionFilter.archived, timelineScope, timelineKind]);
+  }, [activeView, repoFilter, activeSessionId, sessionFilter.search, sessionFilter.archived, timelineScope, timelineKind]);
 
   // URL → state on Back/Forward (popstate). The push effect above no-ops because
   // buildPath(state) now equals the already-current URL, so there's no loop.
@@ -315,7 +309,6 @@ export function App() {
       setActiveView(route.view);
       setRepoFilter(route.repo);
       if (route.sessionId) setActiveSessionId(route.sessionId);
-      setActiveSourceId(route.source);
       setTimelineScope(route.scope);
       setTimelineKind(route.kind);
       setSessionFilter((current) => ({ ...current, search: route.search || undefined, archived: route.archived ?? "exclude" }));
@@ -334,7 +327,7 @@ export function App() {
     if (overrideSession?.id === activeSessionId || !realApiClient.getThread) return;
     let cancelled = false;
     realApiClient
-      .getThread(activeSessionId, { source: activeSourceId })
+      .getThread(activeSessionId)
       .then((result) => {
         if (!cancelled && result.ok) setOverrideSession(result.data);
       })
@@ -342,29 +335,19 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [activeSessionId, activeSourceId, sessionIdsKey]);
-
-  // Keep activeSourceId tracking whatever session is actually resolved — covers a
-  // selection that didn't pass a source and a deep-link override once it loads.
-  useEffect(() => {
-    const resolved =
-      sessions.find((session) => session.id === activeSessionId) ??
-      (overrideSession?.id === activeSessionId ? overrideSession : undefined);
-    if (resolved?.source && resolved.source !== activeSourceId) {
-      setActiveSourceId(resolved.source);
-    }
-  }, [sessions, overrideSession, activeSessionId, activeSourceId]);
+  }, [activeSessionId, sessionIdsKey]);
 
   // +SUBS pulls the server-merged spawn subtree once per session (one server call;
   // the merge is server-side). It swaps into the payload so rows expand in place;
   // "this" then filters that stream back down to the active thread.
   const subtreeSessionRef = useRef<string | null>(null);
   const loadSubtree = useCallback(() => {
+    if (!sessionsReady) return;
     if (!activeSession?.id || !activeHasDescendants || subtreeSessionRef.current === activeSession.id) return;
     const sessionId = activeSession.id;
     setSubtreeLoading(true);
     realApiClient
-      .getTimeline(sessionId, { subtree: true, source: activeSourceId })
+      .getTimeline(sessionId, { subtree: true })
       .then((result) => {
         if (result.ok) {
           subtreeSessionRef.current = sessionId;
@@ -377,7 +360,7 @@ export function App() {
         /* +SUBS is best-effort; the single-thread stream stays visible. */
       })
       .finally(() => setSubtreeLoading(false));
-  }, [activeSession?.id, activeHasDescendants, activeSourceId]);
+  }, [sessionsReady, activeSession?.id, activeHasDescendants]);
 
   const handleScopeChange = useCallback(
     (next: "this" | "all") => {
@@ -407,7 +390,7 @@ export function App() {
     setAgentGraphLoading(true);
     setAgentGraphError(null);
     realApiClient
-      .getAgentGraph(activeSession.id, { maxDepth: graphMaxDepth, source: activeSourceId })
+      .getAgentGraph(activeSession.id, { maxDepth: graphMaxDepth })
       .then((result) => {
         if (result.ok) {
           setAgentGraph(result.data);
@@ -422,7 +405,7 @@ export function App() {
         });
       })
       .finally(() => setAgentGraphLoading(false));
-  }, [activeSession?.id, graphMaxDepth, activeSourceId]);
+  }, [activeSession?.id, graphMaxDepth]);
 
   useEffect(() => {
     if (activeView !== "Agent Graph") return;
@@ -466,15 +449,14 @@ export function App() {
   // Live updates: initial paint stays the fetch path above; the SSE stream applies deltas
   // through the same state setters. Never load-bearing — VITE_AGENTVIEW_LIVE=0 disables it.
   const liveEnabled = !demoEnabled && (import.meta.env.VITE_AGENTVIEW_LIVE ?? "1") !== "0";
-  const liveThreadId = activeSession?.id ?? null;
+  const liveThreadId = sessionsReady ? activeSession?.id ?? null : null;
 
   useEffect(() => {
     if (!liveEnabled) return undefined;
 
     const handle = openLiveStream({
       threadId: liveThreadId,
-      // Dispatch the live timeline tail to the active session's source (CC or Codex).
-      source: activeSourceId,
+      source: undefined,
       // Tail from exactly where the initial load stopped (closes the fetch→connect
       // gap). Falls back to null (current EOF) until that load has happened.
       fromByte:
@@ -518,7 +500,7 @@ export function App() {
     // Reopen when the followed session (or its source) changes OR once its initial
     // load sets the tail baseline (liveBaselineSeq) — appends don't bump the seq, so
     // no reconnect storm.
-  }, [liveThreadId, activeSourceId, liveEnabled, liveTokenStore, liveBaselineSeq]);
+  }, [liveThreadId, liveEnabled, liveTokenStore, liveBaselineSeq]);
 
   const fallbackTimeline: TimelinePayload = {
     threadId: activeSession?.id ?? "",

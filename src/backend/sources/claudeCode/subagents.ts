@@ -393,7 +393,7 @@ export const linkSubagents = async (
  * `parentId`/`parentEdgeSource` mark the certain native edge to the parent (root for
  * a direct child, the enclosing sub-agent for a nested one).
  */
-export const subagentsToChildSummaries = (linked: LinkedSubagent[]): SessionSummary[] =>
+export const subagentsToChildSummaries = (linked: LinkedSubagent[], root?: SessionSummary): SessionSummary[] =>
   linked.map(({ entry, parentId }) => {
     const title = entry.description || entry.firstUserMessagePreview || entry.id;
     const titlePreview = redactedPreview(title);
@@ -403,9 +403,9 @@ export const subagentsToChildSummaries = (linked: LinkedSubagent[]): SessionSumm
       title,
       status: entry.status,
       updatedAt: new Date(entry.updatedAtMs).toISOString(),
-      branch: "",
-      cwd: "",
-      model: "",
+      branch: root?.branch ?? "",
+      cwd: root?.cwd ?? "",
+      model: root?.model ?? "",
       lastMessage: entry.finalReportPreview ?? entry.firstUserMessagePreview ?? "",
       childCount: 0,
       openChildCount: 0,
@@ -422,9 +422,11 @@ export const subagentsToChildSummaries = (linked: LinkedSubagent[]): SessionSumm
       threadSource: "subagent",
       agentNickname: entry.description || null,
       agentRole: entry.agentType,
-      gitSha: null,
-      gitBranch: null,
-      gitOriginUrl: null,
+      gitSha: root?.gitSha ?? null,
+      gitBranch: root?.gitBranch ?? null,
+      gitOriginUrl: root?.gitOriginUrl ?? null,
+      gitOriginUrlPreview: root?.gitOriginUrlPreview,
+      repoLabel: root?.repoLabel,
       archived: false,
       warningCountStatus: "not_requested",
       failedToolCountStatus: "not_requested",

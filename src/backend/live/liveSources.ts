@@ -121,8 +121,9 @@ export const createLiveSources = ({
   return {
     async subscribe(request) {
       const { connection, threadId, filter, page } = request;
-      // Dispatch discriminator (default "codex"). Routes the timeline tail.
-      const source: SourceId = request.source ?? "codex";
+      // Optional dispatch hint. When absent, resolve the active session id across
+      // sources so callers do not need to know which tool produced the session.
+      const source = request.source;
       const unwatchFns: Array<() => void> = [];
 
       let resolved: ResolvedSession | null = null;
@@ -139,9 +140,10 @@ export const createLiveSources = ({
 
       // Resolve the active session's transcript + baseline its cursor, dispatching
       // by source through the registry (CC → CC transcript; Codex → rollout).
-      if (threadId && sourceRegistry.has(source)) {
+      if (threadId) {
         try {
-          const dispatched = sourceRegistry.get(source);
+          const matched = await sourceRegistry.findSession(threadId, source);
+          const dispatched = matched?.source;
           if (hasLiveTail(dispatched)) {
             resolved = await dispatched.resolveSession(threadId);
             tailSource = dispatched;

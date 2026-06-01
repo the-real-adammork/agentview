@@ -118,6 +118,18 @@ describe("sessionTree helpers", () => {
         ["sibling", 1],
       ]);
     });
+
+    it("keeps sub-agent depth when the top-level parent row is absent", () => {
+      const sub = session({ id: "sub", parentId: "root", createdAtMs: 2, threadSource: "subagent" });
+      const subSub = session({ id: "subSub", parentId: "sub", createdAtMs: 3, threadSource: "subagent" });
+
+      const rows = buildSessionRows([subSub, sub], () => true);
+
+      expect(rows.map((row) => [row.session.id, row.depth])).toEqual([
+        ["sub", 1],
+        ["subSub", 2],
+      ]);
+    });
   });
 
   describe("flattenAgentTree", () => {
@@ -135,6 +147,18 @@ describe("sessionTree helpers", () => {
         ["b", 1],
         ["c", 2],
         ["d", 1],
+      ]);
+    });
+
+    it("keeps sub-agent depth when the top-level ancestor is absent", () => {
+      const sub = session({ id: "sub", parentId: "root", createdAtMs: 2, threadSource: "subagent" });
+      const subSub = session({ id: "subSub", parentId: "sub", createdAtMs: 3, threadSource: "subagent" });
+
+      const rows = flattenAgentTree(subSub, [subSub, sub]);
+
+      expect(rows.map((row) => [row.session.id, row.depth])).toEqual([
+        ["sub", 1],
+        ["subSub", 2],
       ]);
     });
   });

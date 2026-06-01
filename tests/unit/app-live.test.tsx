@@ -18,12 +18,62 @@ vi.mock("../../src/frontend/api/liveStream", () => ({
 
 import { App } from "../../src/frontend/App";
 
+const emptyTimelinePayload = (threadId: string): TimelinePayload => ({
+  threadId,
+  events: [],
+  facts: {
+    threadId,
+    rolloutPath: "test://empty",
+    parserVersion: 1,
+    sourceMtimeMs: 0,
+    sourceSizeBytes: 0,
+    parsedThroughByte: 0,
+    events: [],
+    toolCalls: [],
+    tokenSnapshots: [],
+    turns: [],
+    agentLaunches: [],
+    agentWaits: [],
+    summary: {
+      eventCount: 0,
+      turnCount: 0,
+      toolCallCount: 0,
+      failedToolCallCount: 0,
+      tokenSnapshotCount: 0,
+      agentLaunchCount: 0,
+      agentWaitCount: 0,
+      warningCount: 0,
+      parsedThroughByte: 0,
+    },
+    warnings: [],
+  },
+  nextByteOffset: 0,
+  cacheStatus: "cold",
+});
+
 afterEach(() => {
   liveCallbacks.current = null;
   vi.restoreAllMocks();
 });
 
 describe("App live updates", () => {
+  it("does not request a fixture timeline before real sessions load", async () => {
+    vi.spyOn(realApiClient, "listSessions").mockReturnValue(new Promise(() => undefined));
+    const getTimeline = vi.spyOn(realApiClient, "getTimeline").mockResolvedValue({
+      ok: true,
+      source: "rollout-cache",
+      warnings: [],
+      data: emptyTimelinePayload("unused"),
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(realApiClient.listSessions).toHaveBeenCalled());
+    await act(async () => undefined);
+
+    expect(getTimeline).not.toHaveBeenCalled();
+  });
+
   it("applies a sessions snapshot pushed over the live stream", async () => {
     // Isolate from any real dev API server: the initial mount fetch must not
     // race the SSE push and clobber it. (Without this, a running `npm run dev`

@@ -94,8 +94,9 @@ describe("ClaudeCodeSource.listChildren", () => {
     // One child (writer) is open; the reviewer wrote a terminal report.
     expect(root?.openChildCount).toBe(1);
 
-    const [listed] = await source.listSessions({ source: "claude-code" });
-    expect(listed.childCount).toBe(2);
-    expect(listed.openChildCount).toBe(1);
+    const listed = (await source.listSessions({ source: "claude-code" })).find((session) => session.id === ROOT_ID);
+    expect(listed).toBeDefined();
+    expect(listed?.childCount).toBe(2);
+    expect(listed?.openChildCount).toBe(1);
   });
 });

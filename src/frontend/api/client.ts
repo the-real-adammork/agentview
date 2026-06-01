@@ -223,7 +223,11 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<ApiResu
  * Returns NDJSON text; throws with the server's message on failure. Used by the
  * timeline raw export, which sends the filtered events' `sourceLine`s.
  */
-export async function getRawTimeline(threadId: string, sourceLines: number[], includeResults = true): Promise<string> {
+export async function getRawTimeline(
+  threadId: string,
+  sourceLines: number[],
+  includeResults = true,
+): Promise<string> {
   const response = await fetch(`${apiBaseUrl}/api/timeline/raw`, {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -259,10 +263,8 @@ export const realApiClient: ObservatoryApi = {
     return getJson<SessionSummary[]>(`/api/sessions${buildSessionQuery(filter, page)}`);
   },
   getThread(threadId, options) {
-    const params = new URLSearchParams();
-    appendParam(params, "sourceId", options?.source);
-    const query = params.toString();
-    return getJson<SessionSummary>(`/api/sessions/${encodeURIComponent(threadId)}${query ? `?${query}` : ""}`);
+    void options;
+    return getJson<SessionSummary>(`/api/sessions/${encodeURIComponent(threadId)}`);
   },
   getTimeline(threadId, options) {
     const params = new URLSearchParams({ threadId });
@@ -272,7 +274,6 @@ export const realApiClient: ObservatoryApi = {
     if (options?.subtree) {
       params.set("subtree", "1");
     }
-    appendParam(params, "sourceId", options?.source);
     return getJson<TimelinePayload>(`/api/timeline?${params.toString()}`);
   },
   getAgentGraph(rootThreadId, options) {
@@ -280,7 +281,6 @@ export const realApiClient: ObservatoryApi = {
     if (options?.maxDepth !== undefined) {
       params.set("maxDepth", String(options.maxDepth));
     }
-    appendParam(params, "sourceId", options?.source);
     return getJson<AgentGraph>(`/api/agent-graph?${params.toString()}`);
   },
   getTokenSeries(threadId) {
