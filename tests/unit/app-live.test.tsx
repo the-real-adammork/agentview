@@ -53,10 +53,40 @@ const emptyTimelinePayload = (threadId: string): TimelinePayload => ({
 
 afterEach(() => {
   liveCallbacks.current = null;
+  window.history.pushState(null, "", "/");
   vi.restoreAllMocks();
 });
 
 describe("App live updates", () => {
+  it("loads the Repos index with a cheap user-session query and no live snapshot stream", async () => {
+    window.history.pushState(null, "", "/repos");
+    vi.spyOn(realApiClient, "getHealth").mockResolvedValue({
+      ok: true,
+      source: "state-db",
+      warnings: [],
+      data: { checkedAt: "2026-05-27T10:00:00.000Z", mode: "real", status: "ok" },
+    });
+    const listSessions = vi.spyOn(realApiClient, "listSessions").mockResolvedValue({
+      ok: true,
+      source: "state-db",
+      warnings: [],
+      data: [],
+    });
+
+    render(<App />);
+
+    await waitFor(() => expect(listSessions).toHaveBeenCalled());
+    expect(listSessions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        archived: "exclude",
+        threadSource: "user",
+        updatedAfterMs: expect.any(Number),
+      }),
+      { limit: 250, offset: 0 },
+    );
+    expect(liveCallbacks.current).toBeNull();
+  });
+
   it("does not request a fixture timeline before real sessions load", async () => {
     vi.spyOn(realApiClient, "listSessions").mockReturnValue(new Promise(() => undefined));
     const getTimeline = vi.spyOn(realApiClient, "getTimeline").mockResolvedValue({

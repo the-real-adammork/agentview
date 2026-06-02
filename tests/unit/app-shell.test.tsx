@@ -45,6 +45,8 @@ describe("fixture-backed app shell", () => {
   it("renders persistent hazard/status chrome and four primary navigation buttons", () => {
     render(<App />);
 
+    expect(document.querySelector(".app-shell")).toHaveAttribute("data-ui-kit", "agentview");
+
     const banner = screen.getByRole("banner", { name: /observatory status/i });
     expect(banner).toHaveTextContent(/observatory · 観測装置/i);
     expect(banner).toHaveTextContent(/機密 \/ レベル 7/i);

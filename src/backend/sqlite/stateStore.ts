@@ -4,6 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import type {
   PageOptions,
+  SessionListOptions,
   SessionFilter,
   SessionSummary,
   ThreadSource,
@@ -39,7 +40,7 @@ export interface StateStoreHealth {
 
 export interface StateStore {
   getHealth(): Promise<StateStoreHealth>;
-  listSessions(filter?: SessionFilter, page?: PageOptions): Promise<SessionSummary[]>;
+  listSessions(filter?: SessionFilter, page?: PageOptions, options?: SessionListOptions): Promise<SessionSummary[]>;
   getThread(threadId: string): Promise<SessionSummary | null>;
   getAgentGraphRows(rootThreadId: string, scanDepth: number): Promise<AgentGraphRow[]>;
   close(): Promise<void>;
@@ -487,10 +488,11 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
         },
       };
     },
-    async listSessions(filter = {}, page = {}) {
+    async listSessions(filter = {}, page = {}, options = {}) {
       const archived = filter.archived ?? "exclude";
       const limit = page.limit ?? 100;
       const offset = page.offset ?? 0;
+      const includeReconstructedParents = options.relationships === "full";
       const conditions: string[] = [];
       const parameters: Record<string, string | number> = {};
 
@@ -569,7 +571,7 @@ export const openStateStore = async ({ codexHome }: { codexHome: string }): Prom
       const orderBy = "ORDER BY COALESCE(t.updated_at_ms, t.updated_at * 1000) DESC, t.id DESC";
       const repoFilter = filter.repo?.trim();
 
-      const overlay = await getOverlay();
+      const overlay = includeReconstructedParents ? await getOverlay() : undefined;
 
       if (repoFilter) {
         // Repo identity is derived in JS (git origin URL -> repo name, with a cwd

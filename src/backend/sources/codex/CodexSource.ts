@@ -4,6 +4,7 @@ import { isAbsolute, relative, resolve } from "node:path";
 import type {
   CachedRolloutFacts,
   PageOptions,
+  SessionListOptions,
   SessionFilter,
   SessionSummary,
   TokenSeries,
@@ -127,9 +128,9 @@ export const createCodexSource = ({ codexHome }: { codexHome: string }): CodexSo
       }
     },
 
-    async listSessions(filter?: SessionFilter, page?: PageOptions): Promise<SessionSummary[]> {
+    async listSessions(filter?: SessionFilter, page?: PageOptions, options?: SessionListOptions): Promise<SessionSummary[]> {
       const store = await getStore();
-      return store.listSessions(filter, page);
+      return store.listSessions(filter, page, options);
     },
 
     async getSession(sessionId: string): Promise<SessionSummary | null> {

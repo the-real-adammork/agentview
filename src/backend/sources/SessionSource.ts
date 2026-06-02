@@ -1,6 +1,7 @@
 import type {
   CachedRolloutFacts,
   PageOptions,
+  SessionListOptions,
   SessionFilter,
   SessionSummary,
   SourceId,
@@ -114,7 +115,7 @@ export interface LiveTokenSource {
 export interface SessionSource {
   readonly id: SourceId;
   getHealth(): Promise<SourceHealth>;
-  listSessions(filter?: SessionFilter, page?: PageOptions): Promise<SessionSummary[]>;
+  listSessions(filter?: SessionFilter, page?: PageOptions, options?: SessionListOptions): Promise<SessionSummary[]>;
   getSession(sessionId: string): Promise<SessionSummary | null>;
   resolveSession(sessionId: string): Promise<ResolvedSession>;
   parse(resolved: ResolvedSession): Promise<CachedRolloutFacts>;

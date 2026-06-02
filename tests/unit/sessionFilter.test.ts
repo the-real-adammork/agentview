@@ -31,6 +31,16 @@ describe("session filter query serialization", () => {
     expect(buildSessionQuery({ repo: "agentview", archived: "include" })).toBe("?repo=agentview&archived=include");
   });
 
+  it("serializes relationship loading options separately from filters", () => {
+    expect(
+      buildSessionQuery(
+        { archived: "exclude", threadSource: "user", updatedAfterMs: 1_000 },
+        { limit: 250, offset: 0 },
+        { relationships: "none" },
+      ),
+    ).toBe("?archived=exclude&source=user&updatedAfterMs=1000&limit=250&offset=0&relationships=none");
+  });
+
   it("omits empty strings and undefined values", () => {
     expect(
       buildSessionQuery(

@@ -125,7 +125,11 @@ describe("full rca-workbench-style run", () => {
     try {
       const store = await openStateStore({ codexHome: fixture.codexHome });
       try {
-        const sessions = await store.listSessions({ archived: "exclude" }, { limit: 100, offset: 0 });
+        const sessions = await store.listSessions(
+          { archived: "exclude" },
+          { limit: 100, offset: 0 },
+          { relationships: "full" },
+        );
         const byId = new Map(sessions.map((s) => [s.id, s]));
         expect(byId.get("orch-1")?.parentId).toBe("supervisor");
         expect(byId.get("orch-4")?.parentId).toBe("supervisor");
@@ -133,6 +137,44 @@ describe("full rca-workbench-style run", () => {
 
         const graph = deriveAgentGraph("supervisor", await store.getAgentGraphRows("supervisor", 5), { maxDepth: 5 });
         expect(graph.nodes.map((n) => n.id).sort()).toEqual(["orch-1", "orch-4", "supervisor", "w1", "w4"]);
+      } finally {
+        await store.close();
+      }
+    } finally {
+      await fixture.cleanup();
+    }
+  });
+
+  it("skips reconstructed parent overlays by default and enables them only on request", async () => {
+    const fixture = await createCodexHomeFixture({
+      threads: [
+        { id: "supervisor", cwd: CWD, createdAtMs: 1_000_000, updatedAtMs: 9_000_000, firstUserMessage: "$implementation-execution rca-workbench", threadSource: "user" },
+        { id: "orch-1", cwd: CWD, createdAtMs: 2_000_000, updatedAtMs: 4_000_000, firstUserMessage: orchPrompt("phase-1"), threadSource: "user" },
+        { id: "w1", cwd: CWD, createdAtMs: 2_500_000, updatedAtMs: 3_000_000, firstUserMessage: "phase 1 work", threadSource: "subagent" },
+      ],
+      edges: [{ parentThreadId: "orch-1", childThreadId: "w1", status: "closed" }],
+    });
+
+    try {
+      const store = await openStateStore({ codexHome: fixture.codexHome });
+      try {
+        const full = await store.listSessions(
+          { archived: "exclude" },
+          { limit: 100, offset: 0 },
+          { relationships: "full" },
+        );
+        const cheap = await store.listSessions(
+          { archived: "exclude", threadSource: "user" },
+          { limit: 100, offset: 0 },
+        );
+        const fullById = new Map(full.map((session) => [session.id, session]));
+        const cheapById = new Map(cheap.map((session) => [session.id, session]));
+
+        expect(fullById.get("orch-1")?.parentId).toBe("supervisor");
+        expect(fullById.get("orch-1")?.parentEdgeSource).toBe("reconstructed");
+        expect(cheap.map((session) => session.id).sort()).toEqual(["orch-1", "supervisor"]);
+        expect(cheapById.get("orch-1")?.parentId ?? null).toBeNull();
+        expect(cheapById.get("orch-1")?.parentEdgeSource).toBeUndefined();
       } finally {
         await store.close();
       }

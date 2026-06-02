@@ -10,6 +10,7 @@ import type {
   CachedRolloutFacts,
   PageOptions,
   SessionFilter,
+  SessionListOptions,
   SessionSummary,
   TimelineEvent,
 } from "../../src/shared/contracts";
@@ -48,9 +49,10 @@ const _shape: SessionSource = {
   async getHealth(): Promise<SourceHealth> {
     return { source: "codex", available: true };
   },
-  async listSessions(filter?: SessionFilter, page?: PageOptions): Promise<SessionSummary[]> {
+  async listSessions(filter?: SessionFilter, page?: PageOptions, options?: SessionListOptions): Promise<SessionSummary[]> {
     void filter;
     void page;
+    void options;
     return [];
   },
   async getSession(sessionId: string): Promise<SessionSummary | null> {

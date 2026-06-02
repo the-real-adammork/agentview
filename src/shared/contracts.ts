@@ -75,6 +75,13 @@ export interface PageOptions {
   offset?: number;
 }
 
+export type SessionRelationshipMode = "full" | "none";
+
+export interface SessionListOptions {
+  /** Defaults to `none`: skips reconstructed parent overlays and transcript scans; native edges still come from the store. */
+  relationships?: SessionRelationshipMode;
+}
+
 export interface SessionSummary {
   id: string;
   /** Which tool produced this session. Absent on legacy rows ⇒ treated as "codex". */
@@ -844,7 +851,11 @@ export interface LiveErrorPayload {
 
 export interface ObservatoryApi {
   getHealth(): Promise<ApiResult<HealthStatus>>;
-  listSessions(filter?: SessionFilter, page?: PageOptions): Promise<ApiResult<SessionSummary[]>>;
+  listSessions(
+    filter?: SessionFilter,
+    page?: PageOptions,
+    options?: SessionListOptions,
+  ): Promise<ApiResult<SessionSummary[]>>;
   getThread?(threadId: string, options?: { source?: SourceId }): Promise<ApiResult<SessionSummary>>;
   getTimeline(
     threadId: string,

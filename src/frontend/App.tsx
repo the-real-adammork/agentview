@@ -8,13 +8,14 @@ import { LiveTokenStoreContext } from "./live/LiveTokens";
 import { Chrome } from "./components/Chrome";
 import { SegBar } from "./components/SegBar";
 import { usePalette } from "./usePalette";
+import { useUiKit } from "./useUiKit";
 import { AgentGraphView } from "./views/AgentGraphView";
 import { DiagnosticsView } from "./views/DiagnosticsView";
 import { ReposView } from "./views/ReposView";
 import { SessionsView } from "./views/SessionsView";
 import { TimelineView } from "./views/TimelineView";
 import { TokensView } from "./views/TokensView";
-import { indexSessions, isDescendantOf, rootOf, sessionRepoName } from "./views/sessionTree";
+import { indexSessions, isDescendantOf, REPO_ACTIVE_WINDOW_MS, rootOf, sessionRepoName } from "./views/sessionTree";
 import { buildPath, parseLocation } from "./routing";
 import type {
   AgentGraph,
@@ -38,6 +39,7 @@ export function App() {
   const fixture = useMemo(() => createFixtureSnapshot(), []);
   const liveTokenStore = useMemo(() => createLiveTokenStore(), []);
   const [palette, setPalette] = usePalette();
+  const [uiKit] = useUiKit();
   const [activeView, setActiveView] = useState<ObservatoryView>(() => parseLocation(window.location).view);
   const [health, setHealth] = useState<HealthStatus>(fixture.health);
   const [sessions, setSessions] = useState<SessionSummary[]>(fixture.sessions);
@@ -132,8 +134,17 @@ export function App() {
 
     setSessionsLoading(true);
     setSessionsError(null);
+    const repoIndexMode = activeView === "Repos";
+    const filter: SessionFilter = repoIndexMode
+      ? {
+          archived: "exclude",
+          threadSource: "user",
+          updatedAfterMs: Date.now() - REPO_ACTIVE_WINDOW_MS,
+        }
+      : sessionFilter;
+
     realApiClient
-      .listSessions(sessionFilter, { limit: 500, offset: 0 })
+      .listSessions(filter, { limit: repoIndexMode ? 250 : 500, offset: 0 })
       .then((result) => {
         if (cancelled) {
           return;
@@ -173,7 +184,7 @@ export function App() {
     return () => {
       cancelled = true;
     };
-  }, [sessionFilter, liveTokenStore]);
+  }, [activeView, sessionFilter, liveTokenStore]);
 
 
   const activeSession =
@@ -446,7 +457,7 @@ export function App() {
 
   // Live updates: initial paint stays the fetch path above; the SSE stream applies deltas
   // through the same state setters. Never load-bearing — VITE_AGENTVIEW_LIVE=0 disables it.
-  const liveEnabled = !demoEnabled && (import.meta.env.VITE_AGENTVIEW_LIVE ?? "1") !== "0";
+  const liveEnabled = activeView !== "Repos" && !demoEnabled && (import.meta.env.VITE_AGENTVIEW_LIVE ?? "1") !== "0";
   const liveThreadId = sessionsReady ? activeSession?.id ?? null : null;
 
   useEffect(() => {
@@ -551,6 +562,7 @@ export function App() {
         health={health}
         navigation={<SegBar views={navViews} activeView={activeView} onChange={setActiveView} />}
         palette={palette}
+        uiKit={uiKit}
         onPaletteChange={setPalette}
         onOpenRepos={openReposIndex}
         onOpenSessions={openSessions}

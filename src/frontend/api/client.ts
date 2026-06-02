@@ -15,6 +15,7 @@ import type {
   RuntimeLogPage,
   RuntimeLogQuery,
   RawTuiLogTail,
+  SessionListOptions,
   SessionFilter,
   SessionSummary,
   TimelineEvent,
@@ -123,7 +124,11 @@ const appendParam = (params: URLSearchParams, name: string, value: string | numb
   params.set(name, String(value));
 };
 
-export const buildSessionQuery = (filter: SessionFilter = {}, page: PageOptions = {}) => {
+export const buildSessionQuery = (
+  filter: SessionFilter = {},
+  page: PageOptions = {},
+  options: SessionListOptions = {},
+) => {
   const params = new URLSearchParams();
 
   appendParam(params, "search", filter.search?.trim());
@@ -146,6 +151,7 @@ export const buildSessionQuery = (filter: SessionFilter = {}, page: PageOptions 
   appendParam(params, "createdBeforeMs", filter.createdBeforeMs);
   appendParam(params, "limit", page.limit);
   appendParam(params, "offset", page.offset);
+  appendParam(params, "relationships", options.relationships);
 
   const query = params.toString();
   return query ? `?${query}` : "";
@@ -260,8 +266,8 @@ export const realApiClient: ObservatoryApi = {
   getHealth() {
     return getJson<HealthStatus>("/api/health");
   },
-  listSessions(filter, page) {
-    return getJson<SessionSummary[]>(`/api/sessions${buildSessionQuery(filter, page)}`);
+  listSessions(filter, page, options) {
+    return getJson<SessionSummary[]>(`/api/sessions${buildSessionQuery(filter, page, options)}`);
   },
   getThread(threadId, options) {
     void options;

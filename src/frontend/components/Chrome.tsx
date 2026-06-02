@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { HealthStatus, SessionSummary } from "../../shared/contracts";
 import type { ObservatoryView } from "../App";
 import { LiveTokenTotal } from "../live/LiveTokens";
+import type { UiKit } from "../useUiKit";
 import { PaletteSwitcher, type Palette } from "./PaletteSwitcher";
 import { SessionSquare } from "./SessionSquare";
 
@@ -12,6 +13,7 @@ interface ChromeProps {
   health: HealthStatus;
   navigation: ReactNode;
   palette: Palette;
+  uiKit?: UiKit;
   onPaletteChange: (palette: Palette) => void;
   onOpenRepos: () => void;
   onOpenSessions: () => void;
@@ -41,6 +43,7 @@ export function Chrome({
   health,
   navigation,
   palette,
+  uiKit = "agentview",
   onPaletteChange,
   onOpenRepos,
   onOpenSessions,
@@ -69,7 +72,12 @@ export function Chrome({
   ];
 
   return (
-    <div className="app-shell shell" data-palette={palette} data-screen-label={`Observatory · ${activeView}`}>
+    <div
+      className="app-shell shell"
+      data-palette={palette}
+      data-screen-label={`Observatory · ${activeView}`}
+      data-ui-kit={uiKit}
+    >
       <div className="plate" aria-hidden="true" />
       <div className="grid-bg" aria-hidden="true" />
 

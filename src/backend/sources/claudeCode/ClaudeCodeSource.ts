@@ -3,6 +3,7 @@ import { stat } from "node:fs/promises";
 import type {
   CachedRolloutFacts,
   PageOptions,
+  SessionListOptions,
   SessionFilter,
   SessionSummary,
 } from "../../../shared/contracts";
@@ -216,7 +217,8 @@ export const createClaudeCodeSource = ({ projectsDir }: { projectsDir: string })
       }
     },
 
-    async listSessions(filter?: SessionFilter, page?: PageOptions): Promise<SessionSummary[]> {
+    async listSessions(filter?: SessionFilter, page?: PageOptions, options?: SessionListOptions): Promise<SessionSummary[]> {
+      void options;
       const discovered = await discoverClaudeSessions(projectsDir);
       const summaries = (await Promise.all(discovered.map(rootAndChildren))).flatMap(({ root, children }) => [
         root,

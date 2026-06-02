@@ -9,6 +9,8 @@ import type {
   FailedToolCountStatus,
   PageOptions,
   SessionFilter,
+  SessionListOptions,
+  SessionRelationshipMode,
   ThreadSource,
 } from "../../shared/contracts";
 import { fail, ok, writeJson } from "./http";
@@ -18,6 +20,7 @@ type ParsedQuery =
       ok: true;
       filter: SessionFilter;
       page: PageOptions;
+      options: SessionListOptions;
     }
   | {
       ok: false;
@@ -34,6 +37,7 @@ const failedToolStatusValues = new Set<FailedToolCountStatus>([
   "unavailable",
   "unknown",
 ]);
+const relationshipValues = new Set<SessionRelationshipMode>(["full", "none"]);
 
 const parseInteger = (value: string | null, name: string, min: number) => {
   if (value === null || value.trim() === "") {
@@ -105,6 +109,9 @@ const parseListQuery = (url: URL): ParsedQuery => {
   const createdBeforeMs = parseInteger(url.searchParams.get("createdBeforeMs"), "createdBeforeMs", 0);
   if (!createdBeforeMs.ok) return createdBeforeMs;
 
+  const relationships = parseEnum(url.searchParams.get("relationships"), "relationships", relationshipValues);
+  if (!relationships.ok) return relationships;
+
   return {
     ok: true,
     filter: {
@@ -127,6 +134,9 @@ const parseListQuery = (url: URL): ParsedQuery => {
     page: {
       limit: limit.value,
       offset: offset.value,
+    },
+    options: {
+      relationships: relationships.value ?? "none",
     },
   };
 };
@@ -273,7 +283,7 @@ export const handleSessionsApiRequest = async (request: IncomingMessage, respons
       // Explicit `?sourceId=` narrows to that single source; absent ⇒ merged
       // fan-out across every registered source (one source this phase).
       const filter: SessionFilter = explicitSource ? { ...parsed.filter, source: sourceResult.source } : parsed.filter;
-      const sessions = await registry.listSessions(filter, parsed.page);
+      const sessions = await registry.listSessions(filter, parsed.page, parsed.options);
       writeJson(response, 200, ok("state-db", sessions), origin);
       return true;
     } finally {

@@ -1,4 +1,4 @@
-import type { PageOptions, SessionFilter, SessionSummary, SourceId } from "../../shared/contracts";
+import type { PageOptions, SessionFilter, SessionListOptions, SessionSummary, SourceId } from "../../shared/contracts";
 import type { SessionSource, SourceHealth } from "./SessionSource";
 
 export interface ResolvedSessionSource {
@@ -11,7 +11,7 @@ export interface SourceRegistry {
   has(source: SourceId): boolean;
   all(): SessionSource[];
   findSession(sessionId: string, preferredSource?: SourceId): Promise<ResolvedSessionSource | null>;
-  listSessions(filter?: SessionFilter, page?: PageOptions): Promise<SessionSummary[]>; // fan-out + merge by updatedAtMs desc
+  listSessions(filter?: SessionFilter, page?: PageOptions, options?: SessionListOptions): Promise<SessionSummary[]>; // fan-out + merge by updatedAtMs desc
   getHealth(): Promise<SourceHealth[]>;
   close(): Promise<void>;
 }
@@ -74,12 +74,12 @@ export const createSourceRegistry = (sources: SessionSource[]): SourceRegistry =
       }
       return null;
     },
-    async listSessions(filter?: SessionFilter, page?: PageOptions): Promise<SessionSummary[]> {
+    async listSessions(filter?: SessionFilter, page?: PageOptions, options?: SessionListOptions): Promise<SessionSummary[]> {
       if (filter?.source) {
-        return get(filter.source).listSessions(filter, page);
+        return get(filter.source).listSessions(filter, page, options);
       }
 
-      const lists = await Promise.all(all().map((source) => source.listSessions(filter, page)));
+      const lists = await Promise.all(all().map((source) => source.listSessions(filter, page, options)));
       const merged = lists
         .flat()
         .sort((left, right) => updatedAtMsOf(right) - updatedAtMsOf(left));
