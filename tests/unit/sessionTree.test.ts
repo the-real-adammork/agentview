@@ -130,6 +130,22 @@ describe("sessionTree helpers", () => {
         ["subSub", 2],
       ]);
     });
+
+    it("sorts roots and children by the requested session sort while preserving tree nesting", () => {
+      const rootA = session({ id: "root-a", parentId: null, createdAtMs: 2, tokenTotal: 50 });
+      const childLow = session({ id: "child-low", parentId: "root-a", createdAtMs: 4, tokenTotal: 10 });
+      const childHigh = session({ id: "child-high", parentId: "root-a", createdAtMs: 3, tokenTotal: 90 });
+      const rootB = session({ id: "root-b", parentId: null, createdAtMs: 1, tokenTotal: 100 });
+
+      const rows = buildSessionRows([childLow, rootA, rootB, childHigh], () => true, "tokens_asc");
+
+      expect(rows.map((row) => [row.session.id, row.depth])).toEqual([
+        ["root-a", 0],
+        ["child-low", 1],
+        ["child-high", 1],
+        ["root-b", 0],
+      ]);
+    });
   });
 
   describe("flattenAgentTree", () => {

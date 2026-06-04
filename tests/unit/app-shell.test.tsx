@@ -86,8 +86,10 @@ describe("fixture-backed app shell", () => {
     expect(screen.getByText("SESSION INDEX")).toBeVisible();
     expect(screen.getByText(/Token usage · last 12h/i)).toBeVisible();
     expect(screen.getByText(/RESULTS ·/i)).toBeVisible();
-    expect(screen.getByText(/SORT · created_at/i)).toBeVisible();
-    expect(screen.getByText(/TREE · thread_spawn_edges/i)).toBeVisible();
+    expect(screen.getByRole("combobox", { name: /sort sessions/i })).toHaveValue("created_desc");
+    expect(screen.getByRole("group", { name: /updated range quick filters/i })).toBeVisible();
+    expect(screen.queryByText(/TREE · thread_spawn_edges/i)).toBeNull();
+    expect(screen.queryByText(/PROFILE · adam@local/i)).toBeNull();
 
     const sessionsTable = screen.getByRole("table", { name: /sessions/i });
     expect(sessionsTable).toHaveClass("tbl");

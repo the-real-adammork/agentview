@@ -782,6 +782,74 @@ button {
   letter-spacing: 0.2em;
 }
 
+.ov-sort {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 6px 0 10px;
+  border: var(--border-width) solid var(--rule);
+  background: var(--bg-2);
+  cursor: pointer;
+}
+
+.ov-sort .k {
+  color: var(--ink-dim);
+  font-family: var(--display);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.ov-sort select {
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--ink-strong);
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 4px 2px;
+}
+
+.ov-sort select option {
+  background: var(--bg-1);
+  color: var(--ink-strong);
+}
+
+.ov-sort:hover {
+  border-color: var(--rule-strong);
+}
+
+.ov-sort:focus-within {
+  border-color: var(--primary);
+}
+
+.session-date-range {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.session-date-range .opt {
+  border: var(--border-width) solid var(--rule);
+  background: var(--bg-2);
+  color: var(--ink-dim);
+  cursor: pointer;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+.session-date-range .opt[data-on="true"] {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--bg-0);
+}
+
 .ov-table {
   grid-row: 3;
   min-height: 0;

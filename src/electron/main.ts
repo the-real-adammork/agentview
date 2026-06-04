@@ -10,6 +10,18 @@ const isDevelopment = () => process.env.AGENTVIEW_ELECTRON_DEV === "1" || !app.i
 
 const rendererDevUrl = () => process.env.AGENTVIEW_RENDERER_URL ?? "http://127.0.0.1:5173";
 
+const blockRendererReloadShortcuts = (window: BrowserWindow) => {
+  window.webContents.on("before-input-event", (event, input) => {
+    if (input.type !== "keyDown") {
+      return;
+    }
+
+    if ((input.meta || input.control) && input.key.toLowerCase() === "r") {
+      event.preventDefault();
+    }
+  });
+};
+
 const createMainWindow = async (apiBaseUrl: string) => {
   mainWindow = new BrowserWindow({
     width: 1320,
@@ -31,6 +43,8 @@ const createMainWindow = async (apiBaseUrl: string) => {
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
+
+  blockRendererReloadShortcuts(mainWindow);
 
   if (isDevelopment()) {
     await mainWindow.loadURL(rendererDevUrl());

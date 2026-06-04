@@ -21,6 +21,31 @@ export const sessionUpdatedMs = (session: SessionSummary): number =>
 export const sessionCreatedMs = (session: SessionSummary): number =>
   session.createdAtMs ?? sessionUpdatedMs(session);
 
+export type SessionSortMode = "created_desc" | "created_asc" | "tokens_desc" | "tokens_asc";
+
+const compareSessions = (sort: SessionSortMode) => (left: SessionSummary, right: SessionSummary): number => {
+  switch (sort) {
+    case "created_asc":
+      return sessionCreatedMs(left) - sessionCreatedMs(right) || left.id.localeCompare(right.id);
+    case "tokens_desc":
+      return tokensOf(right) - tokensOf(left) || sessionCreatedMs(right) - sessionCreatedMs(left) || left.id.localeCompare(right.id);
+    case "tokens_asc":
+      return tokensOf(left) - tokensOf(right) || sessionCreatedMs(right) - sessionCreatedMs(left) || left.id.localeCompare(right.id);
+    case "created_desc":
+    default:
+      return sessionCreatedMs(right) - sessionCreatedMs(left) || left.id.localeCompare(right.id);
+  }
+};
+
+const compareChildSessions = (sort: SessionSortMode) => {
+  if (sort === "tokens_desc" || sort === "tokens_asc") {
+    return compareSessions(sort);
+  }
+
+  return (left: SessionSummary, right: SessionSummary): number =>
+    sessionCreatedMs(left) - sessionCreatedMs(right) || left.id.localeCompare(right.id);
+};
+
 /** Walks parentId to the topmost ancestor present in the index (cycle/orphan safe). */
 export const rootOf = (session: SessionSummary, index: SessionIndex): SessionSummary => {
   let current = session;
@@ -222,6 +247,7 @@ export interface SessionRow {
 export const buildSessionRows = (
   sessions: SessionSummary[],
   matchPredicate: (session: SessionSummary) => boolean,
+  sort: SessionSortMode = "created_desc",
 ): SessionRow[] => {
   const index = indexSessions(sessions);
   const matched = sessions.filter(matchPredicate);
@@ -245,15 +271,16 @@ export const buildSessionRows = (
   const visible = sessions.filter((session) => visibleIds.has(session.id));
   const roots = visible
     .filter((session) => isRoot(session, index))
-    .sort((left, right) => sessionCreatedMs(right) - sessionCreatedMs(left));
+    .sort(compareSessions(sort));
 
   // Walk each root's subtree depth-first so every node carries its TRUE depth
   // (sub-sub-agents are depth 2, etc.) — matching the timeline's Agent Tree.
-  // Children are ordered by spawn time (createdAt asc) within each parent.
+  // Children stay under their parent. Created-time sorts preserve spawn order
+  // within each sibling group; token sorts rank siblings by token count.
   const childrenOf = (parentId: string) =>
     visible
       .filter((session) => session.parentId === parentId)
-      .sort((left, right) => sessionCreatedMs(left) - sessionCreatedMs(right));
+      .sort(compareChildSessions(sort));
 
   const rows: SessionRow[] = [];
   const seen = new Set<string>();

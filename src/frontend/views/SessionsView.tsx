@@ -1,9 +1,9 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 
 import { ShortId } from "../components/ShortId";
 import { LiveSessionTokens, LiveTokenTotal } from "../live/LiveTokens";
 import { useEnteringIds } from "../live/useEnteringIds";
-import { Alert, Button, Chip, Table, TableFrame, TextInput } from "../ui";
+import { Alert, Button, Chip, Select, Table, TableFrame, TextInput } from "../ui";
 import { formatTokens } from "./formatTokens";
 import { countActiveSessions, tokensByHour } from "./sessionStats";
 import {
@@ -14,6 +14,7 @@ import {
   sessionRepoName,
   sessionUpdatedMs,
   toneForDepth,
+  type SessionSortMode,
 } from "./sessionTree";
 import type { ApiError, ArchivedFilter, DiagnosticsSummary, SessionFilter, SessionSummary, SourceId, ThreadSource } from "../../shared/contracts";
 
@@ -35,6 +36,42 @@ const uniqueValues = (sessions: SessionSummary[], getValue: (session: SessionSum
     a.localeCompare(b),
   );
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const dateRangeOptions = [
+  { label: "All", value: undefined },
+  { label: "Today", value: "today" },
+  { label: "3 days", value: "3d" },
+  { label: "Week", value: "7d" },
+] as const;
+
+type DateRangeValue = (typeof dateRangeOptions)[number]["value"];
+
+const sortOptions = [
+  { label: "created_at ↓", value: "created_desc" },
+  { label: "created_at ↑", value: "created_asc" },
+  { label: "tokens ↓", value: "tokens_desc" },
+  { label: "tokens ↑", value: "tokens_asc" },
+] as const satisfies ReadonlyArray<{ label: string; value: SessionSortMode }>;
+
+const DEFAULT_SESSION_SORT: SessionSortMode = "created_desc";
+const SESSION_SORT_STORAGE_KEY = "agentview:sessions:sort";
+
+const isSessionSortMode = (value: unknown): value is SessionSortMode =>
+  typeof value === "string" && sortOptions.some((option) => option.value === value);
+
+const readStoredSessionSort = (): SessionSortMode => {
+  try {
+    const stored = window.localStorage.getItem(SESSION_SORT_STORAGE_KEY);
+    if (isSessionSortMode(stored)) {
+      return stored;
+    }
+  } catch {
+    // Persistence is best-effort; sorting still works with the default.
+  }
+
+  return DEFAULT_SESSION_SORT;
+};
+
 const formatTime = (value: string) => new Date(value).toLocaleTimeString("en-US");
 
 // Relative "updated" label, matching the handoff's leading line (minutes /
@@ -49,6 +86,29 @@ const formatAgo = (value: string, nowMs: number) => {
 };
 
 const isSubagent = (session: SessionSummary) => session.threadSource === "subagent" || Boolean(session.agentRole);
+
+const startOfTodayMs = () => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today.getTime();
+};
+
+const updatedAfterForRange = (range: DateRangeValue) => {
+  if (range === "today") return startOfTodayMs();
+  if (range === "3d") return Date.now() - 3 * DAY_MS;
+  if (range === "7d") return Date.now() - 7 * DAY_MS;
+  return undefined;
+};
+
+const rangeForUpdatedAfter = (updatedAfterMs: number | undefined): DateRangeValue => {
+  if (updatedAfterMs === undefined) return undefined;
+  const nowMs = Date.now();
+  const toleranceMs = 60_000;
+  if (updatedAfterMs === startOfTodayMs()) return "today";
+  if (Math.abs(updatedAfterMs - (nowMs - 3 * DAY_MS)) <= toleranceMs) return "3d";
+  if (Math.abs(updatedAfterMs - (nowMs - 7 * DAY_MS)) <= toleranceMs) return "7d";
+  return undefined;
+};
 
 // Sub-agents are spawned with prompts that share a long generic preamble, so the
 // raw title is indistinguishable between siblings. Lead with the agent's own
@@ -104,6 +164,15 @@ export function SessionsView({
   // Client-side branch scoping (by the root parent's branch). Only the repo +
   // search + source filters round-trip to the API; branch is a local refinement.
   const [branchFilter, setBranchFilter] = useState<string | null>(null);
+  const [sortBy, setSortByState] = useState<SessionSortMode>(readStoredSessionSort);
+  const setSortBy = useCallback((nextSort: SessionSortMode) => {
+    setSortByState(nextSort);
+    try {
+      window.localStorage.setItem(SESSION_SORT_STORAGE_KEY, nextSort);
+    } catch {
+      // Keep the in-memory selection even if the browser refuses persistence.
+    }
+  }, []);
 
   const index = useMemo(() => indexSessions(sessions), [sessions]);
   const rootRepo = (session: SessionSummary) => sessionRepoName(rootOf(session, index));
@@ -124,7 +193,7 @@ export function SessionsView({
     [repoScoped, branchFilter, index],
   );
 
-  const rows = useMemo(() => buildSessionRows(scopedSessions, () => true), [scopedSessions]);
+  const rows = useMemo(() => buildSessionRows(scopedSessions, () => true, sortBy), [scopedSessions, sortBy]);
 
   // Feed-enter: animate rows for sessions that just appeared in the live list.
   // The active filter/repo/branch context is the reset key, so re-framing the
@@ -152,6 +221,9 @@ export function SessionsView({
   // merged-list narrowing), distinct from the thread-source axis above.
   const selectToolSource = (source?: SourceId) => updateFilter({ source });
   const selectArchive = (archived: ArchivedFilter) => updateFilter({ archived });
+  const activeDateRange = rangeForUpdatedAfter(filter.updatedAfterMs);
+  const selectDateRange = (range: DateRangeValue) =>
+    updateFilter({ updatedAfterMs: updatedAfterForRange(range), updatedBeforeMs: undefined });
 
   // Representative session for the dossier header (prefer a user root).
   const repoSample = repoScoped.find((session) => !session.parentId) ?? repoScoped[0];
@@ -277,9 +349,37 @@ export function SessionsView({
             />
             <span className="muted">↵ exec</span>
           </label>
-          <Chip tone="dim">SORT · created_at ↓</Chip>
-          <Chip tone="dim">TREE · thread_spawn_edges</Chip>
-          <Chip>PROFILE · adam@local</Chip>
+          <label className="ov-sort">
+            <span className="k">SORT</span>
+            <Select
+              aria-label="Sort sessions"
+              value={sortBy}
+              onChange={(event) => setSortBy(event.target.value as SessionSortMode)}
+            >
+              {sortOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          </label>
+          <div className="session-date-range" role="group" aria-label="Updated range quick filters">
+            {dateRangeOptions.map((option) => {
+              const on = activeDateRange === option.value;
+              return (
+                <Button
+                  aria-pressed={on}
+                  className="opt"
+                  data-on={on ? "true" : "false"}
+                  key={option.label}
+                  onClick={() => selectDateRange(option.value)}
+                  type="button"
+                >
+                  {option.label}
+                </Button>
+              );
+            })}
+          </div>
         </div>
 
       {error ? (
