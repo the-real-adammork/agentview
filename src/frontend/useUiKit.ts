@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 
-export const UI_KITS = ["agentview"] as const;
+import type { UiKitId } from "./ui/contracts";
 
-export type UiKit = (typeof UI_KITS)[number];
+export const UI_KITS: readonly UiKitId[] = ["agentview"];
+
+export type UiKit = UiKitId;
 
 const DEFAULT_UI_KIT: UiKit = "agentview";
 const STORAGE_KEY = "agentview.uiKit";

@@ -3,6 +3,7 @@ import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { ShortId } from "../components/ShortId";
 import { LiveSessionTokens, LiveTokenTotal } from "../live/LiveTokens";
 import { useEnteringIds } from "../live/useEnteringIds";
+import { Alert, Button, Chip, Table, TableFrame, TextInput } from "../ui";
 import { formatTokens } from "./formatTokens";
 import { countActiveSessions, tokensByHour } from "./sessionStats";
 import {
@@ -162,10 +163,10 @@ export function SessionsView({
       <aside className="ov-side" aria-label="Session catalog controls">
         {repoFilter ? (
           <div className="ov-repo-head">
-            <button className="ov-back" onClick={onClearRepoFilter} type="button" title="Back to Repos">
+            <Button className="ov-back" onClick={onClearRepoFilter} type="button" title="Back to Repos">
               <span className="arrow" aria-hidden="true">‹</span>
               <span>ALL REPOS</span>
-            </button>
+            </Button>
             <div className="ov-repo-name">
               <span className="parent-dir">{repoDir}</span>
               <span className="leaf">{repoLeaf}</span>
@@ -213,25 +214,25 @@ export function SessionsView({
         <form className="filter-grp sessions-filter-matrix" role="search" aria-label="Session filters" onSubmit={(event) => event.preventDefault()}>
           <div className="lbl">Tool</div>
           <div className="row" role="group" aria-label="Tool source quick filters">
-            <button className="opt" data-on={!filter.source} onClick={() => selectToolSource()} type="button">All</button>
-            <button className="opt" data-on={filter.source === "codex"} onClick={() => selectToolSource("codex")} type="button">Codex</button>
-            <button className="opt" data-on={filter.source === "claude-code"} onClick={() => selectToolSource("claude-code")} type="button">Claude Code</button>
+            <Button className="opt" data-on={!filter.source} onClick={() => selectToolSource()} type="button">All</Button>
+            <Button className="opt" data-on={filter.source === "codex"} onClick={() => selectToolSource("codex")} type="button">Codex</Button>
+            <Button className="opt" data-on={filter.source === "claude-code"} onClick={() => selectToolSource("claude-code")} type="button">Claude Code</Button>
           </div>
 
           <div className="lbl">Thread source</div>
           <div className="row" role="group" aria-label="Thread source quick filters">
-            <button className="opt" data-on={!filter.threadSource} onClick={() => selectSource()} type="button">All</button>
-            <button className="opt" data-on={filter.threadSource === "user"} onClick={() => selectSource("user")} type="button">User</button>
-            <button className="opt" data-on={filter.threadSource === "subagent"} onClick={() => selectSource("subagent")} type="button">Sub-agent</button>
+            <Button className="opt" data-on={!filter.threadSource} onClick={() => selectSource()} type="button">All</Button>
+            <Button className="opt" data-on={filter.threadSource === "user"} onClick={() => selectSource("user")} type="button">User</Button>
+            <Button className="opt" data-on={filter.threadSource === "subagent"} onClick={() => selectSource("subagent")} type="button">Sub-agent</Button>
           </div>
 
           <div className="lbl">Repo</div>
           <div className="row" role="group" aria-label="Repository quick filters">
-            <button className="opt" data-on={!filter.repo} onClick={() => updateFilter({ repo: undefined })} type="button">All</button>
+            <Button className="opt" data-on={!filter.repo} onClick={() => updateFilter({ repo: undefined })} type="button">All</Button>
             {repoOptions.slice(0, 5).map((repo) => (
-              <button className="opt" data-on={filter.repo === repo} key={repo} onClick={() => updateFilter({ repo })} type="button">
+              <Button className="opt" data-on={filter.repo === repo} key={repo} onClick={() => updateFilter({ repo })} type="button">
                 {repo}
-              </button>
+              </Button>
             ))}
           </div>
 
@@ -239,11 +240,11 @@ export function SessionsView({
             <>
               <div className="lbl">Branch</div>
               <div className="row" role="group" aria-label="Branch quick filters">
-                <button className="opt" data-on={!branchFilter} onClick={() => setBranchFilter(null)} type="button">All</button>
+                <Button className="opt" data-on={!branchFilter} onClick={() => setBranchFilter(null)} type="button">All</Button>
                 {branchOptions.slice(0, 5).map((branch) => (
-                  <button className="opt" data-on={branchFilter === branch} key={branch} onClick={() => setBranchFilter(branch)} type="button">
+                  <Button className="opt" data-on={branchFilter === branch} key={branch} onClick={() => setBranchFilter(branch)} type="button">
                     {branch}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </>
@@ -251,9 +252,9 @@ export function SessionsView({
 
           <div className="lbl">Flag</div>
           <div className="row" role="group" aria-label="Archive quick filters">
-            <button className="opt" data-on={filter.archived === "include"} onClick={() => selectArchive("include")} type="button">Any</button>
-            <button className="opt" data-on={(filter.archived ?? "exclude") === "exclude"} onClick={() => selectArchive("exclude")} type="button">Active</button>
-            <button className="opt" data-on={filter.archived === "only"} onClick={() => selectArchive("only")} type="button">Archived</button>
+            <Button className="opt" data-on={filter.archived === "include"} onClick={() => selectArchive("include")} type="button">Any</Button>
+            <Button className="opt" data-on={(filter.archived ?? "exclude") === "exclude"} onClick={() => selectArchive("exclude")} type="button">Active</Button>
+            <Button className="opt" data-on={filter.archived === "only"} onClick={() => selectArchive("only")} type="button">Archived</Button>
           </div>
         </form>
 
@@ -267,7 +268,7 @@ export function SessionsView({
         <div className="ov-toolbar">
           <label className="ov-search">
             <span className="sigil">QUERY:</span>
-            <input
+            <TextInput
               aria-label="Search sessions"
               placeholder="title · first user message · uuid"
               type="search"
@@ -276,18 +277,18 @@ export function SessionsView({
             />
             <span className="muted">↵ exec</span>
           </label>
-          <div className="chip dim">SORT · created_at ↓</div>
-          <div className="chip dim">TREE · thread_spawn_edges</div>
-          <div className="chip">PROFILE · adam@local</div>
+          <Chip tone="dim">SORT · created_at ↓</Chip>
+          <Chip tone="dim">TREE · thread_spawn_edges</Chip>
+          <Chip>PROFILE · adam@local</Chip>
         </div>
 
       {error ? (
-        <div className="inline-alert" role="alert">
+        <Alert>
           {error.message}
-        </div>
+        </Alert>
       ) : null}
-      <div className="ov-table table-frame">
-        <table aria-label="Sessions" className="tbl">
+      <TableFrame className="ov-table">
+        <Table aria-label="Sessions" className="tbl">
           <thead>
             <tr>
               <th aria-label="Index" scope="col"></th>
@@ -366,17 +367,17 @@ export function SessionsView({
                     <LiveSessionTokens sessionId={session.id} fallback={tokenValue} live={session.status === "running"} />
                   </td>
                   <td className="badge-cell">
-                    <span
-                      className={`chip tool tool-${session.source === "claude-code" ? "cc" : "codex"}`}
+                    <Chip
+                      className={`tool tool-${session.source === "claude-code" ? "cc" : "codex"}`}
                       title={session.source === "claude-code" ? "Claude Code" : "Codex"}
                     >
                       {session.source === "claude-code" ? "CC" : "CDX"}
-                    </span>
-                    <span className={source === "subagent" ? "chip amber" : "chip"}>{source === "subagent" ? `SUB · ${(session.agentRole ?? "worker").charAt(0).toUpperCase()}` : "USER"}</span>
+                    </Chip>
+                    <Chip tone={source === "subagent" ? "amber" : "default"}>{source === "subagent" ? `SUB · ${(session.agentRole ?? "worker").charAt(0).toUpperCase()}` : "USER"}</Chip>
                     {session.parentEdgeSource === "reconstructed" ? (
-                      <span className="chip dim" title={`Inferred parent · ${session.parentEdgeVia ?? "heuristic"} · ${session.parentEdgeConfidence ?? ""}`}>
+                      <Chip tone="dim" title={`Inferred parent · ${session.parentEdgeVia ?? "heuristic"} · ${session.parentEdgeConfidence ?? ""}`}>
                         inferred
-                      </span>
+                      </Chip>
                     ) : null}
                     <div className="muted">{session.archived ? "archived" : session.status}</div>
                   </td>
@@ -400,7 +401,7 @@ export function SessionsView({
                           {diagnostics.failedToolCount === 1 ? "failed command" : "failed commands"}
                           {" / observed schema"}
                         </span>
-                        {diagnostics.warningCount > 0 ? <span className="chip warn">▲ {diagnostics.warningCount}</span> : <span className="faint">·</span>}
+                        {diagnostics.warningCount > 0 ? <Chip tone="warn">▲ {diagnostics.warningCount}</Chip> : <span className="faint">·</span>}
                         {diagnostics.failedToolCount > 0 ? <div className="warn-c">✕ {diagnostics.failedToolCount} fail</div> : null}
                       </>
                     ) : (
@@ -412,8 +413,8 @@ export function SessionsView({
               );
             })}
           </tbody>
-        </table>
-      </div>
+        </Table>
+      </TableFrame>
       </div>
     </section>
   );

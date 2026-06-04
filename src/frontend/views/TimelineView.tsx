@@ -8,6 +8,7 @@ import { TimelineEventRow, type EventSource } from "../components/TimelineEventR
 import { ExecModal } from "../components/execRenderers";
 import { TimelineLoadingSkeleton } from "../components/TimelineLoadingSkeleton";
 import { TimelineScrubber } from "../components/TimelineScrubber";
+import { Alert, Button, Chip, PanelTitle } from "../ui";
 import { flattenAgentTree, indexSessions, isDescendantOf, sessionDepth, toneForDepth } from "./sessionTree";
 import type { AgentEdgeStatus, ApiError, SessionSummary, TimelineEvent, TimelinePayload } from "../../shared/contracts";
 import {
@@ -102,12 +103,7 @@ function ThreadNav({
 
   return (
     <div className="thread-nav">
-      <div className="panel-tit">
-        <span className="dot" />
-        <span>Agent Tree</span>
-        <span className="spacer" />
-        <span className="meta">{rows.length} thread{rows.length === 1 ? "" : "s"}</span>
-      </div>
+      <PanelTitle meta={`${rows.length} thread${rows.length === 1 ? "" : "s"}`}>Agent Tree</PanelTitle>
       <div className="thread-nav-body" role="list" aria-label="Agent tree">
         {rows.map(({ session, depth }) => {
           const here = session.id === current.id;
@@ -115,7 +111,7 @@ function ThreadNav({
           const tone = toneForDepth(depth);
           const open = statusByChild.get(session.id) === "open";
           return (
-            <button
+            <Button
               aria-current={here ? "true" : undefined}
               className={enteringIds.has(session.id) ? "thread-row feed-enter" : "thread-row"}
               data-depth={depth}
@@ -152,7 +148,7 @@ function ThreadNav({
                   </>
                 )}
               </span>
-            </button>
+            </Button>
           );
         })}
       </div>
@@ -433,7 +429,7 @@ export function TimelineView({
           />
         ) : (
           <div className="thread-nav">
-            <div className="panel-tit"><span className="dot" /><span>Agent Tree</span></div>
+            <PanelTitle>Agent Tree</PanelTitle>
             <div className="faint" style={{ padding: 14 }}>-- no session selected --</div>
           </div>
         )}
@@ -444,7 +440,7 @@ export function TimelineView({
             <span>Tool Types</span>
             <span className="spacer" />
             <span className="tl-tt-acts">
-              <button
+              <Button
                 className="tl-tt-reset"
                 data-active={allToolTypesOn ? "true" : undefined}
                 type="button"
@@ -452,9 +448,9 @@ export function TimelineView({
                 title="Show all tool types"
               >
                 all
-              </button>
+              </Button>
               <span className="tl-tt-sep" aria-hidden="true">/</span>
-              <button
+              <Button
                 className="tl-tt-reset"
                 data-active={noToolTypesOn ? "true" : undefined}
                 type="button"
@@ -462,7 +458,7 @@ export function TimelineView({
                 title="Hide all tool types"
               >
                 none
-              </button>
+              </Button>
             </span>
           </div>
           <div className="tl-tooltypes" role="group" aria-label="Filter timeline by tool type">
@@ -470,7 +466,7 @@ export function TimelineView({
               const on = toolTypes.has(type.key);
               const count = toolCounts[type.key] ?? 0;
               return (
-                <button
+                <Button
                   aria-pressed={on}
                   className="tl-tt"
                   data-on={on ? "true" : "false"}
@@ -482,7 +478,7 @@ export function TimelineView({
                 >
                   <span className="tl-tt-lbl">{type.label}</span>
                   <span className="tl-tt-cnt num" aria-hidden="true">{count}</span>
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -494,7 +490,7 @@ export function TimelineView({
             <span>Event Types</span>
             <span className="spacer" />
             <span className="tl-tt-acts">
-              <button
+              <Button
                 className="tl-tt-reset"
                 data-active={allEventTypesOn ? "true" : undefined}
                 type="button"
@@ -502,9 +498,9 @@ export function TimelineView({
                 title="Show all event types"
               >
                 all
-              </button>
+              </Button>
               <span className="tl-tt-sep" aria-hidden="true">/</span>
-              <button
+              <Button
                 className="tl-tt-reset"
                 data-active={noEventTypesOn ? "true" : undefined}
                 type="button"
@@ -512,7 +508,7 @@ export function TimelineView({
                 title="Hide all event types"
               >
                 none
-              </button>
+              </Button>
             </span>
           </div>
           <div className="tl-tooltypes" role="group" aria-label="Filter timeline by event type">
@@ -520,7 +516,7 @@ export function TimelineView({
               const on = eventTypes.has(type.key);
               const count = eventCounts[type.key] ?? 0;
               return (
-                <button
+                <Button
                   aria-pressed={on}
                   className="tl-tt"
                   data-on={on ? "true" : "false"}
@@ -532,18 +528,15 @@ export function TimelineView({
                 >
                   <span className="tl-tt-lbl">{type.label}</span>
                   <span className="tl-tt-cnt num" aria-hidden="true">{count}</span>
-                </button>
+                </Button>
               );
             })}
           </div>
         </div>
 
-        <div className="panel-tit">
-          <span className="dot" />
-          <span>Turn 01 · Vitals</span>
-          <span className="spacer" />
-          <span className={`meta${live ? " blink" : ""}`}>{live ? "● live" : "live"}</span>
-        </div>
+        <PanelTitle meta={<span className={live ? "blink" : undefined}>{live ? "● live" : "live"}</span>}>
+          Turn 01 · Vitals
+        </PanelTitle>
         <div className="tl-vitals">
           <AnimatedNumber
             className="display tl-token-total"
@@ -583,7 +576,7 @@ export function TimelineView({
             <div className="kicker">▸ Spawned Agents</div>
             {spawnedAgents.length ? (
               spawnedAgents.map((agent) => (
-                <button
+                <Button
                   className="tl-agent-link"
                   disabled={!agent.childThreadId}
                   key={agent.callId}
@@ -592,18 +585,18 @@ export function TimelineView({
                 >
                   <span className="tl-agent-link__top">
                     <span className="strong">{agent.nickname}</span>
-                    <span className={`chip ${STATUS_TONE[agent.status]}`}>{agent.status.toUpperCase()}</span>
+                    <Chip tone={STATUS_TONE[agent.status]}>{agent.status.toUpperCase()}</Chip>
                   </span>
                   <span className="muted">{agent.role}{agent.tokens !== undefined ? ` · ${compactFormatter.format(agent.tokens)} tok` : ""}</span>
-                </button>
+                </Button>
               ))
             ) : (
               <div className="faint">-- no sub-agents --</div>
             )}
           </div>
 
-          <button className="tl-graph-link" type="button" onClick={() => onOpenGraph?.()}>▸ Open Agent Graph</button>
-          <button
+          <Button className="tl-graph-link" type="button" onClick={() => onOpenGraph?.()}>▸ Open Agent Graph</Button>
+          <Button
             className="tl-graph-link tl-export"
             type="button"
             disabled={exportState === "working" || visibleEvents.length === 0}
@@ -623,14 +616,14 @@ export function TimelineView({
               : exportState === "error"
                 ? "⬇ Export failed — retry"
                 : `⬇ Export filtered · ${visibleEvents.length} JSONL`}
-          </button>
+          </Button>
         </div>
       </aside>
 
       <section className="tl-main" aria-label="Timeline detail">
         <div className="tl-tabs" aria-label="Timeline event filters">
           {TIMELINE_FILTERS.map((group) => (
-            <button
+            <Button
               aria-pressed={activeKind === group.key}
               data-on={activeKind === group.key ? "true" : "false"}
               key={group.key}
@@ -638,12 +631,12 @@ export function TimelineView({
               type="button"
             >
               {group.label} <span aria-hidden="true" className="muted">·{timelineFilterCount(windowedEvents, group.key, hideTokens)}</span>
-            </button>
+            </Button>
           ))}
           <span className="spacer" />
           <div className="tl-range" role="group" aria-label="Token rows">
             <span aria-hidden="true" className="tl-range-lbl">▸ Tokens</span>
-            <button
+            <Button
               aria-pressed={!hideTokens}
               data-on={!hideTokens ? "true" : "false"}
               onClick={() => setHideTokens((value) => !value)}
@@ -651,12 +644,12 @@ export function TimelineView({
               type="button"
             >
               {hideTokens ? "Hidden" : "Shown"}
-            </button>
+            </Button>
           </div>
           {hasDescendants ? (
             <div className="tl-range" role="group" aria-label="Event scope">
               <span aria-hidden="true" className="tl-range-lbl">▸ Scope</span>
-              <button
+              <Button
                 aria-pressed={scope === "this"}
                 data-on={scope === "this" ? "true" : "false"}
                 onClick={() => onScopeChange?.("this")}
@@ -664,8 +657,8 @@ export function TimelineView({
                 type="button"
               >
                 This
-              </button>
-              <button
+              </Button>
+              <Button
                 aria-pressed={scope === "all"}
                 data-on={scope === "all" ? "true" : "false"}
                 data-loading={subtreeLoading ? "true" : undefined}
@@ -674,13 +667,13 @@ export function TimelineView({
                 type="button"
               >
                 {subtreeLoading ? "+Subs…" : "+Subs"}
-              </button>
+              </Button>
             </div>
           ) : null}
           <div className="tl-range" role="group" aria-label="Time window">
             <span aria-hidden="true" className="tl-range-lbl">▸ Window</span>
             {TIME_WINDOWS.map((option) => (
-              <button
+              <Button
                 aria-pressed={windowMs === option.ms}
                 data-on={windowMs === option.ms ? "true" : "false"}
                 key={option.label}
@@ -689,10 +682,10 @@ export function TimelineView({
                 type="button"
               >
                 {option.label}
-              </button>
+              </Button>
             ))}
           </div>
-          <button
+          <Button
             className="tl-live-btn"
             type="button"
             data-on={live ? "true" : "false"}
@@ -706,11 +699,11 @@ export function TimelineView({
           >
             <span className="dot" aria-hidden="true" />
             {live ? "Live" : "Tail"}
-          </button>
-          <button className="tl-tabs__aux" type="button" onClick={onRefresh}>Refresh</button>
+          </Button>
+          <Button className="tl-tabs__aux" type="button" onClick={onRefresh}>Refresh</Button>
         </div>
 
-        {error ? <div role="alert" className="inline-alert">{error.message}</div> : null}
+        {error ? <Alert>{error.message}</Alert> : null}
 
         <div className="tl-scrubber-wrap tl-scrubber" data-loading={showSkeleton ? "true" : undefined}>
           <div className="hdr">
@@ -758,9 +751,9 @@ export function TimelineView({
           })}
           {hiddenOlderCount > 0 ? (
             <li className="tl-stream__more">
-              <button type="button" className="tl-load-older" onClick={() => setRenderLimit((limit) => limit + RENDER_LIMIT_STEP)}>
+              <Button type="button" className="tl-load-older" onClick={() => setRenderLimit((limit) => limit + RENDER_LIMIT_STEP)}>
                 ↓ Load older events · {compactFormatter.format(hiddenOlderCount)} more
-              </button>
+              </Button>
             </li>
           ) : null}
         </ol>

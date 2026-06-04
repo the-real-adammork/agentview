@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { realApiClient } from "../api/client";
+import { Alert, Button, Field, Select, Table, TextInput } from "../ui";
 import type {
   ApiError,
   DiagnosticsSummary,
@@ -185,9 +186,9 @@ export function DiagnosticsView({ logs: fallbackLogs, sessions }: DiagnosticsVie
   return (
     <section className="diag-view" aria-labelledby="diagnostics-title">
       {warnings.length > 0 ? (
-        <div className="inline-alert diag-alert" role="alert">
+        <Alert className="diag-alert">
           {warnings.join(" ")}
-        </div>
+        </Alert>
       ) : null}
 
       <div className="diag">
@@ -202,9 +203,9 @@ export function DiagnosticsView({ logs: fallbackLogs, sessions }: DiagnosticsVie
           </div>
 
           <form className="diag-filter" aria-label="Diagnostics filters" onSubmit={applyFilters}>
-            <label className="field">
+            <Field>
               <span>Level</span>
-              <select
+              <Select
                 aria-label="Level"
                 value={filterDraft.level}
                 onChange={(event) =>
@@ -216,25 +217,25 @@ export function DiagnosticsView({ logs: fallbackLogs, sessions }: DiagnosticsVie
                     {formatLevelLabel(level)}
                   </option>
                 ))}
-              </select>
-            </label>
-            <label className="field">
+              </Select>
+            </Field>
+            <Field>
               <span>Target</span>
-              <input
+              <TextInput
                 aria-label="Target"
                 value={filterDraft.target}
                 onChange={(event) => setFilterDraft((current) => ({ ...current, target: event.target.value }))}
               />
-            </label>
-            <label className="field">
+            </Field>
+            <Field>
               <span>Scope</span>
-              <input
+              <TextInput
                 aria-label="Scope"
                 value={filterDraft.scope}
                 onChange={(event) => setFilterDraft((current) => ({ ...current, scope: event.target.value }))}
               />
-            </label>
-            <button type="submit">Apply filters</button>
+            </Field>
+            <Button type="submit">Apply filters</Button>
           </form>
 
           <section className="diag-filter" aria-label="Loudest targets">
@@ -255,14 +256,14 @@ export function DiagnosticsView({ logs: fallbackLogs, sessions }: DiagnosticsVie
               ))
             ) : (
               <>
-                <button type="button" onClick={() => applyTargetFilter("")}>
+                <Button type="button" onClick={() => applyTargetFilter("")}>
                   all targets
-                </button>
+                </Button>
                 {targetCounts.slice(0, 10).map(([target, count]) => (
-                  <button key={target} type="button" onClick={() => applyTargetFilter(target)}>
+                  <Button key={target} type="button" onClick={() => applyTargetFilter(target)}>
                     <span>{target}</span>
                     <b>{count}</b>
-                  </button>
+                  </Button>
                 ))}
               </>
             )}
@@ -270,9 +271,9 @@ export function DiagnosticsView({ logs: fallbackLogs, sessions }: DiagnosticsVie
 
           <section className="diag-filter">
             <div className="lbl">Mode</div>
-            <button type="button" className="diag-mode">
+            <Button type="button" className="diag-mode">
               <span className="warn-c blink">●</span> Tail · live
-            </button>
+            </Button>
           </section>
         </aside>
 
@@ -287,7 +288,7 @@ export function DiagnosticsView({ logs: fallbackLogs, sessions }: DiagnosticsVie
           </div>
 
           <div className="diag-log-frame" id="diagnostics-logs">
-            <table aria-label="Diagnostics logs" className="diag-table">
+            <Table aria-label="Diagnostics logs" className="diag-table">
               <thead>
                 <tr>
                   <th scope="col">Time</th>
@@ -318,7 +319,7 @@ export function DiagnosticsView({ logs: fallbackLogs, sessions }: DiagnosticsVie
                   </tr>
                 ))}
               </tbody>
-            </table>
+            </Table>
             {logs.length === 0 ? <div className="diag-empty">-- no rows match filter --</div> : null}
           </div>
         </main>
@@ -373,9 +374,9 @@ export function DiagnosticsView({ logs: fallbackLogs, sessions }: DiagnosticsVie
           <section className="diag-card">
             <div className="kicker">Raw fallback</div>
             {!rawVisible ? (
-              <button className="diagnostics-action" type="button" onClick={revealRawTail}>
+              <Button className="diagnostics-action" type="button" onClick={revealRawTail}>
                 Show advanced raw TUI log
-              </button>
+              </Button>
             ) : (
               <section className="raw-tail" aria-label="Raw TUI log">
                 {rawError ? (
@@ -384,17 +385,17 @@ export function DiagnosticsView({ logs: fallbackLogs, sessions }: DiagnosticsVie
                       No raw TUI log on this host (~/.codex/log/codex-tui.log not found).
                     </p>
                   ) : (
-                    <div className="inline-alert" role="alert">
+                    <Alert>
                       {rawError.message}
-                    </div>
+                    </Alert>
                   )
                 ) : null}
                 <pre>{rawTail?.textPreview ?? ""}</pre>
                 <div className="raw-tail__actions">
                   <span>Next offset {rawTail?.nextByteOffset ?? 0}</span>
-                  <button type="button" onClick={() => void loadRawTail()}>
+                  <Button type="button" onClick={() => void loadRawTail()}>
                     Load raw tail
-                  </button>
+                  </Button>
                 </div>
               </section>
             )}

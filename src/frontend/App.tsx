@@ -7,6 +7,7 @@ import { createLiveTokenStore } from "./live/liveTokenStore";
 import { LiveTokenStoreContext } from "./live/LiveTokens";
 import { Chrome } from "./components/Chrome";
 import { SegBar } from "./components/SegBar";
+import { UiKitProvider } from "./ui";
 import { usePalette } from "./usePalette";
 import { useUiKit } from "./useUiKit";
 import { AgentGraphView } from "./views/AgentGraphView";
@@ -557,91 +558,93 @@ export function App() {
 
   return (
     <LiveTokenStoreContext.Provider value={liveTokenStore}>
-      <Chrome
-        activeView={activeView}
-        health={health}
-        navigation={<SegBar views={navViews} activeView={activeView} onChange={setActiveView} />}
-        palette={palette}
-        uiKit={uiKit}
-        onPaletteChange={setPalette}
-        onOpenRepos={openReposIndex}
-        onOpenSessions={openSessions}
-        reposActive={activeView === "Repos"}
-        sessionsActive={activeView === "Sessions"}
-        headerRepo={headerRepo}
-        activeSession={activeSession}
-        sessions={sessions}
-        sessionCount={sessions.length}
-        tokenTotal={tokenTotal}
-        warningSessionCount={warningSessionCount}
-      >
-        <main className="app-shell__main" aria-label="Observatory workspace">
-          {activeView === "Repos" ? (
-            <ReposView
-              sessions={sessions}
-              isLoading={sessionsLoading}
-              onOpenRepo={openRepo}
-              onSelectSession={(sessionId) => selectSession(sessionId, "Timeline")}
-            />
-          ) : null}
-          {activeView === "Sessions" ? (
-            <SessionsView
-              sessions={sessions}
-              filter={sessionFilter}
-              repoFilter={repoFilter}
-              isLoading={sessionsLoading}
-              error={sessionsError}
-              activeSessionId={activeSessionId}
-              diagnosticsByThreadId={sessionDiagnostics}
-              onFilterChange={setSessionFilter}
-              onClearRepoFilter={openReposIndex}
-              onSelectSession={selectSession}
-            />
-          ) : null}
-          {activeView === "Timeline" ? (
-            <TimelineView
-              payload={timelinePayload ?? fallbackTimeline}
-              activeSession={activeSession}
-              sessions={sessions}
-              isLoading={timelineLoading}
-              error={timelineError}
-              activeKind={timelineKind}
-              scope={timelineScope}
-              subtreeLoading={subtreeLoading}
-              onScopeChange={handleScopeChange}
-              onKindChange={setTimelineKind}
-              onRefresh={() => loadTimeline()}
-              onSelectSession={selectSession}
-              onOpenGraph={() => activeSession && selectSession(activeSession.id, "Agent Graph")}
-              onTail={() => loadTimeline(timelinePayload?.nextByteOffset ?? 0)}
-            />
-          ) : null}
-          {activeView === "Agent Graph" ? (
-            <AgentGraphView
-              activeSession={activeSession}
-              error={agentGraphError}
-              graph={agentGraph}
-              isLoading={agentGraphLoading}
-              maxDepth={graphMaxDepth}
-              onMaxDepthChange={setGraphMaxDepth}
-              onRefresh={loadAgentGraph}
-              onSelectSession={selectSession}
-            />
-          ) : null}
-          {activeView === "Tokens" ? (
-            <TokensView
-              activeSession={activeSession}
-              error={tokenSeriesError}
-              isLoading={tokenSeriesLoading}
-              onRefresh={loadTokenSeries}
-              onSelectSession={selectSession}
-              series={tokenSeries}
-              topSessions={topTokenSessions}
-            />
-          ) : null}
-          {activeView === "Diagnostics" ? <DiagnosticsView logs={fixture.diagnosticsLogs} sessions={sessions} /> : null}
-        </main>
-      </Chrome>
+      <UiKitProvider kit={uiKit}>
+        <Chrome
+          activeView={activeView}
+          health={health}
+          navigation={<SegBar views={navViews} activeView={activeView} onChange={setActiveView} />}
+          palette={palette}
+          uiKit={uiKit}
+          onPaletteChange={setPalette}
+          onOpenRepos={openReposIndex}
+          onOpenSessions={openSessions}
+          reposActive={activeView === "Repos"}
+          sessionsActive={activeView === "Sessions"}
+          headerRepo={headerRepo}
+          activeSession={activeSession}
+          sessions={sessions}
+          sessionCount={sessions.length}
+          tokenTotal={tokenTotal}
+          warningSessionCount={warningSessionCount}
+        >
+          <main className="app-shell__main" aria-label="Observatory workspace">
+            {activeView === "Repos" ? (
+              <ReposView
+                sessions={sessions}
+                isLoading={sessionsLoading}
+                onOpenRepo={openRepo}
+                onSelectSession={(sessionId) => selectSession(sessionId, "Timeline")}
+              />
+            ) : null}
+            {activeView === "Sessions" ? (
+              <SessionsView
+                sessions={sessions}
+                filter={sessionFilter}
+                repoFilter={repoFilter}
+                isLoading={sessionsLoading}
+                error={sessionsError}
+                activeSessionId={activeSessionId}
+                diagnosticsByThreadId={sessionDiagnostics}
+                onFilterChange={setSessionFilter}
+                onClearRepoFilter={openReposIndex}
+                onSelectSession={selectSession}
+              />
+            ) : null}
+            {activeView === "Timeline" ? (
+              <TimelineView
+                payload={timelinePayload ?? fallbackTimeline}
+                activeSession={activeSession}
+                sessions={sessions}
+                isLoading={timelineLoading}
+                error={timelineError}
+                activeKind={timelineKind}
+                scope={timelineScope}
+                subtreeLoading={subtreeLoading}
+                onScopeChange={handleScopeChange}
+                onKindChange={setTimelineKind}
+                onRefresh={() => loadTimeline()}
+                onSelectSession={selectSession}
+                onOpenGraph={() => activeSession && selectSession(activeSession.id, "Agent Graph")}
+                onTail={() => loadTimeline(timelinePayload?.nextByteOffset ?? 0)}
+              />
+            ) : null}
+            {activeView === "Agent Graph" ? (
+              <AgentGraphView
+                activeSession={activeSession}
+                error={agentGraphError}
+                graph={agentGraph}
+                isLoading={agentGraphLoading}
+                maxDepth={graphMaxDepth}
+                onMaxDepthChange={setGraphMaxDepth}
+                onRefresh={loadAgentGraph}
+                onSelectSession={selectSession}
+              />
+            ) : null}
+            {activeView === "Tokens" ? (
+              <TokensView
+                activeSession={activeSession}
+                error={tokenSeriesError}
+                isLoading={tokenSeriesLoading}
+                onRefresh={loadTokenSeries}
+                onSelectSession={selectSession}
+                series={tokenSeries}
+                topSessions={topTokenSessions}
+              />
+            ) : null}
+            {activeView === "Diagnostics" ? <DiagnosticsView logs={fixture.diagnosticsLogs} sessions={sessions} /> : null}
+          </main>
+        </Chrome>
+      </UiKitProvider>
     </LiveTokenStoreContext.Provider>
   );
 }

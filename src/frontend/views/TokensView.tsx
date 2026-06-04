@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { RateLimitMeter } from "../components/RateLimitMeter";
+import { Alert, Button, PanelTitle } from "../ui";
 import { indexSessions, sessionDepth, toneForDepth } from "./sessionTree";
 import type { ApiError, SessionSummary, TokenSeries, TokenSnapshot } from "../../shared/contracts";
 
@@ -42,18 +43,7 @@ interface TokensViewProps {
 }
 
 function panelTitle(label: string, meta?: string) {
-  return (
-    <div className="panel-tit token-panel-tit">
-      <span className="dot" />
-      <span>{label}</span>
-      {meta ? (
-        <>
-          <span className="spacer" />
-          <span className="meta">{meta}</span>
-        </>
-      ) : null}
-    </div>
-  );
+  return <PanelTitle className="token-panel-tit" meta={meta}>{label}</PanelTitle>;
 }
 
 function buildAggregateBuckets(topSessions: SessionSummary[], series?: TokenSeries) {
@@ -258,7 +248,7 @@ function TokenBudget({
         const depth = sessionDepth(session, index);
         const isSub = depth > 0;
         return (
-          <button className="tok-row" key={session.id} onClick={() => onSelect(session.id)} type="button">
+          <Button className="tok-row" key={session.id} onClick={() => onSelect(session.id)} type="button">
             <span className="rank num">{String(rank + 1).padStart(2, "0")}</span>
             <span className="tok-row-body">
               <span className="tok-row-head">
@@ -284,7 +274,7 @@ function TokenBudget({
                 {breakdown.output > 0 ? <span className="seg output" style={{ width: widthOf(breakdown.output) }} /> : null}
               </span>
             </span>
-          </button>
+          </Button>
         );
       })}
     </div>
@@ -391,12 +381,12 @@ export function TokensView({
           <p className="kicker">Token telemetry</p>
           <h1 id="tokens-title">Tokens</h1>
         </div>
-        <button type="button" onClick={onRefresh}>
+        <Button type="button" onClick={onRefresh}>
           Refresh tokens
-        </button>
+        </Button>
       </div>
 
-      {error ? <div className="inline-alert" role="alert">{error.message}</div> : null}
+      {error ? <Alert>{error.message}</Alert> : null}
       {isLoading ? <div role="status">Loading tokens</div> : null}
       {!series ? <div className="empty-state">No token series loaded.</div> : null}
       {series ? (

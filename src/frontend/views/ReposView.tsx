@@ -2,6 +2,7 @@ import { useMemo } from "react";
 
 import type { SessionSummary } from "../../shared/contracts";
 import { useEnteringIds } from "../live/useEnteringIds";
+import { Button, Chip } from "../ui";
 import { formatTokens } from "./formatTokens";
 import { type RepoGroup, type RepoRoot, groupSessionsByRepo, sessionUpdatedMs } from "./sessionTree";
 
@@ -37,7 +38,7 @@ function SubChip({
 }) {
   const isOpen = sub.openChildCount > 0;
   return (
-    <button
+    <Button
       className={entering ? "sub-chip feed-enter" : "sub-chip"}
       data-status={isOpen ? "open" : "closed"}
       onClick={(event) => {
@@ -52,7 +53,7 @@ function SubChip({
       <span className="sub-chip-role">{roleInitial(sub)}</span>
       <span className="sub-chip-tok num">{formatTokens(sessionTokens(sub))}</span>
       {isOpen ? <span className="sub-chip-dot" aria-label="open" /> : null}
-    </button>
+    </Button>
   );
 }
 
@@ -92,11 +93,11 @@ function RepoTreeRow({
         <div className="repo-row-body">
           <div className="repo-row-title">{root.title}</div>
           <div className="repo-row-meta">
-            <span className="chip">USER · ROOT</span>
+            <Chip>USER · ROOT</Chip>
             <span className="num">{formatTokens(sessionTokens(root))}</span>
             <span className="muted">·</span>
             <span className="muted num">{ago(sessionUpdatedMs(root), nowMs)} ago</span>
-            {(root.warningCount ?? 0) > 0 ? <span className="chip warn">▲ {root.warningCount}</span> : null}
+            {(root.warningCount ?? 0) > 0 ? <Chip tone="warn">▲ {root.warningCount}</Chip> : null}
           </div>
         </div>
       </div>

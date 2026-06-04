@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 
+import { Button, Chip, Table } from "../ui";
 import type {
   BuildOutputRender,
   ComposeOutputRender,
@@ -140,7 +141,7 @@ function TableView({ r, full }: { r: TableOutputRender; full?: boolean }) {
   const statusIdx = r.columns.findIndex((column) => /^\s*status\s*$/i.test(String(column)));
   return (
     <div className="xr xr-table-wrap">
-      <table className="xr-table">
+      <Table className="xr-table">
         <thead>
           <tr>
             {r.columns.map((column, i) => (
@@ -162,7 +163,7 @@ function TableView({ r, full }: { r: TableOutputRender; full?: boolean }) {
             </tr>
           ))}
         </tbody>
-      </table>
+      </Table>
     </div>
   );
 }
@@ -846,7 +847,7 @@ export function ExecOutput({ event, onExpand }: { event: TimelineEvent; onExpand
       </div>
       <RenderOutput render={render} plainText={plainTextFor(event)} />
       {overflow ? (
-        <button
+        <Button
           className="xr-expand"
           type="button"
           onClick={(domEvent) => {
@@ -855,7 +856,7 @@ export function ExecOutput({ event, onExpand }: { event: TimelineEvent; onExpand
           }}
         >
           Expand · {overflow} ›
-        </button>
+        </Button>
       ) : null}
     </div>
   );
@@ -899,19 +900,19 @@ export function ExecModal({ event, onClose }: { event: TimelineEvent; onClose: (
           <span className="xr-modal-cmd num">$ {command}</span>
           <span className="spacer" />
           {exit !== undefined ? (
-            <span className={`chip ${fail ? "warn" : "good"}`}>
+            <Chip tone={fail ? "warn" : "good"}>
               exit {exit}
               {durationMs !== undefined ? ` · ${durationLabel(durationMs)}` : ""}
-            </span>
+            </Chip>
           ) : null}
           {hasRaw ? (
-            <button className="xr-raw-btn" type="button" data-on={raw} onClick={() => setRaw((value) => !value)}>
+            <Button className="xr-raw-btn" type="button" data-on={raw} onClick={() => setRaw((value) => !value)}>
               {raw ? "FORMATTED" : "RAW"}
-            </button>
+            </Button>
           ) : null}
-          <button className="xr-modal-close" type="button" onClick={onClose} aria-label="Close">
+          <Button className="xr-modal-close" type="button" onClick={onClose} aria-label="Close">
             ✕
-          </button>
+          </Button>
         </div>
         <div className="xr-modal-body">
           {raw ? (

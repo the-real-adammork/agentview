@@ -15,6 +15,7 @@ import {
 } from "@xyflow/react";
 
 import { ShortId } from "../components/ShortId";
+import { Alert, Button, Chip, Field, PanelTitle, TextInput } from "../ui";
 import { toneForDepth } from "./sessionTree";
 import type { AgentGraph, AgentNode, ApiError, SessionSummary } from "../../shared/contracts";
 
@@ -96,7 +97,7 @@ function AgentFlowNodeView({ data, selected }: NodeProps<AgentFlowNode>) {
   return (
     <>
       <Handle type="target" position={Position.Left} isConnectable={false} />
-      <button
+      <Button
         aria-pressed={selected}
         className={`node ${node.sourceEdgeStatus === "open" ? "status-open" : ""}`}
         data-open={selected}
@@ -115,13 +116,13 @@ function AgentFlowNodeView({ data, selected }: NodeProps<AgentFlowNode>) {
           <ShortId value={node.id} />
         </span>
         <span className="row">
-          <span className="chip dim">{compactFormatter.format(node.tokenTotal)} tok</span>
-          <span className={node.sourceEdgeStatus === "open" ? "chip warn" : "chip good"}>
+          <Chip tone="dim">{compactFormatter.format(node.tokenTotal)} tok</Chip>
+          <Chip tone={node.sourceEdgeStatus === "open" ? "warn" : "good"}>
             {node.sourceEdgeStatus ?? node.status}
-          </span>
-          {node.metadataMissing ? <span className="chip warn">meta</span> : null}
+          </Chip>
+          {node.metadataMissing ? <Chip tone="warn">meta</Chip> : null}
         </span>
-      </button>
+      </Button>
       <Handle type="source" position={Position.Right} isConnectable={false} />
     </>
   );
@@ -222,7 +223,7 @@ export function AgentGraphView({
 
   return (
     <section className="graph-view" aria-labelledby="agent-graph-title">
-      {error ? <div className="inline-alert" role="alert">{error.message}</div> : null}
+      {error ? <Alert>{error.message}</Alert> : null}
       {isLoading ? <div role="status">Loading graph</div> : null}
       {!graph ? <div className="empty-state">No graph loaded.</div> : null}
       {graph ? (
@@ -240,9 +241,9 @@ export function AgentGraphView({
 
             <div className="graph-flow">
               <div className="graph-toolbar" aria-label="Graph controls">
-                <label className="field field--compact">
+                <Field className="field--compact">
                   <span>Depth</span>
-                  <input
+                  <TextInput
                     aria-label="Graph depth"
                     max={10}
                     min={0}
@@ -253,10 +254,10 @@ export function AgentGraphView({
                       onRefresh();
                     }}
                   />
-                </label>
-                <button type="button" onClick={onRefresh}>
+                </Field>
+                <Button type="button" onClick={onRefresh}>
                   Refresh graph
-                </button>
+                </Button>
               </div>
 
               <ReactFlow
@@ -280,18 +281,15 @@ export function AgentGraphView({
               </ReactFlow>
 
               {graph.truncatedDepth ? (
-                <div className="graph-truncated inline-alert">
+                <Alert className="graph-truncated">
                   Depth limit reached; increase graph depth to expand descendants.
-                </div>
+                </Alert>
               ) : null}
             </div>
           </div>
 
           <aside className="graph-info" aria-label="Selected graph node">
-            <div className="panel-tit">
-              <span className="dot" />
-              <span>Node · Inspector</span>
-            </div>
+            <PanelTitle>Node · Inspector</PanelTitle>
             {selectedNode ? (
               <div className="graph-info__body">
                 <span className={`haztag ${toneForDepth(selectedNode.depth)}`}>
@@ -335,9 +333,9 @@ export function AgentGraphView({
                   <p>{selectedNode.finalReportPreview ?? "in progress"}</p>
                 </div>
 
-                <button type="button" onClick={() => onSelectSession(selectedNode.id, "Timeline")}>
+                <Button type="button" onClick={() => onSelectSession(selectedNode.id, "Timeline")}>
                   Open selected in Timeline
-                </button>
+                </Button>
               </div>
             ) : null}
           </aside>

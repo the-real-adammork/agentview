@@ -1,4 +1,5 @@
 import type { TimelineEvent, TimelineEventKind } from "../../shared/contracts";
+import { Button, Chip } from "../ui";
 import { ExecOutput, isExpandable } from "./execRenderers";
 import { CallLine, callCategory } from "./callRenderers";
 
@@ -332,21 +333,21 @@ export function TimelineEventRow({ event, meta, delta, isNew, source, onOpenThre
           {event.phase ? <span>{event.phase}</span> : null}
           {event.callId ? <span>call_id {event.callId}</span> : null}
           {event.kind === "skill_invoke" && event.skillStatus ? (
-            <span className={`chip ${event.skillStatus === "fail" ? "warn" : "good"}`}>{event.skillStatus}</span>
+            <Chip tone={event.skillStatus === "fail" ? "warn" : "good"}>{event.skillStatus}</Chip>
           ) : null}
           {event.kind === "token_snapshot" && delta !== undefined ? (
-            <span className="chip cyan ev__right">Δ +{compact1(delta)} since last</span>
+            <Chip tone="cyan" className="ev__right">Δ +{compact1(delta)} since last</Chip>
           ) : null}
           {isTool && exitCode !== undefined ? (
-            <span className={`chip ${failed ? "warn" : "good"}`}>
+            <Chip tone={failed ? "warn" : "good"}>
               exit {exitCode}
               {durationMs !== undefined ? ` · ${durationLabel(durationMs)}` : ""}
-            </span>
+            </Chip>
           ) : null}
-          {event.kind === "agent_wait" && event.severity === "error" ? <span className="chip warn">failed</span> : null}
+          {event.kind === "agent_wait" && event.severity === "error" ? <Chip tone="warn">failed</Chip> : null}
           {meta ? <span className="ev__right">{meta}</span> : null}
           {showChildAction ? (
-            <button
+            <Button
               type="button"
               className="chip cyan ev__child"
               aria-label={`Open ${event.childThreadId} in Timeline`}
@@ -356,7 +357,7 @@ export function TimelineEventRow({ event, meta, delta, isNew, source, onOpenThre
               }}
             >
               ↗ open child
-            </button>
+            </Button>
           ) : null}
         </div>
 
