@@ -1538,8 +1538,36 @@ tbody tr[aria-current="true"] {
   opacity: 0.7;
 }
 
-.tl-graph-link {
+.tl-session-id {
+  display: grid;
+  gap: 4px;
   margin-top: 16px;
+  border-top: var(--border-width) solid var(--rule-soft);
+  padding-top: 12px;
+  color: var(--ink-dim);
+}
+
+.tl-session-id span {
+  font-family: var(--display);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.tl-session-id code {
+  max-width: 100%;
+  color: var(--ink-strong);
+  cursor: text;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.tl-graph-link {
+  margin-top: 10px;
   width: 100%;
   border: var(--border-width) solid var(--primary);
   background: transparent;

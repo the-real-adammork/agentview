@@ -595,6 +595,13 @@ export function TimelineView({
             )}
           </div>
 
+          {activeSession ? (
+            <div className="tl-session-id" aria-label="Active session id">
+              <span>Session ID</span>
+              <code title={activeSession.id}>{activeSession.id}</code>
+            </div>
+          ) : null}
+
           <Button className="tl-graph-link" type="button" onClick={() => onOpenGraph?.()}>▸ Open Agent Graph</Button>
           <Button
             className="tl-graph-link tl-export"

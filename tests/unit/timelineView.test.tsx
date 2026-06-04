@@ -56,6 +56,13 @@ function renderTimeline(opts: {
 }
 
 describe("TimelineView · +SUBS scope", () => {
+  it("shows the active session id in the sidebar for debugging", () => {
+    renderTimeline({ activeSession: root, events: [primaryEvent], scope: "this" });
+
+    expect(screen.getByText("Session ID")).toBeVisible();
+    expect(screen.getByText(root.id)).toBeVisible();
+  });
+
   it("offers the scope toggle when the active thread has descendants", () => {
     renderTimeline({ activeSession: root, events: [primaryEvent], scope: "this" });
     expect(screen.getByRole("button", { name: /\+subs/i })).toBeVisible();

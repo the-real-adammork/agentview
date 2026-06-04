@@ -13,6 +13,7 @@
     "build": "npm run build:renderer && npm run build:electron",
     "build:renderer": "vite build",
     "build:electron": "vite build --config vite.electron.config.ts",
+    "compile:electron": "node scripts/compile-electron-app.mjs",
     "electron:package": "npm run build && electron-builder --dir",
     "electron:dist": "npm run build && electron-builder",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.node.json",
@@ -39,6 +40,7 @@
       "package.json"
     ],
     "mac": {
+      "icon": "build/icon.icns",
       "identity": null,
       "target": [
         "dir"
