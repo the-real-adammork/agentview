@@ -1,0 +1,44 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><defs>
+  <radialGradient id="glow_reticle_300_8" cx="50%" cy="26%" r="82%">
+    <stop offset="0%" stop-color="#ff6b1a" stop-opacity="0.26"></stop>
+    <stop offset="42%" stop-color="#ff6b1a" stop-opacity="0.06"></stop>
+    <stop offset="100%" stop-color="#ff6b1a" stop-opacity="0"></stop>
+  </radialGradient>
+  <pattern id="grid_reticle_300_8" width="64" height="64" patternUnits="userSpaceOnUse">
+    <path d="M64 0H0V64" fill="none" stroke="#ff6b1a" stroke-opacity="0.09" stroke-width="1.5"></path>
+  </pattern>
+  <pattern id="scan_reticle_300_8" width="6" height="6" patternUnits="userSpaceOnUse">
+    <rect width="6" height="3" y="3" fill="#000" fill-opacity="0.17"></rect>
+  </pattern>
+  <filter id="soft_reticle_300_8" x="-40%" y="-40%" width="180%" height="180%">
+    <feGaussianBlur stdDeviation="16"></feGaussianBlur>
+  </filter></defs>
+  
+  <rect width="1024" height="1024" fill="#050403"></rect>
+  <rect width="1024" height="1024" fill="url(#grid_reticle_300_8)"></rect>
+  <rect width="1024" height="1024" fill="url(#glow_reticle_300_8)"></rect>
+  <g stroke="#ff6b1a" stroke-opacity="0.3" stroke-width="9" fill="none" stroke-linecap="square">
+  <path d="M78 182 V78 H182"></path>
+  <path d="M842 78 H946 V182"></path>
+  <path d="M946 842 V946 H842"></path>
+  <path d="M182 946 H78 V842"></path>
+</g>
+  <g fill="none" stroke="#ff6b1a" stroke-width="13">
+    <circle cx="512" cy="512" r="372" stroke-dasharray="498 75" stroke-dashoffset="38"></circle>
+  </g>
+  <circle cx="512" cy="512" r="246" fill="none" stroke="#ff8a3d" stroke-width="8" stroke-opacity="0.9"></circle>
+  <g stroke="#ff6b1a" stroke-width="12" stroke-linecap="round">
+    <line x1="512" y1="96" x2="512" y2="246"></line>
+    <line x1="512" y1="778" x2="512" y2="928"></line>
+    <line x1="96" y1="512" x2="246" y2="512"></line>
+    <line x1="778" y1="512" x2="928" y2="512"></line>
+    <line x1="512" y1="320" x2="512" y2="430"></line>
+    <line x1="512" y1="594" x2="512" y2="704"></line>
+    <line x1="320" y1="512" x2="430" y2="512"></line>
+    <line x1="594" y1="512" x2="704" y2="512"></line>
+  </g>
+  <g fill="#ff2d4d"><circle cx="512" cy="512" r="34" filter="url(#soft_reticle_300_8)" opacity="0.9"></circle></g>
+  <circle cx="512" cy="512" r="26" fill="#ff8a3d"></circle>
+  <circle cx="512" cy="512" r="11" fill="#050403"></circle>
+  <rect width="1024" height="1024" fill="url(#scan_reticle_300_8)"></rect>
+</svg>
