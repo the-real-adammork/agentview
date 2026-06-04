@@ -1,10 +1,20 @@
 import "@testing-library/jest-dom/vitest";
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
 import { TimelineEventRow } from "../../src/frontend/components/TimelineEventRow";
 import type { TimelineEvent } from "../../src/shared/contracts";
+
+const agentviewCss = readFileSync(join(process.cwd(), "src/frontend/styles/kits/agentview.css"), "utf8");
+
+const cssRule = (selector: string) => {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`${escaped}\\s*\\{([^}]*)\\}`).exec(agentviewCss)?.[1] ?? "";
+};
 
 const tokenEvent: TimelineEvent = {
   id: "ev-token",
@@ -125,5 +135,16 @@ describe("TimelineEventRow · tool call command", () => {
     );
     expect(screen.getByText("$ curl -s https://example.test")).toBeVisible();
     expect(screen.queryByText(/"yield_time_ms"/)).toBeNull();
+  });
+});
+
+describe("TimelineEventRow · overflow contract", () => {
+  it("constrains row text so long event content ellipsizes instead of widening the timeline", () => {
+    expect(cssRule(".ev")).toMatch(/min-width:\s*0/);
+    expect(cssRule(".ev .body")).toMatch(/overflow:\s*hidden/);
+    expect(cssRule(".ev .head > :not(.chip):not(button)")).toMatch(/text-overflow:\s*ellipsis/);
+    expect(cssRule(".ev pre")).toMatch(/text-overflow:\s*ellipsis/);
+    expect(cssRule(".ev .args")).toMatch(/text-overflow:\s*ellipsis/);
+    expect(cssRule(".xr-out")).toMatch(/overflow:\s*hidden/);
   });
 });
