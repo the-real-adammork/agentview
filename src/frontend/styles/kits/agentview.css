@@ -1306,9 +1306,6 @@ tbody tr[aria-current="true"] {
   display: grid;
   grid-template-columns: 84px minmax(0, 1fr);
   gap: 14px;
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
   border-left: var(--border-width) solid var(--rule-soft);
   padding: 6px 0 6px 14px;
 }
@@ -1369,8 +1366,6 @@ tbody tr[aria-current="true"] {
 
 .ev .body {
   min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
   border: var(--border-width) solid var(--rule);
   background: var(--bg-1);
   padding: 6px 10px;
@@ -1417,20 +1412,11 @@ tbody tr[aria-current="true"] {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  min-width: 0;
   margin-bottom: 6px;
   color: var(--ink-dim);
   font-size: 10px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-}
-
-.ev .head > :not(.chip):not(button) {
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .ev .head .who {
@@ -1462,10 +1448,8 @@ tbody tr[aria-current="true"] {
   font-family: var(--mono);
   font-size: 12px;
   line-height: 1.5;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  word-break: normal;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .ev pre.tone-warn {
@@ -1477,10 +1461,7 @@ tbody tr[aria-current="true"] {
   color: var(--ink-dim);
   font-family: var(--mono);
   font-size: 11px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  word-break: normal;
+  word-break: break-word;
 }
 
 .ev .out {
@@ -4778,14 +4759,7 @@ tbody tr[aria-current="true"] {
    capped inline preview (and the same components fill the modal). Ported from
    docs/design/workflowkit-evangelion/styles.css.
    ============================================================ */
-.xr-out {
-  min-width: 0;
-  max-width: 100%;
-  margin-top: 6px;
-  overflow: hidden;
-  padding: 0;
-  border-left: 2px solid var(--rule-strong);
-}
+.xr-out { margin-top: 6px; padding: 0; border-left: 2px solid var(--rule-strong); }
 .xr-out.fail { border-left-color: var(--warn); }
 .xr-out-hd {
   display: flex; align-items: center; gap: 8px;
@@ -4819,13 +4793,7 @@ tbody tr[aria-current="true"] {
   font-family: var(--display); font-size: 9px; letter-spacing: 0.18em;
   color: var(--bg-0); background: var(--warn); padding: 0 5px;
 }
-.xr {
-  min-width: 0;
-  max-width: 100%;
-  overflow: hidden;
-  font-family: var(--mono);
-  font-size: 11px;
-}
+.xr { font-family: var(--mono); font-size: 11px; }
 /* expand bar — full-width at the bottom of the output block */
 .xr-expand {
   display: block; width: 100%;
@@ -4862,9 +4830,9 @@ tbody tr[aria-current="true"] {
   background: rgba(70, 216, 255, 0.05);
   font-size: 10px;
 }
-.xr-line { display: flex; gap: 6px; min-width: 0; padding: 1px 10px; white-space: pre; }
+.xr-line { display: flex; gap: 6px; padding: 1px 10px; white-space: pre; }
 .xr-line .g { width: 10px; flex-shrink: 0; text-align: center; color: var(--ink-faint); }
-.xr-line .c { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.xr-line .c { flex: 1; overflow: hidden; text-overflow: ellipsis; }
 .xr-line.add { background: rgba(108, 240, 153, 0.08); }
 .xr-line.add .g, .xr-line.add .c { color: var(--good); }
 .xr-line.del { background: rgba(255, 45, 77, 0.08); }
@@ -5067,9 +5035,9 @@ tbody tr[aria-current="true"] {
 .xr-json-body .j-kw { color: var(--primary); }
 
 /* call-side one-liners (read / search request / fetch) */
-.xr-call-line { display: flex; align-items: baseline; gap: 9px; min-width: 0; overflow: hidden; padding: 7px 10px; font-family: var(--mono); font-size: 11px; }
+.xr-call-line { display: flex; align-items: baseline; gap: 9px; padding: 7px 10px; font-family: var(--mono); font-size: 11px; }
 .xr-call-line .cl-icon { color: var(--ink-faint); flex-shrink: 0; }
-.xr-call-line .cl-path { color: var(--ink-strong); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xr-call-line .cl-path { color: var(--ink-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .xr-call-line .cl-meta { color: var(--ink-dim); font-size: 10px; }
 .xr-call-line .cl-pat { color: var(--good); }
 .xr-call-line .cl-scope { color: var(--ink-dim); }
