@@ -1,6 +1,6 @@
 import "@testing-library/jest-dom/vitest";
 
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -28,6 +28,61 @@ const subEvent: TimelineEvent = {
   kind: "user_message",
   severity: "info",
   previewText: "Sub-agent reporting.",
+};
+
+const subagentNotificationEvent: TimelineEvent = {
+  id: "sn1",
+  threadId: root.id,
+  timestamp: "2026-06-05T15:00:00.000Z",
+  sourceLine: 9,
+  kind: "subagent_notification",
+  severity: "info",
+  previewText: "ARCHIMEDES completed with 2 findings",
+  childThreadId: "019e9825-04ae-74e3-b315-388c93a24fad",
+  agentNickname: "ARCHIMEDES",
+  agentRole: "researcher",
+  subagentNotification: {
+    agentPath: "019e9825-04ae-74e3-b315-388c93a24fad",
+    agentNickname: "ARCHIMEDES",
+    agentRole: "researcher",
+    tokens: 84120,
+    statusKey: "completed",
+    statusLabel: "COMPLETED",
+    statusTone: "good",
+    statusGlyph: "✓",
+    statusText: "**Market And Competition Findings**\n\n- Steno bundles **payment innovation + workflow software**. **Confidence: High.** ([steno.com](https://steno.com/services/delaypay))",
+    rawJson: JSON.stringify({
+      agent_path: "019e9825-04ae-74e3-b315-388c93a24fad",
+      agent_nickname: "ARCHIMEDES",
+      agent_role: "researcher",
+      tokens: 84120,
+      status: { completed: "report" },
+    }, null, 2),
+    sections: [
+      {
+        title: "Market And Competition Findings",
+        type: "findings",
+        paragraphs: [],
+        findings: [
+          {
+            prose: "Steno bundles **payment innovation + workflow software**",
+            confidence: "High",
+            confidenceTone: "high",
+            citations: [{ domain: "steno.com", url: "https://steno.com/services/delaypay" }],
+          },
+          {
+            prose: "Market sizing varies by definition",
+            confidence: "Low-Medium",
+            confidenceTone: "mixed",
+            citations: [{ domain: "psmarketresearch.com", url: "https://www.psmarketresearch.com/market-analysis" }],
+          },
+        ],
+      },
+    ],
+    counts: { findings: 2, sources: 2, openQuestions: 0 },
+    confidence: { high: 1, medium: 1, low: 0, unknown: 0 },
+    sourceDomains: ["steno.com", "psmarketresearch.com"],
+  },
 };
 
 const noop = () => {};
@@ -115,6 +170,25 @@ describe("TimelineView · +SUBS scope", () => {
     const rail = row.querySelector(".ev-src-rail") as HTMLElement;
     expect(rail).not.toBeNull();
     expect(rail.dataset.tone).toBe("amber");
+  });
+
+  it("renders structured subagent notifications with the custom report UI and modal", () => {
+    renderTimeline({ activeSession: root, events: [subagentNotificationEvent], scope: "this" });
+
+    const row = screen.getByText("SUBAGENT_NOTIFICATION").closest("li") as HTMLElement;
+    const rowView = within(row);
+    expect(rowView.getByText("SUBAGENT_NOTIFICATION")).toBeVisible();
+    expect(rowView.getByText("ARCHIMEDES")).toBeVisible();
+    expect(row).toHaveTextContent("2 findings");
+    expect(rowView.getByText("steno.com")).toBeVisible();
+    expect(screen.queryByText(/<subagent_notification>/)).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /expand/i }));
+    const dialog = screen.getByRole("dialog", { name: /subagent notification/i });
+    expect(dialog).toBeVisible();
+    expect(screen.getByText("Market And Competition Findings")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "RAW" }));
+    expect(within(dialog).getByText(/"agent_path"/)).toBeVisible();
   });
 });
 

@@ -134,6 +134,7 @@ export type TimelineEventKind =
   | "user_message"
   | "assistant_message"
   | "agent_message"
+  | "subagent_notification"
   | "reasoning"
   | "tool_call"
   | "tool_result"
@@ -145,6 +146,56 @@ export type TimelineEventKind =
   | "parse_error";
 
 export type EventSeverity = "info" | "warning" | "error";
+
+export type SubagentNotificationTone = "good" | "amber" | "warn" | "cyan" | "primary";
+export type SubagentConfidenceTone = "high" | "medium" | "mixed" | "low" | "unknown";
+export type SubagentReportSectionType = "findings" | "risk" | "sources";
+
+export interface SubagentCitation {
+  domain: string;
+  url: string;
+}
+
+export interface SubagentFinding {
+  prose: string;
+  confidence?: string;
+  confidenceTone: SubagentConfidenceTone;
+  citations: SubagentCitation[];
+  sourceNote?: string;
+}
+
+export interface SubagentReportSection {
+  title?: string;
+  type: SubagentReportSectionType;
+  findings: SubagentFinding[];
+  paragraphs: string[];
+}
+
+export interface SubagentNotificationRender {
+  agentPath: string;
+  agentNickname?: string;
+  agentRole?: string;
+  tokens?: number;
+  statusKey: string;
+  statusLabel: string;
+  statusTone: SubagentNotificationTone;
+  statusGlyph: string;
+  statusText: string;
+  rawJson: string;
+  sections: SubagentReportSection[];
+  counts: {
+    findings: number;
+    sources: number;
+    openQuestions: number;
+  };
+  confidence: {
+    high: number;
+    medium: number;
+    low: number;
+    unknown: number;
+  };
+  sourceDomains: string[];
+}
 
 /**
  * Structured `exec_command` output, classified server-side once during the
@@ -573,6 +624,8 @@ export interface TimelineEvent {
   skillName?: string;
   /** skill_invoke: result state driving the status chip. */
   skillStatus?: "ok" | "fail" | "running";
+  /** subagent_notification: structured report payload parsed from the injected tag. */
+  subagentNotification?: SubagentNotificationRender;
 }
 
 export interface TurnSummary {

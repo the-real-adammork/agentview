@@ -6,6 +6,7 @@ import { AnimatedNumber } from "../components/AnimatedNumber";
 import { useEnteringIds } from "../live/useEnteringIds";
 import { TimelineEventRow, type EventSource } from "../components/TimelineEventRow";
 import { ExecModal } from "../components/execRenderers";
+import { SubagentNotificationModal } from "../components/SubagentNotification";
 import { TimelineLoadingSkeleton } from "../components/TimelineLoadingSkeleton";
 import { TimelineScrubber } from "../components/TimelineScrubber";
 import { Alert, Button, Chip, PanelTitle } from "../ui";
@@ -766,7 +767,11 @@ export function TimelineView({
         </ol>
         )}
       </section>
-      {expandedEvent ? <ExecModal event={expandedEvent} onClose={() => setExpandedEvent(null)} /> : null}
+      {expandedEvent?.kind === "subagent_notification" && expandedEvent.subagentNotification ? (
+        <SubagentNotificationModal notification={expandedEvent.subagentNotification} onClose={() => setExpandedEvent(null)} />
+      ) : expandedEvent ? (
+        <ExecModal event={expandedEvent} onClose={() => setExpandedEvent(null)} />
+      ) : null}
     </section>
   );
 }

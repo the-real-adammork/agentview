@@ -587,6 +587,113 @@ describe("parseRolloutFile", () => {
     expect(JSON.stringify(facts.events)).not.toContain('"type":"agent_message"');
   });
 
+  it("promotes embedded subagent notifications from user messages into structured report events", async () => {
+    const notification = {
+      agent_path: "019e9825-04ae-74e3-b315-388c93a24fad",
+      agent_nickname: "ARCHIMEDES",
+      agent_role: "researcher",
+      tokens: 84120,
+      status: {
+        completed:
+          "**Market And Competition Findings**\n\n" +
+          "- Steno bundles **payment innovation + workflow software**. **Confidence: High.** Sources: Steno DelayPay. ([steno.com](https://steno.com/services/delaypay)) ([steno.com](https://steno.com/services/delaypay))\n\n" +
+          "- Market sizing varies by definition. **Confidence: Low-Medium.** ([psmarketresearch.com](https://www.psmarketresearch.com/market-analysis/us-court-reporting-services-market))\n\n" +
+          "**Contradictions / Uncertainty To Resolve**\n\n" +
+          "- Steno's SOM is not publicly clear. ([brief.steno.com](https://brief.steno.com/steno-raises-49m-series-c))\n\n" +
+          "**Source List**\n\n" +
+          "Official/company/government first: Steno court reporting; Steno DelayPay.",
+      },
+    };
+    const rolloutPath = await createTempRollout([
+      {
+        timestamp: "2026-06-05T15:00:00.000Z",
+        type: "event_msg",
+        payload: {
+          type: "message",
+          message: {
+            role: "user",
+            content: [
+              {
+                type: "input_text",
+                text: `<subagent_notification>\n${JSON.stringify(notification)}\n</subagent_notification>`,
+              },
+            ],
+          },
+        },
+      },
+    ]);
+
+    const facts = await parseFixture("thread-subagent-notification", rolloutPath);
+    const event = facts.events[0];
+
+    expect(facts.warnings).toEqual([]);
+    expect(facts.events.some((item) => item.kind === "user_message")).toBe(false);
+    expect(event).toMatchObject({
+      kind: "subagent_notification",
+      childThreadId: "019e9825-04ae-74e3-b315-388c93a24fad",
+      agentNickname: "ARCHIMEDES",
+      agentRole: "researcher",
+      previewText: "ARCHIMEDES completed with 2 findings",
+      subagentNotification: {
+        agentPath: "019e9825-04ae-74e3-b315-388c93a24fad",
+        agentNickname: "ARCHIMEDES",
+        agentRole: "researcher",
+        tokens: 84120,
+        statusKey: "completed",
+        statusTone: "good",
+        counts: { findings: 2, sources: 3, openQuestions: 1 },
+        confidence: { high: 1, medium: 1, low: 0, unknown: 0 },
+      },
+    });
+    expect(event?.subagentNotification?.sections[0]).toMatchObject({
+      title: "Market And Competition Findings",
+      type: "findings",
+      findings: expect.arrayContaining([
+        expect.objectContaining({
+          confidence: "High",
+          confidenceTone: "high",
+          prose: "Steno bundles **payment innovation + workflow software**",
+          citations: [{ domain: "steno.com", url: "https://steno.com/services/delaypay" }],
+        }),
+      ]),
+    });
+    expect(facts.agentWaits).toEqual([
+      expect.objectContaining({
+        childThreadId: "019e9825-04ae-74e3-b315-388c93a24fad",
+        status: "closed",
+        reportPreview: "ARCHIMEDES completed with 2 findings",
+      }),
+    ]);
+    expect(JSON.stringify(facts.events)).not.toContain("<subagent_notification>");
+  });
+
+  it("accepts escaped JSON inside embedded subagent notification tags", async () => {
+    const escapedJson = String.raw`{\"agent_path\":\"escaped-child\",\"status\":{\"completed\":\"**Findings**\\n\\n- Escaped payload parsed. **Confidence: High.** ([example.com](https://example.com))\"}}`;
+    const rolloutPath = await createTempRollout([
+      {
+        timestamp: "2026-06-05T15:05:00.000Z",
+        type: "event_msg",
+        payload: {
+          type: "message",
+          message: {
+            role: "user",
+            content: [{ type: "input_text", text: `<subagent_notification>\\n${escapedJson}\\n</subagent_notification>` }],
+          },
+        },
+      },
+    ]);
+
+    const facts = await parseFixture("thread-escaped-subagent-notification", rolloutPath);
+
+    expect(facts.events[0]).toMatchObject({
+      kind: "subagent_notification",
+      childThreadId: "escaped-child",
+      subagentNotification: {
+        counts: { findings: 1, sources: 1, openQuestions: 0 },
+      },
+    });
+  });
+
   it("derives observed token, tool, spawn, and wait facts from payload envelopes", async () => {
     const rolloutPath = await createTempRollout([
       {

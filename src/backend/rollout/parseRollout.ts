@@ -9,8 +9,13 @@ import type {
 import { maskPreviewSecrets } from "../../shared/redaction";
 import { classifyExecOutput, classifyPatch } from "./classifyExecOutput";
 import { classifyCall, fillCallCounts, fillToolSearch } from "./classifyCall";
+import {
+  agentStatusForSubagentNotification,
+  parseSubagentNotificationText,
+  previewForSubagentNotification,
+} from "./subagentNotification";
 
-export const ROLLOUT_PARSER_VERSION = 23;
+export const ROLLOUT_PARSER_VERSION = 25;
 export const LARGE_OUTPUT_COLLAPSE_BYTES = 4 * 1024;
 /** How much (redacted) output we keep around to classify into `outputRender`. */
 const CLASSIFY_OUTPUT_CAP = 128 * 1024;
@@ -475,6 +480,8 @@ const skillActivationName = (record: JsonRecord): string | undefined => {
   return match ? match[1].trim() : undefined;
 };
 
+const subagentNotificationFromRecord = (record: JsonRecord) => parseSubagentNotificationText(skillMessageText(record));
+
 const execCommandRaw = (record: JsonRecord): string | undefined => {
   const args = argsObjectFromRecord(record);
   const cmd = args?.cmd ?? args?.command ?? args?.shell_command;
@@ -550,6 +557,7 @@ const classify = (record: JsonRecord): { kind: TimelineEventKind; severity: Even
   // Native `<skill>` activation injections arrive as role:user messages — promote
   // them to skill_invoke before they're read as plain user messages.
   if (skillActivationName(record)) return { kind: "skill_invoke", severity: "info" };
+  if (subagentNotificationFromRecord(record)) return { kind: "subagent_notification", severity: "info" };
   if (role === "user") return { kind: "user_message", severity: "info" };
   if (role === "assistant") return { kind: "assistant_message", severity: "info" };
   if (role === "agent") return { kind: "agent_message", severity: "info" };
@@ -565,6 +573,7 @@ const knownEventType = (record: JsonRecord) => {
   const role = stringValue(record.role, nestedMessage(record)?.role, payload.role)?.toLowerCase();
   const level = stringValue(record.level, record.severity, payload.level, payload.severity)?.toLowerCase();
   if (level === "error" || level === "warn" || level === "warning") return true;
+  if (subagentNotificationFromRecord(record)) return true;
   if (role === "user" || role === "assistant" || role === "agent") return true;
   return [
     "task_started",
@@ -613,6 +622,7 @@ const makeEvent = (record: JsonRecord, options: ParseRolloutOptions, sourceLine:
   const exitCode = outputDetails.exitCode;
   const durationMs = outputDetails.durationMs;
   const tokenSnapshot = kind === "token_snapshot" ? tokenSnapshotFromRecord(record, timestamp) : undefined;
+  const subagentNotification = kind === "subagent_notification" ? subagentNotificationFromRecord(record) : undefined;
 
   let previewText = previewFromRecord(record);
   let skillName: string | undefined;
@@ -674,6 +684,8 @@ const makeEvent = (record: JsonRecord, options: ParseRolloutOptions, sourceLine:
         redactedPreview(stringValue(args?.summary, args?.description, args?.task, args?.input)) ||
         `${skillName ?? "skill"} invoked`;
     }
+  } else if (kind === "subagent_notification" && subagentNotification) {
+    previewText = previewForSubagentNotification(subagentNotification);
   } else if ((kind === "tool_call" || kind === "agent_launch") && toolName) {
     // Prefer a search query (web_search / tool_search) over the raw args blob.
     const query = searchQueryFromRecord(record);
@@ -715,18 +727,19 @@ const makeEvent = (record: JsonRecord, options: ParseRolloutOptions, sourceLine:
     outputBytes,
     exitCode,
     durationMs,
-    childThreadId: childThreadIdFromRecord(record),
-    agentNickname: agentNicknameFromRecord(record),
-    agentRole: agentRoleFromRecord(record),
+    childThreadId: subagentNotification?.agentPath ?? childThreadIdFromRecord(record),
+    agentNickname: subagentNotification?.agentNickname ?? agentNicknameFromRecord(record),
+    agentRole: subagentNotification?.agentRole ?? agentRoleFromRecord(record),
     agentTaskPreview: agentTaskPreviewFromRecord(record),
     tokenSnapshot,
+    subagentNotification,
     isCollapsedByDefault: (outputBytes ?? 0) > LARGE_OUTPUT_COLLAPSE_BYTES,
     hasRawAvailable: output !== undefined,
     rawPreview: output === undefined ? undefined : redactedPreview(output, 4000),
     skillName,
     commandPreview: commandPreviewFromRecord(record),
     outputTokenCount: outputDetails.outputTokenCount,
-    agentStatus: agentStatusFromRecord(record),
+    agentStatus: subagentNotification ? agentStatusForSubagentNotification(subagentNotification) : agentStatusFromRecord(record),
     // Redacted + bounded so a tool_result can be classified into outputRender at
     // join time. Stripped from every event before the facts are returned.
     fullOutput: output === undefined ? undefined : maskPreviewSecrets(output).slice(0, CLASSIFY_OUTPUT_CAP),
@@ -824,7 +837,7 @@ const deriveFacts = (events: MutableTimelineEvent[]) => {
       taskPreview: event.agentTaskPreview,
     }));
   const agentWaits = events
-    .filter((event) => event.kind === "agent_wait")
+    .filter((event) => event.kind === "agent_wait" || event.kind === "subagent_notification")
     .map((event) => ({
       callId: event.callId ?? event.id,
       childThreadId: event.childThreadId,

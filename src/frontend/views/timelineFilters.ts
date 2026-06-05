@@ -9,7 +9,7 @@ export interface TimelineFilterGroup {
 }
 
 const MESSAGE_KINDS: TimelineEventKind[] = ["user_message", "assistant_message", "agent_message"];
-const AGENT_KINDS: TimelineEventKind[] = ["agent_launch", "agent_wait"];
+const AGENT_KINDS: TimelineEventKind[] = ["agent_launch", "agent_wait", "subagent_notification"];
 
 const failedToolCall = (event: TimelineEvent) =>
   event.kind === "tool_call" && (event.joinedExitCode ?? event.exitCode ?? 0) !== 0;
@@ -188,6 +188,7 @@ export type EventTypeKey = Extract<
   | "task_started"
   | "task_complete"
   | "agent_message"
+  | "subagent_notification"
   | "warning"
 >;
 
@@ -205,6 +206,7 @@ export const EVENT_TYPES: EventTypeOption[] = [
   { key: "task_started", label: "Task Started" },
   { key: "task_complete", label: "Task Complete" },
   { key: "agent_message", label: "Agent Report" },
+  { key: "subagent_notification", label: "Subagent Report" },
   { key: "warning", label: "Warning" },
 ];
 

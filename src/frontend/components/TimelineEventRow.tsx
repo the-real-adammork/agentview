@@ -2,6 +2,7 @@ import type { TimelineEvent, TimelineEventKind } from "../../shared/contracts";
 import { Button, Chip } from "../ui";
 import { ExecOutput, isExpandable } from "./execRenderers";
 import { CallLine, callCategory } from "./callRenderers";
+import { SubagentNotificationOutput } from "./SubagentNotification";
 
 const numberFormatter = new Intl.NumberFormat("en-US");
 const formatTime = (value: string) => new Date(value).toLocaleTimeString("en-US");
@@ -115,6 +116,8 @@ const presentationFor = (event: TimelineEvent): KindPresentation => {
       return { evClass: "assistant", who: "ASSISTANT", whoTone: "ink", border: "var(--rule)" };
     case "agent_message":
       return { evClass: "spawn", who: "AGENT REPORT", whoTone: "good", border: "var(--good)" };
+    case "subagent_notification":
+      return { evClass: "spawn", who: "SUBAGENT REPORT", whoTone: "good", border: "var(--good)" };
     case "reasoning":
       // Usually encrypted/withheld — de-emphasize so it clearly reads as "hidden".
       return { evClass: "context", who: "REASONING", whoTone: "dim", border: "var(--rule-soft)" };
@@ -275,8 +278,10 @@ export function TimelineEventRow({ event, meta, delta, isNew, source, onOpenThre
   const showChildAction = event.kind === "agent_launch" && Boolean(event.childThreadId);
   // A tool row with structured or overflowing output opens the full-output modal;
   // the whole body becomes the affordance (spawn rows keep their ↗ open child).
-  const expandable = isTool && hasOutput && !event.callRender && isExpandable(event) && Boolean(onExpand);
-  const openModal = expandable ? () => onExpand?.(event) : undefined;
+  const isSubagentNotification = event.kind === "subagent_notification" && Boolean(event.subagentNotification);
+  const toolExpandable = isTool && hasOutput && !event.callRender && isExpandable(event) && Boolean(onExpand);
+  const subagentExpandable = isSubagentNotification && Boolean(onExpand);
+  const openModal = toolExpandable || subagentExpandable ? () => onExpand?.(event) : undefined;
 
   const args =
     // Shell-style tool calls show the clean command line, not the raw args JSON.
@@ -293,7 +298,7 @@ export function TimelineEventRow({ event, meta, delta, isNew, source, onOpenThre
 
   return (
     <li
-      className={`ev ${present.evClass}${isNew ? " feed-enter" : ""}${source ? " with-src" : ""}${expandable ? " expandable" : ""}`.trim()}
+      className={`ev ${present.evClass}${isNew ? " feed-enter" : ""}${source ? " with-src" : ""}${toolExpandable || subagentExpandable ? " expandable" : ""}`.trim()}
       data-kind={event.kind}
       data-exec-cat={present.whoTone}
       data-severity={event.severity}
@@ -312,12 +317,12 @@ export function TimelineEventRow({ event, meta, delta, isNew, source, onOpenThre
       <div
         className="body"
         style={{ borderColor: present.border }}
-        role={expandable ? "button" : undefined}
-        tabIndex={expandable ? 0 : undefined}
-        aria-label={expandable ? "Expand full output" : undefined}
-        onClick={openModal}
+        role={toolExpandable ? "button" : undefined}
+        tabIndex={toolExpandable ? 0 : undefined}
+        aria-label={toolExpandable ? "Expand full output" : undefined}
+        onClick={toolExpandable ? openModal : undefined}
         onKeyDown={
-          expandable
+          toolExpandable
             ? (domEvent) => {
                 if (domEvent.key === "Enter" || domEvent.key === " ") {
                   domEvent.preventDefault();
@@ -368,6 +373,8 @@ export function TimelineEventRow({ event, meta, delta, isNew, source, onOpenThre
             recede as a dim one-liner. Everything else keeps the readable pre. */}
         {event.kind === "task_started" ? null : event.kind === "token_snapshot" && event.tokenSnapshot ? (
           <TokenComposition snapshot={event.tokenSnapshot} />
+        ) : isSubagentNotification && event.subagentNotification ? (
+          <SubagentNotificationOutput notification={event.subagentNotification} onExpand={openModal} />
         ) : isTool ? null : isQuietContext ? (
           <div className="ev-context">{event.previewText}</div>
         ) : (
