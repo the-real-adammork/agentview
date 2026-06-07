@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { mkdir, utimes, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 
 import { createClaudeCodeSource } from "../../src/backend/sources/claudeCode/ClaudeCodeSource";
+import { escapeCwd } from "../../src/backend/sources/claudeCode/claudePaths";
 import {
   createClaudeProjectsFixture,
   type ClaudeProjectsFixture,
@@ -59,6 +62,38 @@ const makeSource = async (sessions: ClaudeSessionFixture[]) => {
   return createClaudeCodeSource({ projectsDir: fixture.projectsDir });
 };
 
+const writeWorkflowAgent = async (
+  fixture: ClaudeProjectsFixture,
+  root: ClaudeSessionFixture,
+  {
+    agentId,
+    workflowId,
+    timestampMs,
+  }: {
+    agentId: string;
+    workflowId: string;
+    timestampMs: number;
+  },
+) => {
+  const workflowDir = join(fixture.projectsDir, escapeCwd(root.cwd), root.sessionId, "subagents", "workflows", workflowId);
+  await mkdir(workflowDir, { recursive: true });
+  const timestamp = new Date(timestampMs).toISOString();
+  const transcriptPath = join(workflowDir, `agent-${agentId}.jsonl`);
+  await writeFile(
+    transcriptPath,
+    `${JSON.stringify({
+      type: "user",
+      sessionId: root.sessionId,
+      agentId,
+      isSidechain: true,
+      timestamp,
+      message: { role: "user", content: "Implement one workflow unit" },
+    })}\n`,
+  );
+  await writeFile(join(workflowDir, `agent-${agentId}.meta.json`), `${JSON.stringify({ agentType: "workflow-subagent" })}\n`);
+  await utimes(transcriptPath, timestampMs / 1000, timestampMs / 1000);
+};
+
 describe("ClaudeCodeSource.listChildren", () => {
   it("returns one child SessionSummary per sub-agent with native provenance + token totals", async () => {
     const source = await makeSource([rootWithTwoChildren()]);
@@ -94,9 +129,48 @@ describe("ClaudeCodeSource.listChildren", () => {
     // One child (writer) is open; the reviewer wrote a terminal report.
     expect(root?.openChildCount).toBe(1);
 
-    const listed = (await source.listSessions({ source: "claude-code" })).find((session) => session.id === ROOT_ID);
+    const listed = (await source.listSessions({ source: "claude-code" }, undefined, { relationships: "full" })).find(
+      (session) => session.id === ROOT_ID,
+    );
     expect(listed).toBeDefined();
     expect(listed?.childCount).toBe(2);
     expect(listed?.openChildCount).toBe(1);
+  });
+
+  it("keeps relationships=none list loads on root summaries without expanding child transcripts", async () => {
+    const source = await makeSource([rootWithTwoChildren()]);
+
+    const listed = await source.listSessions({ source: "claude-code" }, undefined, { relationships: "none" });
+
+    expect(listed.map((session) => session.id)).toEqual([ROOT_ID]);
+    expect(listed[0]?.childCount).toBe(2);
+    expect(listed[0]?.openChildCount).toBe(0);
+  });
+
+  it("discovers Claude Workflow agents nested under subagents/workflows as children", async () => {
+    const root = { ...rootWithTwoChildren(), subagents: [] };
+    const fixture = await createClaudeProjectsFixture({ sessions: [root] });
+    fixtures.push(fixture);
+    await writeWorkflowAgent(fixture, root, {
+      agentId: "workflow-u6",
+      workflowId: "wf-test",
+      timestampMs: 1_700_000_900_000,
+    });
+    const source = createClaudeCodeSource({ projectsDir: fixture.projectsDir });
+
+    const children = await source.listChildren(ROOT_ID, 10);
+    const workflow = children.find((child) => child.id === "agent-workflow-u6");
+
+    expect(workflow).toBeDefined();
+    expect(workflow?.parentId).toBe(ROOT_ID);
+    expect(workflow?.agentRole).toBe("workflow-subagent");
+    expect(workflow?.status).toBe("running");
+    expect(workflow?.updatedAtMs).toBe(1_700_000_900_000);
+
+    const listedRoot = (await source.listSessions({ source: "claude-code" }, undefined, { relationships: "full" })).find(
+      (session) => session.id === ROOT_ID,
+    );
+    expect(listedRoot?.childCount).toBe(1);
+    expect(listedRoot?.openChildCount).toBe(1);
   });
 });

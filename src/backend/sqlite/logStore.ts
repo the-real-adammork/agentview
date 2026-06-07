@@ -68,6 +68,32 @@ interface SummaryRow {
   output_preview: string | null;
 }
 
+interface WarningLevelCountRow {
+  level: RuntimeLogLevel;
+  count: number;
+}
+
+interface WarningThreadCountRow {
+  thread_id: string;
+  count: number;
+}
+
+interface TargetCountRow {
+  target: string;
+  total_count: number;
+  warning_count: number;
+  error_count: number;
+}
+
+interface FailedCommandCountRow {
+  thread_id: string;
+  tool_name: string;
+  command: string;
+  exit_code: number;
+  count: number;
+  output_preview: string | null;
+}
+
 const requiredLogColumns = [
   "id",
   "timestamp_ms",
@@ -358,6 +384,166 @@ const rowsForSummary = (db: DatabaseSync, schema: LogSchema, threadIds: string[]
     .all(parameters) as unknown as SummaryRow[];
 };
 
+const summaryWhere = (threadIds: string[]) => {
+  const parameters: Record<string, string> = {};
+  const conditions: string[] = [];
+
+  if (threadIds.length > 0) {
+    const placeholders = threadIds.map((threadId, index) => {
+      const key = `threadId${index}`;
+      parameters[key] = threadId;
+      return `:${key}`;
+    });
+    conditions.push(`thread_id IN (${placeholders.join(", ")})`);
+  }
+
+  return {
+    parameters,
+    where: conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "",
+  };
+};
+
+const summarizeLogRowsFromSql = (
+  db: DatabaseSync,
+  schema: LogSchema,
+  options: { threadIds?: string[]; targetLimit?: number } = {},
+): DiagnosticsSummary => {
+  const threadIds = options.threadIds ?? [];
+  const { parameters, where } = summaryWhere(threadIds);
+  const warningPredicate = "level IN ('WARN', 'ERROR')";
+  const warningWhere = where ? `${where} AND ${warningPredicate}` : `WHERE ${warningPredicate}`;
+
+  const levelRows = db
+    .prepare(
+      `
+        SELECT level, COUNT(*) AS count
+        FROM logs
+        ${warningWhere}
+        GROUP BY level
+      `,
+    )
+    .all(parameters) as unknown as WarningLevelCountRow[];
+
+  const threadRows = db
+    .prepare(
+      `
+        SELECT thread_id, COUNT(*) AS count
+        FROM logs
+        ${warningWhere}
+          AND thread_id IS NOT NULL
+        GROUP BY thread_id
+      `,
+    )
+    .all(parameters) as unknown as WarningThreadCountRow[];
+
+  const targetRows = db
+    .prepare(
+      `
+        SELECT
+          target,
+          COUNT(*) AS total_count,
+          SUM(CASE WHEN level = 'WARN' THEN 1 ELSE 0 END) AS warning_count,
+          SUM(CASE WHEN level = 'ERROR' THEN 1 ELSE 0 END) AS error_count
+        FROM logs
+        ${warningWhere}
+        GROUP BY target
+        ORDER BY total_count DESC, target ASC
+        LIMIT :targetLimit
+      `,
+    )
+    .all({ ...parameters, targetLimit: options.targetLimit ?? 5 }) as unknown as TargetCountRow[];
+
+  const byLevel: Partial<Record<RuntimeLogLevel, number>> = {};
+  for (const row of levelRows) {
+    byLevel[row.level] = Number(row.count);
+  }
+
+  const byThreadId: Record<string, number> = {};
+  for (const row of threadRows) {
+    byThreadId[row.thread_id] = Number(row.count);
+  }
+
+  let failedCommands: DiagnosticsSummary["failedCommands"] = [];
+  if (schema.kind === "legacy") {
+    const failedWhere = where
+      ? `${where} AND thread_id IS NOT NULL AND tool_name IS NOT NULL AND command IS NOT NULL AND exit_code IS NOT NULL AND exit_code != 0`
+      : "WHERE thread_id IS NOT NULL AND tool_name IS NOT NULL AND command IS NOT NULL AND exit_code IS NOT NULL AND exit_code != 0";
+    const failedRows = db
+      .prepare(
+        `
+          WITH failed AS (
+            SELECT
+              thread_id,
+              tool_name,
+              command,
+              exit_code,
+              COUNT(*) AS count,
+              MAX(id) AS latest_id
+            FROM logs
+            ${failedWhere}
+            GROUP BY thread_id, tool_name, command, exit_code
+          )
+          SELECT
+            failed.thread_id,
+            failed.tool_name,
+            failed.command,
+            failed.exit_code,
+            failed.count,
+            logs.output_preview
+          FROM failed
+          JOIN logs ON logs.id = failed.latest_id
+        `,
+      )
+      .all(parameters) as unknown as FailedCommandCountRow[];
+
+    failedCommands = failedRows
+      .map((row) => ({
+        threadId: row.thread_id,
+        toolName: row.tool_name,
+        command: row.command,
+        exitCode: Number(row.exit_code),
+        count: 1,
+        lastOutputPreview: normalizePreview(row.output_preview ?? "").text,
+        source: "logs-db" as const,
+      }))
+      .sort((left, right) => right.count - left.count || left.threadId.localeCompare(right.threadId));
+  }
+
+  const failedCountsByThread = new Map<string, number>();
+  for (const failed of failedCommands) {
+    failedCountsByThread.set(failed.threadId, (failedCountsByThread.get(failed.threadId) ?? 0) + failed.count);
+  }
+
+  let badgeThreadIds = threadIds;
+  if (badgeThreadIds.length === 0) {
+    const warningThreadIds = Object.keys(byThreadId);
+    const failedThreadIds = failedCommands.map((failed) => failed.threadId);
+    badgeThreadIds = [...new Set([...warningThreadIds, ...failedThreadIds])];
+  }
+
+  return {
+    warningCounts: {
+      total: Object.values(byLevel).reduce((total, count) => total + (count ?? 0), 0),
+      byThreadId,
+      byLevel,
+    },
+    loudestTargets: targetRows.map((row) => ({
+      target: row.target,
+      totalCount: Number(row.total_count),
+      warningCount: Number(row.warning_count),
+      errorCount: Number(row.error_count),
+    })),
+    failedCommands,
+    sessionsWarningBadges: badgeThreadIds.map((threadId) => ({
+      threadId,
+      warningCountStatus: "ready" as const,
+      warningCount: byThreadId[threadId] ?? 0,
+      failedToolCountStatus: "ready" as const,
+      failedToolCount: failedCountsByThread.get(threadId) ?? 0,
+    })),
+  };
+};
+
 export const summarizeLogRows = (
   rows: SummaryRow[],
   options: { threadIds?: string[]; targetLimit?: number } = {},
@@ -528,7 +714,7 @@ export const openLogStore = async ({ codexHome }: { codexHome: string }): Promis
       };
     },
     async getDiagnosticsSummary(options = {}) {
-      return summarizeLogRows(rowsForSummary(db, schema, options.threadIds ?? []), options);
+      return summarizeLogRowsFromSql(db, schema, options);
     },
     async close() {
       db.close();

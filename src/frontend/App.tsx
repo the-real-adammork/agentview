@@ -352,10 +352,19 @@ export function App() {
   // the merge is server-side). It swaps into the payload so rows expand in place;
   // "this" then filters that stream back down to the active thread.
   const subtreeSessionRef = useRef<string | null>(null);
+  const subtreeInFlightRef = useRef<string | null>(null);
   const loadSubtree = useCallback(() => {
     if (!sessionsReady) return;
-    if (!activeSession?.id || !activeHasDescendants || subtreeSessionRef.current === activeSession.id) return;
+    if (
+      !activeSession?.id ||
+      !activeHasDescendants ||
+      subtreeSessionRef.current === activeSession.id ||
+      subtreeInFlightRef.current === activeSession.id
+    ) {
+      return;
+    }
     const sessionId = activeSession.id;
+    subtreeInFlightRef.current = sessionId;
     setSubtreeLoading(true);
     realApiClient
       .getTimeline(sessionId, { subtree: true })
@@ -370,7 +379,12 @@ export function App() {
       .catch(() => {
         /* +SUBS is best-effort; the single-thread stream stays visible. */
       })
-      .finally(() => setSubtreeLoading(false));
+      .finally(() => {
+        if (subtreeInFlightRef.current === sessionId) {
+          subtreeInFlightRef.current = null;
+        }
+        setSubtreeLoading(false);
+      });
   }, [sessionsReady, activeSession?.id, activeHasDescendants]);
 
   const handleScopeChange = useCallback(
@@ -380,6 +394,11 @@ export function App() {
     },
     [loadSubtree],
   );
+
+  useEffect(() => {
+    if (activeView !== "Timeline" || timelineScope !== "all") return;
+    loadSubtree();
+  }, [activeView, timelineScope, loadSubtree]);
 
   // Entering a thread sets the default scope: +SUBS (merge the spawn subtree) when
   // the thread has child-agents, otherwise just this thread. This only re-runs on a

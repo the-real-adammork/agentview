@@ -115,4 +115,34 @@ describe("SessionsView sort dropdown", () => {
 
     expect(screen.getByRole("combobox", { name: "Sort sessions" })).toHaveValue("created_asc");
   });
+
+  it("matches repo-scoped sessions case-insensitively", () => {
+    render(
+      <SessionsView
+        activeSessionId="gofundme-root"
+        onSelectSession={noop}
+        onFilterChange={vi.fn()}
+        filter={{ archived: "exclude" } as SessionFilter}
+        repoFilter="GOFUNDME"
+        sessions={[
+          session({
+            id: "gofundme-root",
+            title: "Gofundme root session",
+            cwd: "/Users/adam/Gauntlet/gofundme",
+          }),
+          session({
+            id: "agentview-root",
+            title: "AgentView root session",
+            cwd: "/Users/adam/Projects/agentview",
+          }),
+        ]}
+        diagnosticsByThreadId={{}}
+        isLoading={false}
+        error={null}
+      />,
+    );
+
+    expect(screen.getByText("Gofundme root session")).toBeInTheDocument();
+    expect(screen.queryByText("AgentView root session")).not.toBeInTheDocument();
+  });
 });

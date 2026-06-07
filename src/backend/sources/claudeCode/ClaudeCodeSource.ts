@@ -218,12 +218,11 @@ export const createClaudeCodeSource = ({ projectsDir }: { projectsDir: string })
     },
 
     async listSessions(filter?: SessionFilter, page?: PageOptions, options?: SessionListOptions): Promise<SessionSummary[]> {
-      void options;
       const discovered = await discoverClaudeSessions(projectsDir);
-      const summaries = (await Promise.all(discovered.map(rootAndChildren))).flatMap(({ root, children }) => [
-        root,
-        ...children,
-      ]);
+      const needsChildren = options?.relationships === "full" || filter?.threadSource === "subagent";
+      const summaries = needsChildren
+        ? (await Promise.all(discovered.map(rootAndChildren))).flatMap(({ root, children }) => [root, ...children])
+        : await Promise.all(discovered.map((session) => deriveClaudeMeta(session)));
 
       const filtered = filter ? summaries.filter((summary) => matchesFilter(summary, filter)) : summaries;
       filtered.sort((left, right) => updatedAtMsOf(right) - updatedAtMsOf(left));

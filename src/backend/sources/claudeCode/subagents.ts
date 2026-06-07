@@ -1,5 +1,4 @@
-import type { Dirent } from "node:fs";
-import { readdir, readFile, stat } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { AgentEdgeStatus, SessionStatus, SessionSummary } from "../../../shared/contracts";
@@ -7,6 +6,7 @@ import { maskPreviewSecrets } from "../../../shared/redaction";
 import type { AgentGraphRow } from "../agentGraphRow";
 import { readJsonlLines } from "../../rollout/jsonlStream";
 import { inferStatus, STALE_WINDOW_MS, sumUsageTokens, type ClaudeUsageDelta } from "./claudeMeta";
+import { findSubagentTranscriptFiles } from "./subagentFiles";
 
 /**
  * CC sub-agent enumeration. A CC root's `subagents/` dir holds one
@@ -182,27 +182,17 @@ export const enumerateSubagents = async (
   subagentsDir: string,
   { now = Date.now() }: { now?: number } = {},
 ): Promise<SubagentEntry[]> => {
-  let dirEntries: Dirent[];
-  try {
-    dirEntries = await readdir(subagentsDir, { withFileTypes: true });
-  } catch {
-    return [];
-  }
-
-  const transcriptNames = dirEntries
-    .filter((entry) => entry.isFile() && entry.name.startsWith("agent-") && entry.name.endsWith(".jsonl"))
-    .map((entry) => entry.name)
-    .sort((left, right) => left.localeCompare(right));
+  const transcriptFiles = await findSubagentTranscriptFiles(subagentsDir);
 
   const entries: SubagentEntry[] = [];
-  for (let fileIndex = 0; fileIndex < transcriptNames.length; fileIndex += 1) {
-    const transcriptName = transcriptNames[fileIndex];
-    const id = transcriptName.slice(0, -".jsonl".length);
-    const transcriptPath = join(subagentsDir, transcriptName);
+  for (let fileIndex = 0; fileIndex < transcriptFiles.length; fileIndex += 1) {
+    const transcriptFile = transcriptFiles[fileIndex];
+    const id = transcriptFile.id;
+    const transcriptPath = transcriptFile.path;
 
     let meta: SubagentMeta = {};
     try {
-      const rawMeta = await readFile(join(subagentsDir, `${id}.meta.json`), "utf8");
+      const rawMeta = await readFile(join(transcriptFile.dir, `${id}.meta.json`), "utf8");
       const parsed = JSON.parse(rawMeta) as unknown;
       if (parsed && typeof parsed === "object") meta = parsed as SubagentMeta;
     } catch {

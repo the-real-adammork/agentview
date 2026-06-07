@@ -36,6 +36,8 @@ const uniqueValues = (sessions: SessionSummary[], getValue: (session: SessionSum
     a.localeCompare(b),
   );
 
+const repoMatchKey = (value: string): string => value.trim().toLocaleLowerCase();
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const dateRangeOptions = [
   { label: "All", value: undefined },
@@ -184,7 +186,7 @@ export function SessionsView({
   // repoFilter (inbound from the Repos view) matches the root parent's repo so
   // sub-agents follow their owner into the dossier.
   const repoScoped = useMemo(
-    () => (repoFilter ? sessions.filter((session) => rootRepo(session) === repoFilter) : sessions),
+    () => (repoFilter ? sessions.filter((session) => repoMatchKey(rootRepo(session)) === repoMatchKey(repoFilter)) : sessions),
     [sessions, repoFilter, index],
   );
   const branchOptions = uniqueValues(repoScoped, rootBranch);

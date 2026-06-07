@@ -2,6 +2,7 @@ import type { Dirent } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { cwdFromEscapedProjectName } from "./claudePaths";
+import { findSubagentTranscriptFiles } from "./subagentFiles";
 
 /**
  * A Claude Code (CC) transcript discovered on disk. The `sessionId` is the
@@ -21,24 +22,13 @@ export interface DiscoveredClaudeSession {
 }
 
 /**
- * Count `agent-*.jsonl` files in a `subagents/` directory (excluding the
- * `agent-*.meta.json` sidecars). Returns 0 when the directory does not exist.
+ * Count `agent-*.jsonl` files anywhere below a `subagents/` directory (excluding
+ * the `agent-*.meta.json` sidecars). Claude Workflow transcripts live under
+ * `subagents/workflows/<run>/`, so discovery must include nested files.
  */
 export const countSubagents = async (subagentsDir: string): Promise<number> => {
-  let entries: Dirent[];
-  try {
-    entries = await readdir(subagentsDir, { withFileTypes: true });
-  } catch {
-    return 0;
-  }
-
-  let count = 0;
-  for (const entry of entries) {
-    if (entry.isFile() && entry.name.startsWith("agent-") && entry.name.endsWith(".jsonl")) {
-      count += 1;
-    }
-  }
-  return count;
+  const files = await findSubagentTranscriptFiles(subagentsDir);
+  return files.length;
 };
 
 /**
