@@ -169,4 +169,29 @@ describe("deriveClaudeMeta", () => {
     expect(summary.title).not.toContain("sk-proj-secret");
     expect(JSON.stringify(summary)).not.toContain("sk-proj-secret");
   });
+
+  it("falls back to the project directory name when transcript lines omit cwd", async () => {
+    const sessionId = "44444444-4444-4444-8444-444444444444";
+    const fixture = await makeFixture([
+      {
+        sessionId,
+        cwd: "/repo/missing-cwd-app",
+        createdAtMs: 1_700_000_700_000,
+        updatedAtMs: 1_700_000_800_000,
+        rawLines: [
+          {
+            type: "user",
+            sessionId,
+            timestamp: "2023-11-14T22:25:00.000Z",
+            message: { role: "user", content: "Find the cwd fallback" },
+          },
+        ],
+      },
+    ]);
+
+    const discovered = await discoverClaudeSessions(fixture.projectsDir);
+    const summary = await deriveClaudeMeta(discovered[0], { now: 1_700_000_900_000 });
+
+    expect(summary.cwd).toBe("/repo/missing/cwd/app");
+  });
 });

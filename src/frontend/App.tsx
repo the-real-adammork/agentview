@@ -242,9 +242,10 @@ export function App() {
   // effect in a loop and leave the stream stuck "Streaming timeline…").
   const activeHasDescendants = useMemo(() => {
     if (!activeSession?.id) return false;
+    if (activeSession.childCount > 0) return true;
     const index = indexSessions(sessions);
     return sessions.some((session) => isDescendantOf(session, activeSession.id, index));
-  }, [sessions, activeSession?.id]);
+  }, [sessions, activeSession?.id, activeSession?.childCount]);
 
   const loadTimeline = useCallback((fromByte?: number) => {
     if (!activeSessionId) return;

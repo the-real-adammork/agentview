@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { LiveStreamCallbacks } from "../../src/frontend/api/liveStream";
 import { realApiClient } from "../../src/frontend/api/client";
-import type { TimelineEvent, TimelinePayload } from "../../src/shared/contracts";
+import type { SessionSummary, TimelineEvent, TimelinePayload } from "../../src/shared/contracts";
 
 // Mock the live stream module so we can drive callbacks directly.
 const liveCallbacks: { current: LiveStreamCallbacks | null } = { current: null };
@@ -102,6 +102,44 @@ describe("App live updates", () => {
     await act(async () => undefined);
 
     expect(getTimeline).not.toHaveBeenCalled();
+  });
+
+  it("loads +SUBS when a parent summary reports children even if child rows are absent", async () => {
+    const parent: SessionSummary = {
+      id: "claude-parent",
+      source: "claude-code",
+      title: "Claude parent",
+      status: "complete",
+      updatedAt: "2026-06-06T18:56:43.820Z",
+      branch: "main",
+      cwd: "/Users/adam/Gauntlet/yourai",
+      model: "claude-opus-4-8",
+      lastMessage: "",
+      childCount: 15,
+      openChildCount: 0,
+      tokenTotal: 0,
+      threadSource: "user",
+    };
+
+    vi.spyOn(realApiClient, "getHealth").mockResolvedValue({
+      ok: true,
+      source: "state-db",
+      warnings: [],
+      data: { checkedAt: "2026-06-06T19:00:00.000Z", mode: "real", status: "ok" },
+    });
+    vi.spyOn(realApiClient, "listSessions").mockResolvedValue({ ok: true, source: "state-db", warnings: [], data: [parent] });
+    const getTimeline = vi.spyOn(realApiClient, "getTimeline").mockResolvedValue({
+      ok: true,
+      source: "rollout-cache",
+      warnings: [],
+      data: emptyTimelinePayload(parent.id),
+    });
+
+    render(<App />);
+
+    await waitFor(() =>
+      expect(getTimeline).toHaveBeenCalledWith(parent.id, expect.objectContaining({ subtree: true })),
+    );
   });
 
   it("applies a sessions snapshot pushed over the live stream", async () => {

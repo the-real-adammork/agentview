@@ -1,6 +1,6 @@
 import { realpath } from "node:fs/promises";
 import { homedir } from "node:os";
-import { isAbsolute, resolve, sep } from "node:path";
+import { basename, isAbsolute, resolve, sep } from "node:path";
 
 /**
  * Path resolution for Claude Code (CC) transcripts, mirroring `src/backend/codexPaths.ts`.
@@ -64,6 +64,20 @@ export const resolveClaudeProjectsDir = async ({
  * with `-` (e.g. `/Users/adam/Projects/agentview` → `-Users-adam-Projects-agentview`).
  */
 export const escapeCwd = (cwd: string) => cwd.replace(/[/.]/g, "-");
+
+/**
+ * Best-effort inverse of Claude Code's project directory escape. The encoding is
+ * lossy because real hyphens, path separators, and dots can all collapse to `-`.
+ * Use this only as a fallback when transcript lines do not stamp `cwd`.
+ */
+export const cwdFromEscapedProjectName = (projectName: string): string => {
+  if (!projectName) return "";
+  const withHiddenSegments = projectName.replaceAll("--", "/.");
+  const decoded = withHiddenSegments.replaceAll("-", "/").replace(/\/+/g, "/");
+  return decoded.startsWith("/") ? decoded : `/${decoded}`;
+};
+
+export const cwdFromProjectDir = (projectDir: string): string => cwdFromEscapedProjectName(basename(projectDir));
 
 /**
  * Resolve a transcript-relative path under the projects root, rejecting absolute

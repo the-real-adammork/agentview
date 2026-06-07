@@ -204,7 +204,7 @@ export const deriveClaudeMeta = async (
     status,
     updatedAt: new Date(updatedAtMs).toISOString(),
     branch: gitBranch,
-    cwd,
+    cwd: cwd || discovered.cwdFromProjectDir,
     model: lastAssistantModel,
     lastMessage: lastMessagePreview,
     childCount: discovered.childCount,

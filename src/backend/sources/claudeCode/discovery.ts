@@ -1,6 +1,7 @@
 import type { Dirent } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
+import { cwdFromEscapedProjectName } from "./claudePaths";
 
 /**
  * A Claude Code (CC) transcript discovered on disk. The `sessionId` is the
@@ -13,6 +14,8 @@ export interface DiscoveredClaudeSession {
   sessionId: string;
   transcriptPath: string;
   projectDir: string;
+  /** Best-effort cwd decoded from `<escaped-cwd>`; transcript-stamped cwd wins when present. */
+  cwdFromProjectDir: string;
   subagentsDir: string;
   childCount: number;
 }
@@ -59,6 +62,7 @@ export const discoverClaudeSessions = async (projectsDir: string): Promise<Disco
     if (!projectEntry.isDirectory()) continue;
 
     const projectDir = join(projectsDir, projectEntry.name);
+    const cwdFromProjectDir = cwdFromEscapedProjectName(projectEntry.name);
     let transcriptEntries: Dirent[];
     try {
       transcriptEntries = await readdir(projectDir, { withFileTypes: true });
@@ -74,7 +78,7 @@ export const discoverClaudeSessions = async (projectsDir: string): Promise<Disco
       const subagentsDir = join(projectDir, sessionId, "subagents");
       const childCount = await countSubagents(subagentsDir);
 
-      sessions.push({ sessionId, transcriptPath, projectDir, subagentsDir, childCount });
+      sessions.push({ sessionId, transcriptPath, projectDir, cwdFromProjectDir, subagentsDir, childCount });
     }
   }
 

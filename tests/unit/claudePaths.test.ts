@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import {
   ClaudePathError,
+  cwdFromEscapedProjectName,
   escapeCwd,
   resolveClaudeProjectsDir,
   resolveClaudeSessionPath,
@@ -60,6 +61,16 @@ describe("escapeCwd", () => {
 
   it("escapes dots in the cwd", () => {
     expect(escapeCwd("/Users/adam/.config/app")).toBe("-Users-adam--config-app");
+  });
+});
+
+describe("cwdFromEscapedProjectName", () => {
+  it("best-effort decodes Claude project folder names into absolute cwd paths", () => {
+    expect(cwdFromEscapedProjectName("-Users-adam-Projects-agentview")).toBe("/Users/adam/Projects/agentview");
+  });
+
+  it("best-effort restores hidden path segments encoded as double dashes", () => {
+    expect(cwdFromEscapedProjectName("-Users-adam--config-app")).toBe("/Users/adam/.config/app");
   });
 });
 
